@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { AppDataSource } from '../config/database';
-import { HolidayProfile, FlexType, PeakTolerance } from '../entities/HolidayProfile';
+import { HolidayProfile, FlexType, PeakTolerance, AccommodationType, AccommodationTier, StayPattern, SchoolHolidayMatch, AlertSensitivity } from '../entities/HolidayProfile';
 import { User } from '../entities/User';
 import z from 'zod';
 
@@ -17,7 +17,18 @@ const createProfileSchema = z.object({
     peakTolerance: z.nativeEnum(PeakTolerance).default(PeakTolerance.MIXED),
     budgetCeilingGbp: z.number().optional(),
     enabled: z.boolean().default(true),
-    pets: z.boolean().default(false)
+    pets: z.boolean().default(false),
+    // New Fields
+    accommodationType: z.nativeEnum(AccommodationType).default(AccommodationType.ANY),
+    minBedrooms: z.number().int().min(0).default(0),
+    tier: z.nativeEnum(AccommodationTier).default(AccommodationTier.STANDARD),
+    stayPattern: z.nativeEnum(StayPattern).default(StayPattern.ANY),
+    schoolHolidays: z.nativeEnum(SchoolHolidayMatch).default(SchoolHolidayMatch.ALLOW),
+    petsNumber: z.number().int().min(0).default(0),
+    stepFreeAccess: z.boolean().default(false),
+    accessibleBathroom: z.boolean().default(false),
+    requiredFacilities: z.array(z.string()).default([]),
+    alertSensitivity: z.nativeEnum(AlertSensitivity).default(AlertSensitivity.INSTANT)
 });
 
 const updateProfileSchema = createProfileSchema.partial();
@@ -133,11 +144,15 @@ export async function profileRoutes(fastify: FastifyInstance) {
         const { id } = request.params;
 
         try {
-            const result = await profileRepo.delete({ id, user: { id: user.id } });
+            const profile = await profileRepo.findOne({
+                where: { id, user: { id: user.id } }
+            });
 
-            if (result.affected === 0) {
+            if (!profile) {
                 return reply.code(404).send({ message: 'Profile not found' });
             }
+
+            await profileRepo.delete(id);
 
             return reply.code(204).send();
         } catch (error) {

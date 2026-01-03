@@ -14,6 +14,40 @@ export enum PeakTolerance {
     PEAK_OK = 'PEAK_OK'
 }
 
+export enum AccommodationType {
+    ANY = 'ANY',
+    LODGE = 'LODGE',
+    CARAVAN = 'CARAVAN',
+    APARTMENT = 'APARTMENT',
+    COTTAGE = 'COTTAGE',
+    HOTEL = 'HOTEL'
+}
+
+export enum AccommodationTier {
+    STANDARD = 'STANDARD',
+    PREMIUM = 'PREMIUM',
+    LUXURY = 'LUXURY'
+}
+
+export enum StayPattern {
+    ANY = 'ANY',
+    MIDWEEK = 'MIDWEEK',
+    WEEKEND = 'WEEKEND',
+    FULL_WEEK = 'FULL_WEEK'
+}
+
+export enum SchoolHolidayMatch {
+    ALLOW = 'ALLOW',
+    AVOID = 'AVOID',
+    ONLY = 'ONLY'
+}
+
+export enum AlertSensitivity {
+    INSTANT = 'INSTANT',
+    DIGEST = 'DIGEST',
+    EXCEPTIONAL_ONLY = 'EXCEPTIONAL_ONLY'
+}
+
 @Entity('holiday_profiles')
 export class HolidayProfile {
     @PrimaryGeneratedColumn('uuid')
@@ -58,6 +92,41 @@ export class HolidayProfile {
 
     @Column({ type: 'boolean', default: false })
     pets!: boolean;
+
+    // --- ACCOMMODATION ---
+    @Column({ type: 'enum', enum: AccommodationType, default: AccommodationType.ANY })
+    accommodationType!: AccommodationType;
+
+    @Column({ type: 'int', default: 0 })
+    minBedrooms!: number;
+
+    @Column({ type: 'enum', enum: AccommodationTier, default: AccommodationTier.STANDARD })
+    tier!: AccommodationTier;
+
+    // --- DATES & FLEXIBILITY ---
+    @Column({ type: 'enum', enum: StayPattern, default: StayPattern.ANY })
+    stayPattern!: StayPattern;
+
+    @Column({ type: 'enum', enum: SchoolHolidayMatch, default: SchoolHolidayMatch.ALLOW })
+    schoolHolidays!: SchoolHolidayMatch;
+
+    // --- PETS & ACCESSIBILITY ---
+    @Column({ type: 'int', default: 0 })
+    petsNumber!: number;
+
+    @Column({ type: 'boolean', default: false })
+    stepFreeAccess!: boolean;
+
+    @Column({ type: 'boolean', default: false })
+    accessibleBathroom!: boolean;
+
+    // --- FACILITIES ---
+    @Column({ type: 'simple-array', default: '' })
+    requiredFacilities!: string[];
+
+    // --- ALERTS ---
+    @Column({ type: 'enum', enum: AlertSensitivity, default: AlertSensitivity.INSTANT })
+    alertSensitivity!: AlertSensitivity;
 
     @CreateDateColumn()
     createdAt!: Date;

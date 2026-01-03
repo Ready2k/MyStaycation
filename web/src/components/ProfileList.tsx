@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { format } from 'date-fns';
 import { ResultsModal } from './ResultsModal';
+import { ConfirmationModal } from './ConfirmationModal';
 
 interface Profile {
     id: string;
@@ -24,6 +25,10 @@ export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) 
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [modalOpen, setModalOpen] = useState(false);
     const [activeProfileName, setActiveProfileName] = useState('');
+
+    // Delete Confirmation State
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [profileToDelete, setProfileToDelete] = useState<string | null>(null);
 
     const searchMutation = useMutation({
         mutationFn: async (profileId: string) => {
@@ -64,6 +69,10 @@ export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) 
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['profiles'] });
         },
+        onError: (err) => {
+            console.error("Delete failed:", err);
+            alert("Failed to delete watcher. Please try again.");
+        }
     });
 
     if (isLoading) return <div>Loading watchers...</div>;
@@ -125,9 +134,8 @@ export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) 
                                 </button>
                                 <button
                                     onClick={() => {
-                                        if (confirm('Are you sure you want to delete this watcher?')) {
-                                            deleteMutation.mutate(profile.id);
-                                        }
+                                        setProfileToDelete(profile.id);
+                                        setDeleteModalOpen(true);
                                     }}
                                     className="text-red-600 hover:text-red-700 text-sm font-medium"
                                 >
@@ -151,6 +159,26 @@ export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) 
                 results={searchResults}
                 isLoading={!!isSearching}
                 profileName={activeProfileName}
+            />
+
+            <ConfirmationModal
+                isOpen={deleteModalOpen}
+                onClose={() => {
+                    setDeleteModalOpen(false);
+                    setProfileToDelete(null);
+                }}
+                onConfirm={() => {
+                    console.log("Confirm delete for ID:", profileToDelete);
+                    if (profileToDelete) {
+                        deleteMutation.mutate(profileToDelete);
+                    } else {
+                        console.error("No profile ID to delete");
+                    }
+                }}
+                title="Delete Watcher"
+                message="Are you sure you want to delete this watcher? This action cannot be undone."
+                confirmLabel="Delete"
+                isDestructive={true}
             />
         </div>
     );
