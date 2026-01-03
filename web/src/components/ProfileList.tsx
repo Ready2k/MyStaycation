@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { format } from 'date-fns';
-import { ResultsModal } from './ResultsModal';
+import { ResultsModal, SearchResult } from './ResultsModal';
 import { ConfirmationModal } from './ConfirmationModal';
 
 interface Profile {
@@ -22,7 +22,7 @@ interface Profile {
 export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) {
     const queryClient = useQueryClient();
     const [isSearching, setIsSearching] = useState<string | null>(null);
-    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [modalOpen, setModalOpen] = useState(false);
     const [activeProfileName, setActiveProfileName] = useState('');
 
@@ -32,8 +32,39 @@ export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) 
 
     const searchMutation = useMutation({
         mutationFn: async (profileId: string) => {
-            const { data } = await api.post(`/search/${profileId}/run`);
-            return data.results;
+            const { data } = await api.post('/search/preview', {
+                mode: 'PROFILE_ID',
+                profileId: profileId,
+                options: {
+                    includeDebug: true,
+                    includeMismatches: false, // Set true to see failures too
+                }
+            });
+
+            // Map ProviderPreview[] to SearchResult[]
+            const flattenedResults: SearchResult[] = [];
+            data.providers.forEach((provider: any) => {
+                const addResults = (items: any[]) => {
+                    items.forEach(item => {
+                        flattenedResults.push({
+                            provider: item.providerKey,
+                            location: item.parkId || 'Unknown Park', // TODO: Map parkId to name if possible, or just show ID for now
+                            accommodationName: item.accommodationType || 'Accommodation',
+                            priceGbp: item.price.totalGbp,
+                            durationNights: item.stayNights,
+                            dateStart: item.stayStartDate,
+                            uRL: item.sourceUrl,
+                            confidence: item.confidence,
+                            reasons: item.reasons
+                        });
+                    });
+                };
+
+                if (provider.results?.matched) addResults(provider.results.matched);
+                if (provider.results?.other) addResults(provider.results.other);
+            });
+
+            return flattenedResults;
         },
         onSuccess: (results) => {
             setSearchResults(results);

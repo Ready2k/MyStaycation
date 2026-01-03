@@ -5,7 +5,8 @@ import { SearchFingerprint } from './SearchFingerprint';
 export enum RunType {
     SEARCH = 'SEARCH',
     OFFERS_PAGE = 'OFFERS_PAGE',
-    DEAL_SOURCE = 'DEAL_SOURCE'
+    DEAL_SOURCE = 'DEAL_SOURCE',
+    MANUAL_PREVIEW = 'MANUAL_PREVIEW'
 }
 
 export enum RunStatus {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 
-interface SearchResult {
+export interface SearchResult {
     provider: string;
     location: string;
     accommodationName: string;
@@ -9,6 +9,11 @@ interface SearchResult {
     durationNights: number;
     dateStart: string;
     uRL: string;
+    confidence: 'MATCH_STRONG' | 'MATCH_WEAK' | 'MATCH_UNKNOWN' | 'MISMATCH';
+    reasons?: {
+        passed: { code: string; message: string }[];
+        failed: { code: string; message: string }[];
+    };
 }
 
 interface ResultsModalProps {
@@ -18,6 +23,26 @@ interface ResultsModalProps {
     isLoading: boolean;
     profileName: string;
 }
+
+const ConfidenceBadge = ({ confidence }: { confidence: string }) => {
+    const styles = {
+        'MATCH_STRONG': 'bg-green-100 text-green-800',
+        'MATCH_WEAK': 'bg-yellow-100 text-yellow-800',
+        'MATCH_UNKNOWN': 'bg-gray-100 text-gray-800',
+        'MISMATCH': 'bg-red-100 text-red-800',
+    };
+    const labels = {
+        'MATCH_STRONG': 'Great Match',
+        'MATCH_WEAK': 'Close Match',
+        'MATCH_UNKNOWN': 'Unverified',
+        'MISMATCH': 'Mismatch',
+    };
+    return (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${styles[confidence as keyof typeof styles] || styles['MATCH_UNKNOWN']}`}>
+            {labels[confidence as keyof typeof labels] || confidence}
+        </span>
+    );
+};
 
 export function ResultsModal({ isOpen, onClose, results, isLoading, profileName }: ResultsModalProps) {
     if (!isOpen) return null;
@@ -32,7 +57,7 @@ export function ResultsModal({ isOpen, onClose, results, isLoading, profileName 
                 <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full sm:p-6">
                     <div className="sm:flex sm:items-start justify-between mb-4">
                         <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                            Latest Deals for "{profileName}"
+                            Live Preview for "{profileName}"
                         </h3>
                         <button
                             onClick={onClose}
@@ -44,8 +69,9 @@ export function ResultsModal({ isOpen, onClose, results, isLoading, profileName 
                     </div>
 
                     {isLoading ? (
-                        <div className="flex justify-center py-12">
+                        <div className="flex flex-col items-center justify-center py-12 space-y-4">
                             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
+                            <p className="text-sm text-gray-500">Checking providers real-time...</p>
                         </div>
                     ) : results.length === 0 ? (
                         <div className="text-center py-12 text-gray-500">
@@ -59,27 +85,41 @@ export function ResultsModal({ isOpen, onClose, results, isLoading, profileName 
                                     href={result.uRL}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="block border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white group"
+                                    className="block border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white group flex flex-col h-full"
                                 >
-                                    <div className="flex items-start justify-between">
+                                    <div className="flex items-start justify-between mb-2">
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                            {result.provider}
+                                        </span>
+                                        <ConfidenceBadge confidence={result.confidence} />
+                                    </div>
+
+                                    <h4 className="flex-grow mt-2 text-sm font-bold text-gray-900 group-hover:text-primary-600 line-clamp-2">
+                                        {result.accommodationName}
+                                    </h4>
+                                    <p className="text-xs text-gray-500 mb-2">{result.location}</p>
+
+                                    <div className="flex justify-between items-end mt-auto">
                                         <div>
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                                {result.provider}
-                                            </span>
-                                            <h4 className="mt-2 text-sm font-bold text-gray-900 group-hover:text-primary-600">
-                                                {result.accommodationName}
-                                            </h4>
-                                            <p className="text-xs text-gray-500">{result.location}</p>
-                                        </div>
-                                        <div className="text-right">
                                             <p className="text-lg font-bold text-gray-900">£{result.priceGbp}</p>
-                                            <p className="text-xs text-green-600 font-medium">Available</p>
+                                            <div className="flex items-center text-xs text-gray-500 mt-1">
+                                                <span className="mr-3">📅 {format(new Date(result.dateStart), 'd MMM')}</span>
+                                                <span>🌙 {result.durationNights}n</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="mt-4 flex items-center text-xs text-gray-500">
-                                        <span className="mr-3">📅 {format(new Date(result.dateStart), 'd MMM')}</span>
-                                        <span>🌙 {result.durationNights} nights</span>
-                                    </div>
+
+                                    {/* Failure Reasons (if any) */}
+                                    {result.reasons?.failed && result.reasons.failed.length > 0 && (
+                                        <div className="mt-3 pt-2 border-t border-gray-100">
+                                            <p className="text-[10px] uppercase font-bold text-red-600 mb-1">Mismatches:</p>
+                                            <ul className="text-xs text-red-500 list-disc pl-3">
+                                                {result.reasons.failed.slice(0, 2).map((r, i) => (
+                                                    <li key={i}>{r.message}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
                                 </a>
                             ))}
                         </div>

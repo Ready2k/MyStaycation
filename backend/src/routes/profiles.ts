@@ -5,7 +5,7 @@ import { User } from '../entities/User';
 import z from 'zod';
 
 // Validation schemas
-const createProfileSchema = z.object({
+export const createProfileSchema = z.object({
     name: z.string().min(1, "Name is required"),
     partySizeAdults: z.number().int().min(1).default(2),
     partySizeChildren: z.number().int().min(0).default(0),
