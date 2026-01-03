@@ -1,0 +1,20 @@
+# Crontab for automated monitoring tasks
+# Format: minute hour day month weekday command
+
+# Daily health check at 8 AM
+0 8 * * * /scripts/daily-health-check.sh >> /var/log/monitoring/health-check.log 2>&1
+
+# Daily backup at 2 AM
+0 2 * * * /scripts/daily-backup.sh >> /var/log/monitoring/backup.log 2>&1
+
+# Daily report at 9 AM
+0 9 * * * /scripts/daily-report.sh >> /var/log/monitoring/daily-report.log 2>&1
+
+# Weekly cleanup on Sunday at 3 AM
+0 3 * * 0 /scripts/weekly-cleanup.sh >> /var/log/monitoring/cleanup.log 2>&1
+
+# Hourly quick health check
+0 * * * * /scripts/quick-health-check.sh >> /var/log/monitoring/quick-health.log 2>&1
+
+# Every 6 hours: check for stale jobs
+0 */6 * * * /scripts/check-stale-jobs.sh >> /var/log/monitoring/stale-jobs.log 2>&1
