@@ -7,6 +7,8 @@ import rateLimit from '@fastify/rate-limit';
 import * as dotenv from 'dotenv';
 import { initializeDatabase } from './config/database';
 import { authRoutes } from './routes/auth';
+import { profileRoutes } from './routes/profiles';
+import { searchRoutes } from './routes/search';
 import { authenticate } from './middleware/auth';
 
 dotenv.config();
@@ -86,6 +88,8 @@ async function start() {
 
         // Register routes
         await fastify.register(authRoutes);
+        await fastify.register(profileRoutes);
+        await fastify.register(searchRoutes);
 
         // Start server
         const port = parseInt(process.env.PORT || '4000');

@@ -56,6 +56,9 @@ export class HolidayProfile {
     @Column({ type: 'boolean', default: true })
     enabled!: boolean;
 
+    @Column({ type: 'boolean', default: false })
+    pets!: boolean;
+
     @CreateDateColumn()
     createdAt!: Date;
 
