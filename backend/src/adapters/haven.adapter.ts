@@ -1,5 +1,7 @@
 import * as cheerio from 'cheerio';
 import { BaseAdapter, SearchParams, PriceResult, DealResult } from './base.adapter';
+import { ResultMatcher } from '../utils/result-matcher';
+import { AccommodationType } from '../entities/HolidayProfile';
 
 export class HavenAdapter extends BaseAdapter {
     constructor() {
@@ -69,6 +71,11 @@ export class HavenAdapter extends BaseAdapter {
             queryParams.append('park', params.park);
         }
 
+        // [NEW] Respect Fingerprint pets
+        if (params.pets) {
+            queryParams.append('pets', 'true');
+        }
+
         return `${this.baseUrl}/holidays/search?${queryParams.toString()}`;
     }
 
@@ -122,9 +129,40 @@ export class HavenAdapter extends BaseAdapter {
                 // Extract accommodation type (optional)
                 const accomType = $el.find('.accommodation-type, .grade').first().text().trim() || undefined;
 
+                // [NEW] Extract bedrooms and pets for matching
+                // Example extractors:
+                const bedroomsText = $el.find('.bedrooms, .sleeps').first().text();
+                const bedroomsMatch = bedroomsText.match(/(\d+)\s*bed/i);
+                const bedrooms = bedroomsMatch ? parseInt(bedroomsMatch[1]) : undefined;
+
+                const petsText = $el.find('.pets, .dog-friendly').first().text().toLowerCase();
+                const petsAllowed = petsText.includes('dog') || petsText.includes('pet');
+
                 // Extract and normalize source URL
                 const rawUrl = $el.find('a').first().attr('href');
                 const sourceUrl = this.normalizeUrl(rawUrl);
+
+                // [NEW] CLASSIFY RESULT
+                const candidateRes = {
+                    stayStartDate,
+                    stayNights,
+                    priceTotalGbp,
+                    availability: availability as 'AVAILABLE' | 'SOLD_OUT',
+                    accomType,
+                    bedrooms,
+                    petsAllowed
+                };
+
+                const matchResult = ResultMatcher.classify(candidateRes, {
+                    targetData: {
+                        dateStart: params.dateWindow.start, // Fingerprint start date
+                        nights: params.nights.min,          // Fingerprint nights (assuming single night search for now)
+                        party: params.party,
+                        pets: params.pets,
+                        accommodationType: params.accommodation || AccommodationType.ANY,
+                        minBedrooms: params.minBedrooms
+                    }
+                });
 
                 results.push({
                     stayStartDate,
@@ -134,6 +172,10 @@ export class HavenAdapter extends BaseAdapter {
                     availability: availability as 'AVAILABLE' | 'SOLD_OUT',
                     accomType,
                     sourceUrl,
+                    matchConfidence: matchResult.confidence,
+                    matchDetails: matchResult.description,
+                    bedrooms,
+                    petsAllowed
                 });
             } catch (error) {
                 console.error('Error parsing Haven result:', error);

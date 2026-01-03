@@ -1,4 +1,6 @@
 import { chromium, Browser } from 'playwright';
+import { MatchConfidence } from '../utils/result-matcher';
+import { AccommodationType } from '../entities/HolidayProfile';
 
 export interface SearchParams {
     provider: string;
@@ -15,8 +17,11 @@ export interface SearchParams {
         min: number;
         max: number;
     };
-    accommodation?: string;
+    accommodation?: AccommodationType;
     peakTolerance: 'offpeak' | 'mixed' | 'peak';
+    // [NEW] Fingerprint-bound fields
+    pets: boolean;
+    minBedrooms: number;
 }
 
 export interface PriceResult {
@@ -27,6 +32,13 @@ export interface PriceResult {
     availability: 'AVAILABLE' | 'SOLD_OUT' | 'UNKNOWN';
     accomType?: string;
     sourceUrl?: string;
+
+    // [NEW] Real-World Mapping Fields
+    matchConfidence: MatchConfidence;
+    matchDetails?: string;
+    bedrooms?: number;
+    petsAllowed?: boolean;
+    tier?: string;
 }
 
 export interface DealResult {

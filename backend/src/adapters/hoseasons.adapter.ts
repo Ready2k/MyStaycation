@@ -1,5 +1,7 @@
 import * as cheerio from 'cheerio';
 import { BaseAdapter, SearchParams, PriceResult, DealResult } from './base.adapter';
+import { ResultMatcher } from '../utils/result-matcher';
+import { AccommodationType } from '../entities/HolidayProfile';
 
 export class HoseasonsAdapter extends BaseAdapter {
     constructor() {
@@ -73,6 +75,11 @@ export class HoseasonsAdapter extends BaseAdapter {
             queryParams.append('park', params.park);
         }
 
+        // [NEW] Pet logic
+        if (params.pets) {
+            queryParams.append('pets', 'true');
+        }
+
         return `${this.baseUrl}/search?${queryParams.toString()}`;
     }
 
@@ -130,9 +137,40 @@ export class HoseasonsAdapter extends BaseAdapter {
                 // Extract accommodation type (optional)
                 const accomType = $el.find('.property-type, .accommodation-type').first().text().trim() || undefined;
 
+                // [NEW] Extract bedrooms
+                const bedroomsText = $el.find('.bedrooms, .sleeps').first().text();
+                const bedroomsMatch = bedroomsText.match(/(\d+)\s*bed/i);
+                const bedrooms = bedroomsMatch ? parseInt(bedroomsMatch[1]) : undefined;
+
+                // [NEW] Extract pets
+                const petsText = $el.find('.pet-friendly, .pets').first().text().toLowerCase();
+                const petsAllowed = petsText.includes('pet') || petsText.includes('dog');
+
                 // Extract and normalize source URL
                 const rawUrl = $el.find('a').first().attr('href');
                 const sourceUrl = this.normalizeUrl(rawUrl);
+
+                // [NEW] CLASSIFY
+                const candidateRes = {
+                    stayStartDate,
+                    stayNights,
+                    priceTotalGbp,
+                    availability: availability as 'AVAILABLE' | 'SOLD_OUT',
+                    accomType,
+                    bedrooms,
+                    petsAllowed
+                };
+
+                const matchResult = ResultMatcher.classify(candidateRes, {
+                    targetData: {
+                        dateStart: params.dateWindow.start,
+                        nights: params.nights.min,
+                        party: params.party,
+                        pets: params.pets,
+                        accommodationType: params.accommodation || AccommodationType.ANY,
+                        minBedrooms: params.minBedrooms
+                    }
+                });
 
                 results.push({
                     stayStartDate,
@@ -142,6 +180,10 @@ export class HoseasonsAdapter extends BaseAdapter {
                     availability: availability as 'AVAILABLE' | 'SOLD_OUT',
                     accomType,
                     sourceUrl,
+                    matchConfidence: matchResult.confidence,
+                    matchDetails: matchResult.description,
+                    bedrooms,
+                    petsAllowed
                 });
             } catch (error) {
                 console.error('Error parsing Hoseasons result:', error);
