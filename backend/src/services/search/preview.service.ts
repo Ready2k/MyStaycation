@@ -214,6 +214,7 @@ export class PreviewService {
             party: { adults: profile.partySizeAdults, children: profile.partySizeChildren },
             pets: profile.pets,
             park: undefined,
+            region: profile.region,
             accommodation: profile.accommodationType,
             minBedrooms: profile.minBedrooms,
             peakTolerance: profile.peakTolerance || 'MIXED'
@@ -351,6 +352,21 @@ export class PreviewService {
         }
         timingMs.match = Date.now() - t1;
         timingMs.total = Date.now() - startTotal;
+
+        // SORTING & LIMITING
+        const sortOrder = profile.sortOrder || 'PRICE_ASC';
+        results.matched.sort((a, b) => {
+            if (sortOrder === 'PRICE_ASC') return a.price.totalGbp - b.price.totalGbp;
+            if (sortOrder === 'PRICE_DESC') return b.price.totalGbp - a.price.totalGbp;
+            if (sortOrder === 'DATE_ASC') return new Date(a.stayStartDate).getTime() - new Date(b.stayStartDate).getTime();
+            return 0;
+        });
+
+        // Apply Max Results
+        const effectiveMax = options.maxResults || profile.maxResults || 20;
+        if (results.matched.length > effectiveMax) {
+            results.matched = results.matched.slice(0, effectiveMax);
+        }
 
         // Audit Log - Always log for preview
         await this.logRun(providerKey, profile, status, rawResults.length, summary);

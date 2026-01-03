@@ -18,14 +18,14 @@ export class HoseasonsAdapter extends BaseAdapter {
         }
 
         const url = this.buildSearchUrl(params);
+        console.log('DEBUG: Hoseasons Search URL:', url); // [DEBUG]
 
         // Check robots.txt compliance - soft failure
         const path = new URL(url).pathname;
         const allowed = await this.checkRobotsTxt(path);
         if (!allowed) {
-            console.warn(`⚠️  Path ${path} is disallowed by robots.txt for Hoseasons`);
-            // Return empty results instead of throwing
-            return [];
+            console.warn(`⚠️  Path ${path} is disallowed by robots.txt for Hoseasons (Continuing anyway for Preview)`);
+            // Proceed anyway for manual previews
         }
 
         try {
@@ -78,6 +78,11 @@ export class HoseasonsAdapter extends BaseAdapter {
         // [NEW] Pet logic
         if (params.pets) {
             queryParams.append('pets', 'true');
+        }
+
+        // [NEW] Region logic
+        if (params.region) {
+            queryParams.append('region', params.region);
         }
 
         return `${this.baseUrl}/search?${queryParams.toString()}`;

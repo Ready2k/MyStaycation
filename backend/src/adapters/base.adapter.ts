@@ -22,6 +22,7 @@ export interface SearchParams {
     // [NEW] Fingerprint-bound fields
     pets: boolean;
     minBedrooms: number;
+    region?: string;
 }
 
 export interface PriceResult {
@@ -135,6 +136,7 @@ export abstract class BaseAdapter {
         if (!this.browser) {
             this.browser = await chromium.launch({
                 headless: true,
+                executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
                 args: ['--no-sandbox', '--disable-setuid-sandbox'],
             });
         }

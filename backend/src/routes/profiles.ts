@@ -28,7 +28,12 @@ export const createProfileSchema = z.object({
     stepFreeAccess: z.boolean().default(false),
     accessibleBathroom: z.boolean().default(false),
     requiredFacilities: z.array(z.string()).default([]),
-    alertSensitivity: z.nativeEnum(AlertSensitivity).default(AlertSensitivity.INSTANT)
+    alertSensitivity: z.nativeEnum(AlertSensitivity).default(AlertSensitivity.INSTANT),
+
+    // Metadata & Advanced Search
+    region: z.string().optional(),
+    maxResults: z.number().int().min(1).max(100).default(50),
+    sortOrder: z.enum(['PRICE_ASC', 'PRICE_DESC', 'DATE_ASC']).default('PRICE_ASC')
 });
 
 const updateProfileSchema = createProfileSchema.partial();

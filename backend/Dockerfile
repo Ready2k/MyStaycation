@@ -41,6 +41,18 @@ COPY . .
 # Install dependencies (compiles native modules for x86_64)
 RUN npm install
 
+# Install Chromium for Playwright support in dev
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
 EXPOSE 4000
 
 CMD ["npm", "run", "dev"]

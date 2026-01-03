@@ -33,6 +33,11 @@ interface ProfileFormData {
 
     // Alerts
     alertSensitivity: 'INSTANT' | 'DIGEST' | 'EXCEPTIONAL_ONLY';
+
+    // Metadata
+    region?: string;
+    maxResults: number;
+    sortOrder: 'PRICE_ASC' | 'PRICE_DESC' | 'DATE_ASC';
 }
 
 const initialFormState: ProfileFormData = {
@@ -58,6 +63,10 @@ const initialFormState: ProfileFormData = {
     accessibleBathroom: false,
 
     alertSensitivity: 'INSTANT',
+
+    region: '',
+    maxResults: 50,
+    sortOrder: 'PRICE_ASC'
 };
 
 interface ProfileFormProps {
@@ -142,6 +151,18 @@ export function ProfileForm({ initialData, onSuccess, onCancel }: ProfileFormPro
                             value={formData.name}
                             onChange={e => setFormData({ ...formData, name: e.target.value })}
                         />
+                    </div>
+
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Region / Area</label>
+                        <input
+                            type="text"
+                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                            placeholder="e.g. Cornwall, Devon, Lake District"
+                            value={formData.region || ''}
+                            onChange={e => setFormData({ ...formData, region: e.target.value })}
+                        />
+                        <p className="mt-1 text-xs text-gray-500">Leave empty for any location.</p>
                     </div>
 
                     <div>
@@ -303,6 +324,37 @@ export function ProfileForm({ initialData, onSuccess, onCancel }: ProfileFormPro
                             <p className="mt-1 text-xs text-gray-500">
                                 "Exceptional Only" reduces noise and only emails you when we find significant savings.
                             </p>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* --- ADVANCED FILTERING --- */}
+            <div className="px-6 py-2 bg-gray-50 border-t border-gray-100">
+                <SectionHeader title="Advanced Search Settings" id="advanced" />
+                {activeSection === 'advanced' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4 pt-2">
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Max Results</label>
+                            <input
+                                type="number"
+                                min="1"
+                                max="100"
+                                className="w-full rounded-md border-gray-300 shadow-sm"
+                                value={formData.maxResults}
+                                onChange={e => setFormData({ ...formData, maxResults: parseInt(e.target.value) })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
+                            <select className="w-full rounded-md border-gray-300 shadow-sm"
+                                value={formData.sortOrder}
+                                onChange={e => setFormData({ ...formData, sortOrder: e.target.value as any })}>
+                                <option value="PRICE_ASC">Price: Low to High</option>
+                                <option value="PRICE_DESC">Price: High to Low</option>
+                                <option value="DATE_ASC">Date: Earliest First</option>
+                            </select>
                         </div>
                     </div>
                 )}

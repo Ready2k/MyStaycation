@@ -128,6 +128,16 @@ export class HolidayProfile {
     @Column({ type: 'enum', enum: AlertSensitivity, default: AlertSensitivity.INSTANT })
     alertSensitivity!: AlertSensitivity;
 
+    // --- MANIFEST / FILTERING ---
+    @Column({ type: 'varchar', nullable: true })
+    region?: string; // e.g. "Cornwall", "Devon"
+
+    @Column({ type: 'int', default: 50 })
+    maxResults!: number;
+
+    @Column({ type: 'varchar', default: 'PRICE_ASC' })
+    sortOrder!: 'PRICE_ASC' | 'PRICE_DESC' | 'DATE_ASC';
+
     @CreateDateColumn()
     createdAt!: Date;
 

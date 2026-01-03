@@ -18,6 +18,7 @@ export class HavenAdapter extends BaseAdapter {
         }
 
         const url = this.buildSearchUrl(params);
+        console.log('DEBUG: Haven Search URL:', url);
 
         const path = new URL(url).pathname;
         const allowed = await this.checkRobotsTxt(path);
