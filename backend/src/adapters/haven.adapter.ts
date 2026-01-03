@@ -10,12 +10,18 @@ export class HavenAdapter extends BaseAdapter {
     }
 
     async search(params: SearchParams): Promise<PriceResult[]> {
+        if (!this.isEnabled()) {
+            console.log('⚠️  Haven adapter is disabled');
+            return [];
+        }
+
         const url = this.buildSearchUrl(params);
 
         const path = new URL(url).pathname;
         const allowed = await this.checkRobotsTxt(path);
         if (!allowed) {
-            throw new Error(`Path ${path} is disallowed by robots.txt`);
+            console.warn(`⚠️  Path ${path} is disallowed by robots.txt for Haven`);
+            return [];
         }
 
         try {
@@ -23,12 +29,21 @@ export class HavenAdapter extends BaseAdapter {
             return this.parseSearchResults(html, params);
         } catch (error) {
             console.log('HTTP fetch failed, trying Playwright...', error);
-            const html = await this.fetchHtmlWithBrowser(url);
-            return this.parseSearchResults(html, params);
+            try {
+                const html = await this.fetchHtmlWithBrowser(url);
+                return this.parseSearchResults(html, params);
+            } catch (playwrightError) {
+                console.error('Playwright fetch also failed:', playwrightError);
+                return [];
+            }
         }
     }
 
     async fetchOffers(): Promise<DealResult[]> {
+        if (!this.isEnabled()) {
+            return [];
+        }
+
         const url = this.buildOffersUrl();
 
         try {
@@ -70,40 +85,62 @@ export class HavenAdapter extends BaseAdapter {
             try {
                 const $el = $(element);
 
+                // Extract price - REQUIRED
                 const priceText = $el.find('.price-total, .holiday-price').first().text().trim();
-                if (!priceText) return;
-
                 const priceTotalGbp = this.extractPrice(priceText);
+                if (!priceTotalGbp) {
+                    return;
+                }
 
+                // Extract dates - REQUIRED, must be explicit
                 const dateText = $el.find('.arrival-date, .check-in-date').first().text().trim();
-                const stayStartDate = this.parseDate(dateText || params.dateWindow.start);
+                const stayStartDate = this.parseDate(dateText);
+                if (!stayStartDate) {
+                    console.warn('Skipping Haven result: could not parse stay date');
+                    return;
+                }
 
+                // Extract nights - REQUIRED
                 const nightsText = $el.find('.nights, .duration').first().text().trim();
-                const stayNights = parseInt(nightsText) || params.nights.min;
+                const stayNights = this.parseNights(nightsText);
+                if (!stayNights) {
+                    console.warn('Skipping Haven result: could not parse nights');
+                    return;
+                }
 
-                const pricePerNightGbp = priceTotalGbp / stayNights;
+                // Calculate per night price safely
+                const pricePerNightGbp = this.calculatePricePerNight(priceTotalGbp, stayNights);
+                if (!pricePerNightGbp) {
+                    console.warn('Skipping Haven result: could not calculate price per night');
+                    return;
+                }
 
+                // Check availability
                 const isAvailable = !$el.find('.sold-out, .not-available').length;
                 const availability = isAvailable ? 'AVAILABLE' : 'SOLD_OUT';
 
-                const accomType = $el.find('.accommodation-type, .grade').first().text().trim();
+                // Extract accommodation type (optional)
+                const accomType = $el.find('.accommodation-type, .grade').first().text().trim() || undefined;
 
-                const sourceUrl = $el.find('a').first().attr('href');
+                // Extract and normalize source URL
+                const rawUrl = $el.find('a').first().attr('href');
+                const sourceUrl = this.normalizeUrl(rawUrl);
 
                 results.push({
                     stayStartDate,
                     stayNights,
                     priceTotalGbp,
                     pricePerNightGbp,
-                    availability: availability as any,
-                    accomType: accomType || undefined,
-                    sourceUrl: sourceUrl ? `${this.baseUrl}${sourceUrl}` : undefined,
+                    availability: availability as 'AVAILABLE' | 'SOLD_OUT',
+                    accomType,
+                    sourceUrl,
                 });
             } catch (error) {
                 console.error('Error parsing Haven result:', error);
             }
         });
 
+        console.log(`✅ Parsed ${results.length} valid results from Haven`);
         return results;
     }
 
@@ -124,23 +161,24 @@ export class HavenAdapter extends BaseAdapter {
 
                 if (discountText.includes('%')) {
                     discountType = 'PERCENT_OFF';
-                    discountValue = parseFloat(discountText.replace(/[^0-9.]/g, ''));
+                    const value = this.extractPrice(discountText.replace('%', ''));
+                    discountValue = value || undefined;
                 } else if (discountText.includes('£')) {
                     discountType = 'FIXED_OFF';
-                    discountValue = this.extractPrice(discountText);
+                    discountValue = this.extractPrice(discountText) || undefined;
                 }
 
                 const voucherCode = $el.find('.code, .promo-code').first().text().trim() || undefined;
 
-                const validUntil = $el.find('.valid-until, .offer-ends').first().text().trim();
-                const endsAt = validUntil ? new Date(validUntil) : undefined;
+                const validUntilText = $el.find('.valid-until, .offer-ends').first().text().trim();
+                const endsAt = validUntilText ? this.parseDate(validUntilText) : null;
 
                 deals.push({
                     title,
                     discountType,
                     discountValue,
                     voucherCode,
-                    endsAt,
+                    endsAt: endsAt ? new Date(endsAt) : undefined,
                 });
             } catch (error) {
                 console.error('Error parsing Haven offer:', error);

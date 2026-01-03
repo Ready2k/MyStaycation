@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, OneToMany, Index } from 'typeorm';
 import { SearchFingerprint } from './SearchFingerprint';
 import { Alert } from './Alert';
 
@@ -11,6 +11,7 @@ export enum InsightType {
 }
 
 @Entity('insights')
+@Index(['dedupeKey'], { unique: true })
 export class Insight {
     @PrimaryGeneratedColumn('uuid')
     id!: string;
@@ -27,6 +28,12 @@ export class Insight {
 
     @Column({ type: 'jsonb' })
     details!: Record<string, any>;
+
+    @Column({ unique: true })
+    dedupeKey!: string;
+
+    @Column()
+    seriesKey!: string;
 
     @CreateDateColumn()
     createdAt!: Date;

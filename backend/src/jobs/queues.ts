@@ -1,5 +1,6 @@
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
+import * as crypto from 'crypto';
 
 const connection = new IORedis({
     host: process.env.REDIS_HOST || 'localhost',
@@ -31,4 +32,40 @@ export interface AlertJobData {
     userId: string;
     insightId: string;
     profileId?: string;
+}
+
+/**
+ * Generate idempotency key for monitoring jobs
+ * Prevents duplicate jobs for the same fingerprint within a time window
+ */
+export function generateMonitorJobId(fingerprintId: string, windowStart: Date): string {
+    // Use date truncated to hour for idempotency window
+    const hourKey = windowStart.toISOString().substring(0, 13); // YYYY-MM-DDTHH
+    return crypto.createHash('sha256').update(`monitor:${fingerprintId}:${hourKey}`).digest('hex');
+}
+
+/**
+ * Add monitoring job with idempotency
+ */
+export async function addMonitorJob(data: MonitorJobData): Promise<void> {
+    const jobId = generateMonitorJobId(data.fingerprintId, new Date());
+
+    await monitorQueue.add('monitor-search', data, {
+        jobId, // BullMQ uses jobId for deduplication
+        removeOnComplete: 100,
+        removeOnFail: 100,
+    });
+}
+
+/**
+ * Add insight generation job with idempotency
+ */
+export async function addInsightJob(data: InsightJobData): Promise<void> {
+    const jobId = `insight:${data.fingerprintId}:${new Date().toISOString().split('T')[0]}`;
+
+    await insightQueue.add('generate-insights', data, {
+        jobId,
+        removeOnComplete: 50,
+        removeOnFail: 50,
+    });
 }

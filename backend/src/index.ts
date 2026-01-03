@@ -11,6 +11,31 @@ import { authenticate } from './middleware/auth';
 
 dotenv.config();
 
+// Validate critical environment variables
+function validateEnvironment() {
+    const jwtSecret = process.env.JWT_SECRET || '';
+    const minLength = parseInt(process.env.MIN_JWT_SECRET_LENGTH || '32');
+
+    if (process.env.NODE_ENV === 'production') {
+        if (!jwtSecret || jwtSecret.includes('change_me')) {
+            console.error('❌ FATAL: JWT_SECRET must be set in production');
+            process.exit(1);
+        }
+
+        if (jwtSecret.length < minLength) {
+            console.error(`❌ FATAL: JWT_SECRET must be at least ${minLength} characters`);
+            process.exit(1);
+        }
+
+        if (!process.env.POSTGRES_PASSWORD || process.env.POSTGRES_PASSWORD.includes('change_me')) {
+            console.error('❌ FATAL: POSTGRES_PASSWORD must be set in production');
+            process.exit(1);
+        }
+    }
+
+    console.log('✅ Environment validation passed');
+}
+
 const fastify = Fastify({
     logger: {
         level: process.env.LOG_LEVEL || 'info',
@@ -19,6 +44,9 @@ const fastify = Fastify({
 
 async function start() {
     try {
+        // Validate environment first
+        validateEnvironment();
+
         // Initialize database
         await initializeDatabase();
 

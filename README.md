@@ -34,11 +34,23 @@ A personal assistant that monitors UK staycation prices and deals over time, ale
 3. **Edit `.env` and configure**:
    - Set a strong `JWT_SECRET` (minimum 32 characters)
    - Configure AWS SES credentials (or use SMTP)
-   - Adjust other settings as needed
+   - Adjust scraping kill switches as needed
+   - Set provider enable/disable flags
 
 4. **Start the application**
+   
+   **Development mode** (no nginx):
    ```bash
-   docker-compose up -d
+   ./start.sh
+   # or
+   docker-compose --profile dev up -d
+   ```
+   
+   **Production mode** (with nginx):
+   ```bash
+   ./start-prod.sh
+   # or
+   docker-compose --profile prod up -d
    ```
 
 5. **Run database seeds**
@@ -47,9 +59,28 @@ A personal assistant that monitors UK staycation prices and deals over time, ale
    ```
 
 6. **Access the application**
-   - Web UI: http://localhost
-   - API: http://localhost:4000
+   - Dev mode: http://localhost:3000 (direct), http://localhost:4000 (API)
+   - Prod mode: http://localhost (via nginx)
    - Health check: http://localhost:4000/health
+
+## Scraping Kill Switches
+
+Control scraping behavior via environment variables:
+
+```bash
+# Global kill switch
+SCRAPING_ENABLED=false  # Disables all scraping
+
+# Provider-specific switches
+PROVIDER_HOSEASONS_ENABLED=false  # Disable Hoseasons only
+PROVIDER_HAVEN_ENABLED=false      # Disable Haven only
+
+# Playwright control
+PLAYWRIGHT_ENABLED=false      # Disable browser-based scraping
+PLAYWRIGHT_CONCURRENCY=1      # Limit concurrent browser instances
+```
+
+These switches allow you to quickly respond to provider changes or rate limiting without code changes.
 
 ## Usage
 

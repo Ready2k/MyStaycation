@@ -34,7 +34,7 @@ export interface DealResult {
     discountType: 'PERCENT_OFF' | 'FIXED_OFF' | 'SALE_PRICE' | 'PERK';
     discountValue?: number;
     voucherCode?: string;
-    restrictions?: Record<string, any>;
+    restrictions?: Record<string, unknown>;
     startsAt?: Date;
     endsAt?: Date;
 }
@@ -45,16 +45,33 @@ export abstract class BaseAdapter {
     protected requestDelay: number;
     protected maxConcurrent: number;
     protected browser?: Browser;
+    protected enabled: boolean;
 
     constructor(baseUrl: string, providerCode: string) {
         this.baseUrl = baseUrl;
         this.providerCode = providerCode;
         this.requestDelay = parseInt(process.env.PROVIDER_REQUEST_DELAY_MS || '2000');
         this.maxConcurrent = parseInt(process.env.PROVIDER_MAX_CONCURRENT || '2');
+
+        // Check if scraping is enabled globally
+        const scrapingEnabled = process.env.SCRAPING_ENABLED !== 'false';
+        const providerEnabled = process.env[`PROVIDER_${providerCode.toUpperCase()}_ENABLED`] !== 'false';
+        this.enabled = scrapingEnabled && providerEnabled;
+
+        if (!this.enabled) {
+            console.log(`⚠️  Provider ${providerCode} is disabled via environment variables`);
+        }
     }
 
     /**
-     * Execute a search query for the given parameters
+     * Check if adapter is enabled
+     */
+    isEnabled(): boolean {
+        return this.enabled;
+    }
+
+    /**
+     * Execute a search query for the given params
      */
     abstract search(params: SearchParams): Promise<PriceResult[]>;
 
@@ -98,6 +115,11 @@ export abstract class BaseAdapter {
      * Fetch HTML content via Playwright (for JS-rendered pages)
      */
     protected async fetchHtmlWithBrowser(url: string): Promise<string> {
+        const playwrightEnabled = process.env.PLAYWRIGHT_ENABLED !== 'false';
+        if (!playwrightEnabled) {
+            throw new Error('Playwright is disabled via PLAYWRIGHT_ENABLED environment variable');
+        }
+
         if (!this.browser) {
             this.browser = await chromium.launch({
                 headless: true,
@@ -146,7 +168,7 @@ export abstract class BaseAdapter {
     protected abstract buildOffersUrl(): string;
 
     /**
-     * Check robots.txt compliance
+     * Check robots.txt compliance - returns true if allowed, false if disallowed
      */
     async checkRobotsTxt(path: string): Promise<boolean> {
         try {
@@ -160,7 +182,11 @@ export abstract class BaseAdapter {
                 .filter(line => line.trim().startsWith('Disallow:'))
                 .map(line => line.split(':')[1].trim());
 
-            return !disallowedPaths.some(disallowed => path.startsWith(disallowed));
+            const isDisallowed = disallowedPaths.some(disallowed =>
+                disallowed && path.startsWith(disallowed)
+            );
+
+            return !isDisallowed;
         } catch (error) {
             console.warn(`Could not fetch robots.txt for ${this.baseUrl}:`, error);
             return true; // Proceed with caution if robots.txt unavailable
@@ -170,16 +196,83 @@ export abstract class BaseAdapter {
     /**
      * Extract price from string (handles various formats)
      */
-    protected extractPrice(priceStr: string): number {
+    protected extractPrice(priceStr: string): number | null {
+        if (!priceStr) return null;
+
         const cleaned = priceStr.replace(/[£,\s]/g, '');
-        return parseFloat(cleaned);
+        const price = parseFloat(cleaned);
+
+        return isNaN(price) ? null : price;
     }
 
     /**
      * Parse date string to YYYY-MM-DD format
+     * Returns null if date cannot be confidently parsed
      */
-    protected parseDate(dateStr: string): string {
-        const date = new Date(dateStr);
-        return date.toISOString().split('T')[0];
+    protected parseDate(dateStr: string): string | null {
+        if (!dateStr) return null;
+
+        try {
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) {
+                return null;
+            }
+            return date.toISOString().split('T')[0];
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Parse nights/duration from string
+     * Returns null if cannot be confidently parsed
+     */
+    protected parseNights(nightsStr: string): number | null {
+        if (!nightsStr) return null;
+
+        // Try to extract number from strings like "3 nights", "7-night stay"
+        const match = nightsStr.match(/(\d+)\s*night/i);
+        if (match) {
+            const nights = parseInt(match[1]);
+            return isNaN(nights) || nights <= 0 ? null : nights;
+        }
+
+        // Try direct number parsing
+        const nights = parseInt(nightsStr);
+        return isNaN(nights) || nights <= 0 ? null : nights;
+    }
+
+    /**
+     * Calculate price per night safely
+     */
+    protected calculatePricePerNight(totalPrice: number, nights: number): number | null {
+        if (!nights || nights <= 0 || !totalPrice) {
+            return null;
+        }
+
+        const perNight = totalPrice / nights;
+        return isNaN(perNight) ? null : perNight;
+    }
+
+    /**
+     * Normalize URL (handle relative vs absolute)
+     */
+    protected normalizeUrl(url: string | undefined): string | undefined {
+        if (!url) return undefined;
+
+        try {
+            // If already absolute, return as-is
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+                return url;
+            }
+
+            // Handle relative URLs
+            const baseUrl = this.baseUrl.endsWith('/') ? this.baseUrl.slice(0, -1) : this.baseUrl;
+            const path = url.startsWith('/') ? url : `/${url}`;
+
+            return `${baseUrl}${path}`;
+        } catch {
+            return undefined;
+        }
     }
 }

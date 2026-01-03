@@ -12,6 +12,7 @@ export enum AvailabilityStatus {
 
 @Entity('price_observations')
 @Index(['fingerprint', 'stayStartDate', 'stayNights', 'observedAt'])
+@Index(['fingerprint', 'seriesKey', 'observedAt'])
 export class PriceObservation {
     @PrimaryGeneratedColumn('uuid')
     id!: string;
@@ -37,6 +38,9 @@ export class PriceObservation {
 
     @Column({ type: 'int' })
     stayNights!: number;
+
+    @Column()
+    seriesKey!: string;
 
     @Column({ type: 'jsonb', nullable: true })
     partySize?: { adults: number; children: number };
