@@ -41,6 +41,15 @@ export class EmailService {
 
     async sendEmail(options: EmailOptions): Promise<void> {
         try {
+            const isEmailEnabled = process.env.EMAIL_ENABLED !== 'false';
+
+            if (!isEmailEnabled) {
+                console.log('🚫 Email sending disabled (EMAIL_ENABLED=false). Skipping email:');
+                console.log(`To: ${options.to}`);
+                console.log(`Subject: ${options.subject}`);
+                return;
+            }
+
             if (this.provider === 'ses' && this.sesClient) {
                 await this.sendViaSES(options);
             } else if (this.smtpTransporter) {

@@ -36,8 +36,8 @@ export async function authRoutes(fastify: FastifyInstance) {
             const user = await authService.createUser(email, password);
 
             // Send verification email
-            if (user.emailVerificationToken) {
-                await emailService.sendVerificationEmail(email, user.emailVerificationToken);
+            if (user.verificationToken) {
+                await emailService.sendVerificationEmail(email, user.verificationToken);
             }
 
             reply.status(201).send({
@@ -64,7 +64,7 @@ export async function authRoutes(fastify: FastifyInstance) {
                 return;
             }
 
-            const isValid = await authService.comparePassword(password, user.password);
+            const isValid = await authService.comparePassword(password, user.passwordHash);
             if (!isValid) {
                 reply.status(401).send({ error: 'Invalid credentials' });
                 return;
