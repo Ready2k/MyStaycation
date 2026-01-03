@@ -40,7 +40,9 @@ interface ProfileFormData {
     sortOrder: 'PRICE_ASC' | 'PRICE_DESC' | 'DATE_ASC';
     enabledProviders: string[];
     parkIds: string[];
+    parkUrls?: string[];
 }
+
 
 const initialFormState: ProfileFormData = {
     name: '',
@@ -70,7 +72,8 @@ const initialFormState: ProfileFormData = {
     maxResults: 50,
     sortOrder: 'PRICE_ASC',
     enabledProviders: [], // Default to all providers
-    parkIds: []
+    parkIds: [],
+    parkUrls: []
 };
 
 interface ProfileFormProps {
@@ -207,7 +210,10 @@ export function ProfileForm({ initialData, onSuccess, onCancel }: ProfileFormPro
                     // Append to existing list if unique
                     const currentIds = new Set(formData.parkIds || []);
                     if (!currentIds.has(placesId)) {
-                        updates.parkIds = [...Array.from(currentIds), placesId];
+                        const newParkIds = [...(formData.parkIds || []), placesId];
+                        const newParkUrls = [...(formData.parkUrls || []), url];
+                        updates.parkIds = newParkIds;
+                        updates.parkUrls = newParkUrls;
                         updates.enabledProviders = ['hoseasons']; // Ensure provider is enabled
                         message = `Added Park ID: ${placesId} to monitoring list`;
                     } else {
@@ -299,14 +305,26 @@ export function ProfileForm({ initialData, onSuccess, onCancel }: ProfileFormPro
                             <div className="mt-3">
                                 <p className="text-xs font-semibold text-gray-700 mb-2">Monitored Parks:</p>
                                 <div className="flex flex-wrap gap-2">
-                                    {formData.parkIds.map(id => (
-                                        <div key={id} className="flex items-center text-xs bg-green-50 text-green-700 px-2 py-1 rounded border border-green-200">
+                                    {formData.parkIds.map((id, index) => (
+                                        <div key={`${id}-${index}`} className="flex items-center text-xs bg-green-50 text-green-700 px-2 py-1 rounded border border-green-200">
                                             <span className="mr-1">ID: {id}</span>
+                                            {formData.parkUrls?.[index] && (
+                                                <a
+                                                    href={formData.parkUrls[index]}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-blue-600 hover:text-blue-800 hover:underline mx-1 font-semibold"
+                                                    title={formData.parkUrls[index]}
+                                                >
+                                                    (Link)
+                                                </a>
+                                            )}
                                             <button
                                                 type="button"
                                                 onClick={() => setFormData(prev => ({
                                                     ...prev,
-                                                    parkIds: prev.parkIds.filter(p => p !== id)
+                                                    parkIds: prev.parkIds.filter((_, i) => i !== index),
+                                                    parkUrls: prev.parkUrls?.filter((_, i) => i !== index)
                                                 }))}
                                                 className="text-green-800 hover:text-red-600 font-bold ml-1"
                                             >
@@ -314,6 +332,7 @@ export function ProfileForm({ initialData, onSuccess, onCancel }: ProfileFormPro
                                             </button>
                                         </div>
                                     ))}
+
                                     <button
                                         type="button"
                                         onClick={() => setFormData(prev => ({ ...prev, parkIds: [] }))}
@@ -325,7 +344,8 @@ export function ProfileForm({ initialData, onSuccess, onCancel }: ProfileFormPro
                             </div>
                         )}
                     </div>
-                )}
+                )
+                }
 
                 {/* --- CORE SECTION (Always Visible) --- */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -389,209 +409,223 @@ export function ProfileForm({ initialData, onSuccess, onCancel }: ProfileFormPro
                         </label>
                     </div>
                 </div>
-            </div>
+            </div >
 
             {/* --- ADVANCED ACCOMMODATION --- */}
-            <div className="px-6 py-2 bg-gray-50 border-b border-gray-100">
+            < div className="px-6 py-2 bg-gray-50 border-b border-gray-100" >
                 <SectionHeader title="Accommodation Preference" id="accommodation" />
-                {activeSection === 'accommodation' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4 pt-2">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                            <select className="w-full rounded-md border-gray-300 shadow-sm"
-                                value={formData.accommodationType}
-                                onChange={e => setFormData({ ...formData, accommodationType: e.target.value as any })}>
-                                <option value="ANY">Any Type</option>
-                                <option value="LODGE">Lodge</option>
-                                <option value="CARAVAN">Caravan</option>
-                                <option value="APARTMENT">Apartment</option>
-                                <option value="COTTAGE">Cottage</option>
-                                <option value="HOTEL">Hotel</option>
-                            </select>
+                {
+                    activeSection === 'accommodation' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4 pt-2">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                <select className="w-full rounded-md border-gray-300 shadow-sm"
+                                    value={formData.accommodationType}
+                                    onChange={e => setFormData({ ...formData, accommodationType: e.target.value as any })}>
+                                    <option value="ANY">Any Type</option>
+                                    <option value="LODGE">Lodge</option>
+                                    <option value="CARAVAN">Caravan</option>
+                                    <option value="APARTMENT">Apartment</option>
+                                    <option value="COTTAGE">Cottage</option>
+                                    <option value="HOTEL">Hotel</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Quality Tier</label>
+                                <select className="w-full rounded-md border-gray-300 shadow-sm"
+                                    value={formData.tier}
+                                    onChange={e => setFormData({ ...formData, tier: e.target.value as any })}>
+                                    <option value="STANDARD">Standard</option>
+                                    <option value="PREMIUM">Premium</option>
+                                    <option value="LUXURY">Luxury</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Min Bedrooms</label>
+                                <input type="number" min="0" className="w-full rounded-md border-gray-300 shadow-sm"
+                                    value={formData.minBedrooms} onChange={e => setFormData({ ...formData, minBedrooms: parseInt(e.target.value) })} />
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Quality Tier</label>
-                            <select className="w-full rounded-md border-gray-300 shadow-sm"
-                                value={formData.tier}
-                                onChange={e => setFormData({ ...formData, tier: e.target.value as any })}>
-                                <option value="STANDARD">Standard</option>
-                                <option value="PREMIUM">Premium</option>
-                                <option value="LUXURY">Luxury</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Min Bedrooms</label>
-                            <input type="number" min="0" className="w-full rounded-md border-gray-300 shadow-sm"
-                                value={formData.minBedrooms} onChange={e => setFormData({ ...formData, minBedrooms: parseInt(e.target.value) })} />
-                        </div>
-                    </div>
-                )}
-            </div>
+                    )
+                }
+            </div >
 
             {/* --- DURATION & FLEXIBILITY --- */}
-            <div className="px-6 py-2 bg-gray-50 border-b border-gray-100">
+            < div className="px-6 py-2 bg-gray-50 border-b border-gray-100" >
                 <SectionHeader title="Duration & Flexibility" id="flexibility" />
-                {activeSection === 'flexibility' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4 pt-2">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Min Nights</label>
-                            <input type="number" min="1" className="w-full rounded-md border-gray-300 shadow-sm"
-                                value={formData.durationNightsMin} onChange={e => setFormData({ ...formData, durationNightsMin: parseInt(e.target.value) })} />
+                {
+                    activeSection === 'flexibility' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4 pt-2">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Min Nights</label>
+                                <input type="number" min="1" className="w-full rounded-md border-gray-300 shadow-sm"
+                                    value={formData.durationNightsMin} onChange={e => setFormData({ ...formData, durationNightsMin: parseInt(e.target.value) })} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Max Nights</label>
+                                <input type="number" min="1" className="w-full rounded-md border-gray-300 shadow-sm"
+                                    value={formData.durationNightsMax} onChange={e => setFormData({ ...formData, durationNightsMax: parseInt(e.target.value) })} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Stay Pattern</label>
+                                <select className="w-full rounded-md border-gray-300 shadow-sm"
+                                    value={formData.stayPattern}
+                                    onChange={e => setFormData({ ...formData, stayPattern: e.target.value as any })}>
+                                    <option value="ANY">Any Start Day</option>
+                                    <option value="MIDWEEK">Midweek (Mon-Fri)</option>
+                                    <option value="WEEKEND">Weekend (Fri-Mon)</option>
+                                    <option value="FULL_WEEK">Full Week (Sat-Sat)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">School Holidays</label>
+                                <select className="w-full rounded-md border-gray-300 shadow-sm"
+                                    value={formData.schoolHolidays}
+                                    onChange={e => setFormData({ ...formData, schoolHolidays: e.target.value as any })}>
+                                    <option value="ALLOW">Allow (Pricey)</option>
+                                    <option value="AVOID">Avoid (Cheaper)</option>
+                                    <option value="ONLY">School Hols Only</option>
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Max Nights</label>
-                            <input type="number" min="1" className="w-full rounded-md border-gray-300 shadow-sm"
-                                value={formData.durationNightsMax} onChange={e => setFormData({ ...formData, durationNightsMax: parseInt(e.target.value) })} />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Stay Pattern</label>
-                            <select className="w-full rounded-md border-gray-300 shadow-sm"
-                                value={formData.stayPattern}
-                                onChange={e => setFormData({ ...formData, stayPattern: e.target.value as any })}>
-                                <option value="ANY">Any Start Day</option>
-                                <option value="MIDWEEK">Midweek (Mon-Fri)</option>
-                                <option value="WEEKEND">Weekend (Fri-Mon)</option>
-                                <option value="FULL_WEEK">Full Week (Sat-Sat)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">School Holidays</label>
-                            <select className="w-full rounded-md border-gray-300 shadow-sm"
-                                value={formData.schoolHolidays}
-                                onChange={e => setFormData({ ...formData, schoolHolidays: e.target.value as any })}>
-                                <option value="ALLOW">Allow (Pricey)</option>
-                                <option value="AVOID">Avoid (Cheaper)</option>
-                                <option value="ONLY">School Hols Only</option>
-                            </select>
-                        </div>
-                    </div>
-                )}
-            </div>
+                    )
+                }
+            </div >
 
             {/* --- PETS & ACCESS --- */}
-            <div className="px-6 py-2 bg-gray-50 border-b border-gray-100">
+            < div className="px-6 py-2 bg-gray-50 border-b border-gray-100" >
                 <SectionHeader title="Pets & Accessibility" id="access" />
-                {activeSection === 'access' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4 pt-2">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Number of Pets</label>
-                            <input type="number" min="0" className="w-full rounded-md border-gray-300 shadow-sm"
-                                disabled={!formData.pets}
-                                value={formData.petsNumber} onChange={e => setFormData({ ...formData, petsNumber: parseInt(e.target.value) })} />
+                {
+                    activeSection === 'access' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4 pt-2">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Pets</label>
+                                <input type="number" min="0" className="w-full rounded-md border-gray-300 shadow-sm"
+                                    disabled={!formData.pets}
+                                    value={formData.petsNumber} onChange={e => setFormData({ ...formData, petsNumber: parseInt(e.target.value) })} />
+                            </div>
+                            <div className="flex flex-col space-y-3 pt-6">
+                                <label className="flex items-center">
+                                    <input type="checkbox" className="rounded text-primary-600 focus:ring-primary-500"
+                                        checked={formData.stepFreeAccess} onChange={e => setFormData({ ...formData, stepFreeAccess: e.target.checked })} />
+                                    <span className="ml-2 text-sm text-gray-900">Step-free Access Required</span>
+                                </label>
+                                <label className="flex items-center">
+                                    <input type="checkbox" className="rounded text-primary-600 focus:ring-primary-500"
+                                        checked={formData.accessibleBathroom} onChange={e => setFormData({ ...formData, accessibleBathroom: e.target.checked })} />
+                                    <span className="ml-2 text-sm text-gray-900">Accessible Bathroom Required</span>
+                                </label>
+                            </div>
                         </div>
-                        <div className="flex flex-col space-y-3 pt-6">
-                            <label className="flex items-center">
-                                <input type="checkbox" className="rounded text-primary-600 focus:ring-primary-500"
-                                    checked={formData.stepFreeAccess} onChange={e => setFormData({ ...formData, stepFreeAccess: e.target.checked })} />
-                                <span className="ml-2 text-sm text-gray-900">Step-free Access Required</span>
-                            </label>
-                            <label className="flex items-center">
-                                <input type="checkbox" className="rounded text-primary-600 focus:ring-primary-500"
-                                    checked={formData.accessibleBathroom} onChange={e => setFormData({ ...formData, accessibleBathroom: e.target.checked })} />
-                                <span className="ml-2 text-sm text-gray-900">Accessible Bathroom Required</span>
-                            </label>
-                        </div>
-                    </div>
-                )}
-            </div>
+                    )
+                }
+            </div >
 
             {/* --- ALERT SETTINGS --- */}
-            <div className="px-6 py-2 bg-gray-50">
+            < div className="px-6 py-2 bg-gray-50" >
                 <SectionHeader title="Alert Preferences" id="alerts" />
-                {activeSection === 'alerts' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4 pt-2">
-                        <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Alert Sensitivity</label>
-                            <select className="w-full rounded-md border-gray-300 shadow-sm"
-                                value={formData.alertSensitivity}
-                                onChange={e => setFormData({ ...formData, alertSensitivity: e.target.value as any })}>
-                                <option value="INSTANT">Instant (Every price drop)</option>
-                                <option value="DIGEST">Daily Digest</option>
-                                <option value="EXCEPTIONAL_ONLY">Exceptional Deals Only (&gt;20% drop)</option>
-                            </select>
-                            <p className="mt-1 text-xs text-gray-500">
-                                "Exceptional Only" reduces noise and only emails you when we find significant savings.
-                            </p>
+                {
+                    activeSection === 'alerts' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4 pt-2">
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Alert Sensitivity</label>
+                                <select className="w-full rounded-md border-gray-300 shadow-sm"
+                                    value={formData.alertSensitivity}
+                                    onChange={e => setFormData({ ...formData, alertSensitivity: e.target.value as any })}>
+                                    <option value="INSTANT">Instant (Every price drop)</option>
+                                    <option value="DIGEST">Daily Digest</option>
+                                    <option value="EXCEPTIONAL_ONLY">Exceptional Deals Only (&gt;20% drop)</option>
+                                </select>
+                                <p className="mt-1 text-xs text-gray-500">
+                                    "Exceptional Only" reduces noise and only emails you when we find significant savings.
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )
+                }
+            </div >
 
             {/* --- PROVIDER SELECTION --- */}
-            <div className="px-6 py-2 bg-gray-50 border-t border-gray-100">
+            < div className="px-6 py-2 bg-gray-50 border-t border-gray-100" >
                 <SectionHeader title="Provider Selection" id="providers" />
-                {activeSection === 'providers' && (
-                    <div className="pb-4 pt-2">
-                        <p className="text-sm text-gray-600 mb-3">
-                            Select which holiday providers to monitor for this watcher:
-                        </p>
-                        <div className="space-y-2">
-                            {availableProviders.map((provider: { code: string; name: string }) => (
-                                <label key={provider.code} className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        className="rounded text-primary-600 focus:ring-primary-500"
-                                        checked={formData.enabledProviders.includes(provider.code)}
-                                        onChange={e => {
-                                            const updated = e.target.checked
-                                                ? [...formData.enabledProviders, provider.code]
-                                                : formData.enabledProviders.filter(p => p !== provider.code);
-                                            setFormData({ ...formData, enabledProviders: updated });
-                                        }}
-                                    />
-                                    <span className="ml-2 text-sm text-gray-900">{provider.name}</span>
-                                </label>
-                            ))}
-                        </div>
-                        {formData.enabledProviders.length === 0 && (
-                            <p className="mt-2 text-xs text-amber-600">
-                                ⚠️ No providers selected. All providers will be searched by default.
+                {
+                    activeSection === 'providers' && (
+                        <div className="pb-4 pt-2">
+                            <p className="text-sm text-gray-600 mb-3">
+                                Select which holiday providers to monitor for this watcher:
                             </p>
-                        )}
-                    </div>
-                )}
-            </div>
+                            <div className="space-y-2">
+                                {availableProviders.map((provider: { code: string; name: string }) => (
+                                    <label key={provider.code} className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            className="rounded text-primary-600 focus:ring-primary-500"
+                                            checked={formData.enabledProviders.includes(provider.code)}
+                                            onChange={e => {
+                                                const updated = e.target.checked
+                                                    ? [...formData.enabledProviders, provider.code]
+                                                    : formData.enabledProviders.filter(p => p !== provider.code);
+                                                setFormData({ ...formData, enabledProviders: updated });
+                                            }}
+                                        />
+                                        <span className="ml-2 text-sm text-gray-900">{provider.name}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            {formData.enabledProviders.length === 0 && (
+                                <p className="mt-2 text-xs text-amber-600">
+                                    ⚠️ No providers selected. All providers will be searched by default.
+                                </p>
+                            )}
+                        </div>
+                    )
+                }
+            </div >
 
             {/* --- ADVANCED FILTERING --- */}
-            <div className="px-6 py-2 bg-gray-50 border-t border-gray-100">
+            < div className="px-6 py-2 bg-gray-50 border-t border-gray-100" >
                 <SectionHeader title="Advanced Search Settings" id="advanced" />
-                {activeSection === 'advanced' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4 pt-2">
+                {
+                    activeSection === 'advanced' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4 pt-2">
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Max Results</label>
-                            <input
-                                type="number"
-                                min="1"
-                                max="100"
-                                className="w-full rounded-md border-gray-300 shadow-sm"
-                                value={formData.maxResults}
-                                onChange={e => setFormData({ ...formData, maxResults: parseInt(e.target.value) })}
-                            />
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Max Results</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    className="w-full rounded-md border-gray-300 shadow-sm"
+                                    value={formData.maxResults}
+                                    onChange={e => setFormData({ ...formData, maxResults: parseInt(e.target.value) })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
+                                <select className="w-full rounded-md border-gray-300 shadow-sm"
+                                    value={formData.sortOrder}
+                                    onChange={e => setFormData({ ...formData, sortOrder: e.target.value as any })}>
+                                    <option value="PRICE_ASC">Price: Low to High</option>
+                                    <option value="PRICE_DESC">Price: High to Low</option>
+                                    <option value="DATE_ASC">Date: Earliest First</option>
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
-                            <select className="w-full rounded-md border-gray-300 shadow-sm"
-                                value={formData.sortOrder}
-                                onChange={e => setFormData({ ...formData, sortOrder: e.target.value as any })}>
-                                <option value="PRICE_ASC">Price: Low to High</option>
-                                <option value="PRICE_DESC">Price: High to Low</option>
-                                <option value="DATE_ASC">Date: Earliest First</option>
-                            </select>
+                    )
+                }
+            </div >
+
+            {
+                mutation.isError && (
+                    <div className="p-6 pb-0">
+                        <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm">
+                            Error saving watcher. Please try again.
                         </div>
                     </div>
-                )}
-            </div>
+                )
+            }
 
-            {mutation.isError && (
-                <div className="p-6 pb-0">
-                    <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm">
-                        Error saving watcher. Please try again.
-                    </div>
-                </div>
-            )}
-
-            <div className="p-6 flex justify-end space-x-3 bg-gray-50 border-t border-gray-100">
+            < div className="p-6 flex justify-end space-x-3 bg-gray-50 border-t border-gray-100" >
                 <button
                     type="button"
                     onClick={onCancel}
@@ -606,7 +640,7 @@ export function ProfileForm({ initialData, onSuccess, onCancel }: ProfileFormPro
                 >
                     {mutation.isPending ? 'Saving...' : (initialData ? 'Update Watcher' : 'Create Watcher')}
                 </button>
-            </div>
-        </form>
+            </div >
+        </form >
     );
 }

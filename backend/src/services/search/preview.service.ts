@@ -267,7 +267,8 @@ export class PreviewService {
             // Manual Date Range Check (since Matcher enforces exact)
             const resDate = new Date(candidate.stayStartDate);
             const profStart = new Date(adapterParams.dateWindow.start);
-            const profEnd = new Date(adapterParams.dateWindow.end);
+            // Handle specific date (null end) by defaulting to start date
+            const profEnd = adapterParams.dateWindow.end ? new Date(adapterParams.dateWindow.end) : new Date(profStart);
 
             let inDateRange = resDate >= profStart && resDate <= profEnd;
             if (!inDateRange) {
@@ -308,7 +309,7 @@ export class PreviewService {
                         providerId: providerKey,
                         stayStartDate: candidate.stayStartDate,
                         stayNights: candidate.stayNights,
-                        parkId: adapterParams.park || 'ANY',
+                        parkId: (adapterParams.parks && adapterParams.parks.length > 0) ? adapterParams.parks.join('+') : 'ANY',
                         accomTypeId: candidate.accomType
                     });
                 } catch (err) {

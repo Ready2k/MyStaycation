@@ -51,7 +51,7 @@ export class HoseasonsAdapter extends BaseAdapter {
             }
 
             const data: any = await response.json();
-            return this.parseApiResponse(data, params);
+            return this.parseApiResponse(data, params, parkIdOverride);
         } catch (error) {
             console.error('❌ Hoseasons API call failed:', error);
             return [];
@@ -242,7 +242,7 @@ export class HoseasonsAdapter extends BaseAdapter {
     /**
      * Parse Hoseasons API response
      */
-    private parseApiResponse(data: any, params: SearchParams): PriceResult[] {
+    private parseApiResponse(data: any, params: SearchParams, parkIdFilter?: string): PriceResult[] {
         const results: PriceResult[] = [];
 
         if (!data.properties || !Array.isArray(data.properties)) {
@@ -253,6 +253,14 @@ export class HoseasonsAdapter extends BaseAdapter {
         console.log(`📦 Processing ${data.properties.length} properties from API...`);
 
         data.properties.forEach((property: any) => {
+            if (parkIdFilter) {
+                // DEBUG: Identify which field matches the parkIdFilter (placesId)
+                console.log(`DEBUG: Park Check - Filter: ${parkIdFilter}, property: ${JSON.stringify(property)}`);
+
+                // Provisional Filtering Logic (commented out until field confirmed)
+                // if (String(property.placesId) !== String(parkIdFilter)) return; 
+            }
+
             try {
                 // Extract price
                 const priceTotalGbp = property.priceFrom || property.lowestPrice;

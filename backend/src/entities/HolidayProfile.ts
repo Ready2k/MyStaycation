@@ -145,6 +145,9 @@ export class HolidayProfile {
     @Column({ type: 'simple-array', nullable: true })
     parkIds?: string[]; // e.g. ["39248", "12345"] for Hoseasons
 
+    @Column({ type: 'simple-array', nullable: true })
+    parkUrls?: string[]; // Corresponding source URLs
+
 
     @CreateDateColumn()
     createdAt!: Date;
