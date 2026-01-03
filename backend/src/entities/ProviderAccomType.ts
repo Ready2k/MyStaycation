@@ -11,10 +11,10 @@ export class ProviderAccomType {
     @JoinColumn({ name: 'provider_id' })
     provider!: Provider;
 
-    @Column({ nullable: true })
+    @Column({ type: 'varchar', nullable: true })
     providerAccomCode?: string;
 
-    @Column()
+    @Column({ type: 'varchar' })
     name!: string;
 
     @Column({ type: 'int', nullable: true })

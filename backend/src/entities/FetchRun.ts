@@ -47,7 +47,7 @@ export class FetchRun {
     @Column({ type: 'int', nullable: true })
     httpStatus?: number;
 
-    @Column({ nullable: true })
+    @Column({ type: 'varchar', nullable: true })
     requestFingerprint?: string;
 
     @Column({ type: 'text', nullable: true })

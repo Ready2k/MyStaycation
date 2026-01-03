@@ -1,7 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 import { User } from './User';
-import { HolidayProfile } from './HolidayProfile';
 import { Insight } from './Insight';
+
+export enum AlertStatus {
+    PENDING = 'PENDING',
+    SENT = 'SENT',
+    FAILED = 'FAILED',
+    DISMISSED = 'DISMISSED'
+}
 
 export enum AlertChannel {
     EMAIL = 'EMAIL',
@@ -9,15 +15,8 @@ export enum AlertChannel {
     SMS = 'SMS'
 }
 
-export enum AlertStatus {
-    QUEUED = 'QUEUED',
-    SENT = 'SENT',
-    FAILED = 'FAILED',
-    DISMISSED = 'DISMISSED'
-}
-
 @Entity('alerts')
-@Index(['user', 'dedupeKey'], { unique: true })
+@Index(['dedupeKey'], { unique: true })
 export class Alert {
     @PrimaryGeneratedColumn('uuid')
     id!: string;
@@ -26,26 +25,28 @@ export class Alert {
     @JoinColumn({ name: 'user_id' })
     user!: User;
 
-    @ManyToOne(() => HolidayProfile, { nullable: true })
-    @JoinColumn({ name: 'profile_id' })
-    profile?: HolidayProfile;
-
-    @ManyToOne(() => Insight)
+    @ManyToOne(() => Insight, insight => insight.alerts, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'insight_id' })
     insight!: Insight;
 
-    @Column({ type: 'enum', enum: AlertChannel })
+    @Column({ type: 'enum', enum: AlertChannel, default: AlertChannel.EMAIL })
     channel!: AlertChannel;
 
-    @Column({ type: 'enum', enum: AlertStatus, default: AlertStatus.QUEUED })
+    @Column({ type: 'enum', enum: AlertStatus, default: AlertStatus.PENDING })
     status!: AlertStatus;
+
+    @Column({ type: 'varchar', unique: true })
+    dedupeKey!: string;
+
+    @Column({ type: 'text', nullable: true })
+    errorMessage?: string;
 
     @Column({ type: 'timestamp', nullable: true })
     sentAt?: Date;
 
-    @Column()
-    dedupeKey!: string;
-
     @CreateDateColumn()
     createdAt!: Date;
+
+    @UpdateDateColumn()
+    updatedAt!: Date;
 }

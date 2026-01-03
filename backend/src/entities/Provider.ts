@@ -10,19 +10,19 @@ export class Provider {
     @PrimaryGeneratedColumn('uuid')
     id!: string;
 
-    @Column({ unique: true })
+    @Column({ type: 'varchar', unique: true })
     code!: string; // 'hoseasons', 'haven', 'center_parcs'
 
-    @Column()
+    @Column({ type: 'varchar' })
     name!: string;
 
-    @Column()
+    @Column({ type: 'varchar' })
     baseUrl!: string;
 
     @Column({ type: 'text', nullable: true })
     notes?: string;
 
-    @Column({ default: true })
+    @Column({ type: 'boolean', default: true })
     enabled!: boolean;
 
     @Column({ type: 'int', default: 48 })

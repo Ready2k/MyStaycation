@@ -28,7 +28,7 @@ export class SearchFingerprint {
     @JoinColumn({ name: 'accom_type_id' })
     accomType?: ProviderAccomType;
 
-    @Column({ unique: true })
+    @Column({ type: 'varchar', unique: true })
     canonicalHash!: string;
 
     @Column({ type: 'jsonb' })
@@ -40,7 +40,7 @@ export class SearchFingerprint {
     @Column({ type: 'timestamp', nullable: true })
     lastScheduledAt?: Date;
 
-    @Column({ default: true })
+    @Column({ type: 'boolean', default: true })
     enabled!: boolean;
 
     @CreateDateColumn()

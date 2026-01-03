@@ -11,13 +11,13 @@ export class ProviderPark {
     @JoinColumn({ name: 'provider_id' })
     provider!: Provider;
 
-    @Column({ nullable: true })
+    @Column({ type: 'varchar', nullable: true })
     providerParkCode?: string;
 
-    @Column()
+    @Column({ type: 'varchar' })
     name!: string;
 
-    @Column({ nullable: true })
+    @Column({ type: 'varchar', nullable: true })
     region?: string;
 
     @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })

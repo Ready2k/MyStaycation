@@ -6,8 +6,11 @@ FROM --platform=linux/amd64 node:20-alpine AS dependencies
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci
+# Copy source FIRST
+COPY . .
+
+# Install dependencies
+RUN npm install
 
 # Stage 2: Build
 FROM --platform=linux/amd64 node:20-alpine AS build
@@ -24,8 +27,11 @@ FROM --platform=linux/amd64 node:20-alpine AS development
 
 WORKDIR /app
 
-COPY --from=dependencies /app/node_modules ./node_modules
+# Copy source FIRST
 COPY . .
+
+# Install dependencies
+RUN npm install
 
 EXPOSE 3000
 

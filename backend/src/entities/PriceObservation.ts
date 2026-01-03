@@ -39,7 +39,7 @@ export class PriceObservation {
     @Column({ type: 'int' })
     stayNights!: number;
 
-    @Column()
+    @Column({ type: 'varchar' })
     seriesKey!: string;
 
     @Column({ type: 'jsonb', nullable: true })
@@ -54,7 +54,7 @@ export class PriceObservation {
     @Column({ type: 'enum', enum: AvailabilityStatus, default: AvailabilityStatus.UNKNOWN })
     availability!: AvailabilityStatus;
 
-    @Column({ default: 'GBP' })
+    @Column({ type: 'varchar', default: 'GBP' })
     currency!: string;
 
     @Column({ type: 'text', nullable: true })

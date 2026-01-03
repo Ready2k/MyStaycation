@@ -29,10 +29,10 @@ export class Insight {
     @Column({ type: 'jsonb' })
     details!: Record<string, any>;
 
-    @Column({ unique: true })
+    @Column({ type: 'varchar', unique: true })
     dedupeKey!: string;
 
-    @Column()
+    @Column({ type: 'varchar' })
     seriesKey!: string;
 
     @CreateDateColumn()

@@ -27,10 +27,10 @@ export class Deal {
     @Column({ type: 'enum', enum: DealSource })
     source!: DealSource;
 
-    @Column()
+    @Column({ type: 'varchar' })
     sourceRef!: string;
 
-    @Column()
+    @Column({ type: 'varchar' })
     title!: string;
 
     @Column({ type: 'enum', enum: DiscountType })
@@ -39,7 +39,7 @@ export class Deal {
     @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
     discountValue?: number;
 
-    @Column({ nullable: true })
+    @Column({ type: 'varchar', nullable: true })
     voucherCode?: string;
 
     @Column({ type: 'simple-array', default: '' })

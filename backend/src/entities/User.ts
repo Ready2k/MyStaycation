@@ -1,38 +1,33 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, Index } from 'typeorm';
 import { HolidayProfile } from './HolidayProfile';
 import { Alert } from './Alert';
 
 @Entity('users')
+@Index(['email'], { unique: true })
 export class User {
     @PrimaryGeneratedColumn('uuid')
     id!: string;
 
-    @Column({ unique: true })
+    @Column({ type: 'varchar', unique: true })
     email!: string;
 
-    @Column()
-    password!: string;
+    @Column({ type: 'varchar' })
+    passwordHash!: string;
 
-    @Column({ default: false })
+    @Column({ type: 'varchar', nullable: true })
+    name?: string;
+
+    @Column({ type: 'boolean', default: false })
     emailVerified!: boolean;
 
-    @Column({ nullable: true })
-    emailVerificationToken?: string;
+    @Column({ type: 'varchar', nullable: true })
+    verificationToken?: string;
 
-    @Column({ nullable: true })
-    passwordResetToken?: string;
+    @Column({ type: 'timestamp', nullable: true })
+    verificationTokenExpires?: Date;
 
-    @Column({ nullable: true })
-    passwordResetExpires?: Date;
-
-    @Column({ default: true })
+    @Column({ type: 'boolean', default: true })
     notificationsEnabled!: boolean;
-
-    @Column({ type: 'simple-array', default: '' })
-    notificationChannels!: string[]; // ['email', 'push', 'sms']
-
-    @Column({ default: false })
-    digestMode!: boolean;
 
     @CreateDateColumn()
     createdAt!: Date;

@@ -1,0 +1,12 @@
+========================================
+Daily Health Check - 2026-01-03 15:45:01
+========================================
+
+## Database Connection
+✅ Database connection: OK
+
+## Fetch Runs (Last 24h)
+ERROR:  column "started_at" does not exist
+LINE 7: WHERE started_at > NOW() - INTERVAL '24 hours'
+              ^
+HINT:  Perhaps you meant to reference the column "fetch_runs.startedAt".

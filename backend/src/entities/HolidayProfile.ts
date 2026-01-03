@@ -23,7 +23,7 @@ export class HolidayProfile {
     @JoinColumn({ name: 'user_id' })
     user!: User;
 
-    @Column()
+    @Column({ type: 'varchar' })
     name!: string;
 
     @Column({ type: 'int', default: 2 })
@@ -53,7 +53,7 @@ export class HolidayProfile {
     @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
     budgetCeilingGbp?: number;
 
-    @Column({ default: true })
+    @Column({ type: 'boolean', default: true })
     enabled!: boolean;
 
     @CreateDateColumn()

@@ -16,10 +16,13 @@ RUN apk add --no-cache \
 # Stage 2: Dependencies installation
 FROM base AS dependencies
 
-COPY package*.json ./
-RUN npm ci --only=production && \
+# Copy source code FIRST (before npm install)
+COPY . .
+
+# Install dependencies (this will compile native modules for x86_64)
+RUN npm install --only=production && \
     cp -R node_modules /prod_node_modules && \
-    npm ci
+    npm install
 
 # Stage 3: Build
 FROM base AS build
@@ -32,12 +35,11 @@ RUN npm run build
 # Stage 4: Development
 FROM base AS development
 
-COPY --from=dependencies /app/node_modules ./node_modules
+# Copy source code FIRST
 COPY . .
 
-# Install Playwright browsers for scraping
-RUN npx playwright install-deps && \
-    npx playwright install chromium
+# Install dependencies (compiles native modules for x86_64)
+RUN npm install
 
 EXPOSE 4000
 
