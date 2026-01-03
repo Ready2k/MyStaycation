@@ -70,6 +70,8 @@ export interface PreviewResult {
     tier?: string;
     petsAllowed?: boolean;
     facilities?: string[];
+    propertyName?: string;
+    location?: string;
     availability: 'AVAILABLE' | 'SOLD_OUT' | 'UNKNOWN';
     price: {
         totalGbp: number;
@@ -223,7 +225,7 @@ export class PreviewService {
             nights: { min: profile.durationNightsMin, max: profile.durationNightsMax },
             party: { adults: profile.partySizeAdults, children: profile.partySizeChildren },
             pets: profile.pets,
-            park: undefined,
+            parks: profile.parkIds,
             region: profile.region,
             accommodation: profile.accommodationType,
             minBedrooms: profile.minBedrooms,
@@ -332,6 +334,8 @@ export class PreviewService {
                 tier: undefined,
                 petsAllowed: candidate.petsAllowed,
                 facilities: [],
+                propertyName: candidate.propertyName,
+                location: candidate.location,
                 availability: candidate.availability,
                 price: {
                     totalGbp: candidate.priceTotalGbp,

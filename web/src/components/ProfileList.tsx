@@ -48,8 +48,8 @@ export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) 
                     items.forEach(item => {
                         flattenedResults.push({
                             provider: item.providerKey,
-                            location: item.parkId || 'Unknown Park', // TODO: Map parkId to name if possible, or just show ID for now
-                            accommodationName: item.accommodationType || 'Accommodation',
+                            location: item.location || item.parkId || 'Unknown Location',
+                            accommodationName: item.propertyName || item.accommodationType || 'Accommodation',
                             priceGbp: item.price.totalGbp,
                             durationNights: item.stayNights,
                             dateStart: item.stayStartDate,

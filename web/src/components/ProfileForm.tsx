@@ -39,6 +39,7 @@ interface ProfileFormData {
     maxResults: number;
     sortOrder: 'PRICE_ASC' | 'PRICE_DESC' | 'DATE_ASC';
     enabledProviders: string[];
+    parkIds: string[];
 }
 
 const initialFormState: ProfileFormData = {
@@ -68,7 +69,8 @@ const initialFormState: ProfileFormData = {
     region: '',
     maxResults: 50,
     sortOrder: 'PRICE_ASC',
-    enabledProviders: [] // Default to all providers
+    enabledProviders: [], // Default to all providers
+    parkIds: []
 };
 
 interface ProfileFormProps {
@@ -153,12 +155,177 @@ export function ProfileForm({ initialData, onSuccess, onCancel }: ProfileFormPro
         </button>
     );
 
+    const handleImportUrl = (url: string) => {
+        try {
+            const urlObj = new URL(url);
+            const params = new URLSearchParams(urlObj.search);
+            const updates: Partial<ProfileFormData> = {};
+            let message = '';
+
+            // Hoseasons Logic
+            if (url.includes('hoseasons') || url.includes('awaze')) {
+                const adult = params.get('adult');
+                const child = params.get('child');
+                const pets = params.get('pets');
+                const start = params.get('start'); // DD-MM-YYYY
+                const nights = params.get('nights');
+                const region = params.get('regionName');
+
+                if (adult) updates.partySizeAdults = parseInt(adult);
+                if (child) updates.partySizeChildren = parseInt(child);
+
+                // Hoseasons pets=1 usually means YES, count unspecified often.
+                // If numeric > 0, treat as count.
+                if (pets) {
+                    const petCount = parseInt(pets);
+                    updates.pets = petCount > 0;
+                    updates.petsNumber = petCount;
+                }
+
+                if (start) {
+                    // Convert DD-MM-YYYY to YYYY-MM-DD
+                    const parts = start.split('-');
+                    if (parts.length === 3) {
+                        const date = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                        if (!isNaN(date.getTime())) {
+                            updates.dateStart = date.toISOString().split('T')[0];
+                        }
+                    }
+                }
+
+                if (nights) {
+                    const n = parseInt(nights);
+                    updates.durationNightsMin = n;
+                    updates.durationNightsMax = n; // Fixed duration usually
+                }
+
+                if (region) updates.region = region;
+
+                // Extract placesId (for specific park monitoring)
+                const placesId = params.get('placesId');
+                if (placesId) {
+                    // Append to existing list if unique
+                    const currentIds = new Set(formData.parkIds || []);
+                    if (!currentIds.has(placesId)) {
+                        updates.parkIds = [...Array.from(currentIds), placesId];
+                        updates.enabledProviders = ['hoseasons']; // Ensure provider is enabled
+                        message = `Added Park ID: ${placesId} to monitoring list`;
+                    } else {
+                        message = `Park ID: ${placesId} is already in the list`;
+                    }
+                } else {
+                    // Generic URL - just update params
+                    message = 'Imported search parameters (Dates/Party) from URL';
+                    // Do NOT clear parkIds, user might strictly want to keep their list but update dates
+                }
+            }
+
+            // Haven Logic (Basic support)
+            else if (url.includes('haven')) {
+                const adults = params.get('adults');
+                const children = params.get('children');
+                const arrival = params.get('arrivalDate');
+                const duration = params.get('duration');
+
+                if (adults) updates.partySizeAdults = parseInt(adults);
+                if (children) updates.partySizeChildren = parseInt(children);
+                if (duration) {
+                    const n = parseInt(duration);
+                    updates.durationNightsMin = n;
+                    updates.durationNightsMax = n;
+                }
+                if (arrival) {
+                    // Check format (usually YYYY-MM-DD or DD-MM-YYYY)
+                    if (arrival.includes('-')) {
+                        // Assuming standard ISO for now, or Date parsing
+                        const date = new Date(arrival);
+                        if (!isNaN(date.getTime())) {
+                            updates.dateStart = date.toISOString().split('T')[0];
+                        }
+                    }
+                }
+                message = 'Imported settings from Haven URL';
+            }
+
+            if (Object.keys(updates).length > 0) {
+                setFormData(prev => ({ ...prev, ...updates }));
+                alert(message);
+            } else {
+                alert('Could not extract details from this URL. Try a search result page URL.');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Invalid URL format');
+        }
+    };
+
     return (
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div className="p-6 border-b border-gray-100">
                 <h2 className="text-xl font-semibold text-gray-900 mb-6">
                     {initialData ? 'Edit Watcher' : 'New Holiday Watcher'}
                 </h2>
+
+                {/* --- URL IMPORT --- */}
+                {!initialData && (
+                    <div className="mb-6 bg-blue-50 p-4 rounded-md border border-blue-100">
+                        <label className="block text-sm font-medium text-blue-900 mb-1">Import from Provider URL</label>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                className="flex-grow rounded-md border-blue-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                                placeholder="Paste a Hoseasons or Haven search URL here..."
+                                onPaste={(e) => {
+                                    const pasted = e.clipboardData.getData('text');
+                                    // Optional: auto-import on paste? better to wait for click
+                                }}
+                                id="import-url-input"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const input = document.getElementById('import-url-input') as HTMLInputElement;
+                                    if (input?.value) handleImportUrl(input.value);
+                                }}
+                                className="px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
+                            >
+                                Import
+                            </button>
+                        </div>
+                        <p className="mt-1 text-xs text-blue-700">
+                            Paste a search results page URL to auto-fill guests, dates, and region.
+                        </p>
+                        {formData.parkIds && formData.parkIds.length > 0 && (
+                            <div className="mt-3">
+                                <p className="text-xs font-semibold text-gray-700 mb-2">Monitored Parks:</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {formData.parkIds.map(id => (
+                                        <div key={id} className="flex items-center text-xs bg-green-50 text-green-700 px-2 py-1 rounded border border-green-200">
+                                            <span className="mr-1">ID: {id}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData(prev => ({
+                                                    ...prev,
+                                                    parkIds: prev.parkIds.filter(p => p !== id)
+                                                }))}
+                                                className="text-green-800 hover:text-red-600 font-bold ml-1"
+                                            >
+                                                &times;
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData(prev => ({ ...prev, parkIds: [] }))}
+                                        className="text-xs text-red-600 underline self-center ml-2"
+                                    >
+                                        Clear All
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* --- CORE SECTION (Always Visible) --- */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

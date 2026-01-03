@@ -17,12 +17,26 @@ export class HoseasonsAdapter extends BaseAdapter {
             return [];
         }
 
-        const url = this.buildSearchApiUrl(params);
+        // If specific parks are requested, search them in parallel
+        if (params.parks && params.parks.length > 0) {
+            console.log(`🌐 Hoseasons: Searching ${params.parks.length} parks in parallel:`, params.parks);
+            const promises = params.parks.map(parkId => this.searchSingle(params, parkId));
+            const results = await Promise.all(promises);
+            // Flatten results array
+            const flat = results.flat();
+            console.log(`✅ Hoseasons: Total results from parallel search: ${flat.length}`);
+            return flat;
+        }
+
+        // Otherwise perform standard region search
+        return this.searchSingle(params);
+    }
+
+    private async searchSingle(params: SearchParams, parkIdOverride?: string): Promise<PriceResult[]> {
+        const url = this.buildSearchApiUrl(params, parkIdOverride);
         console.log('DEBUG: Hoseasons API URL:', url);
 
         try {
-            // Call the Hoseasons search API directly
-            console.log('🌐 Calling Hoseasons search API...');
             const response = await fetch(url, {
                 headers: {
                     'Accept': 'application/json',
@@ -32,13 +46,11 @@ export class HoseasonsAdapter extends BaseAdapter {
             });
 
             if (!response.ok) {
-                console.error(`❌ Hoseasons API returned ${response.status}: ${response.statusText}`);
+                console.error(`❌ Hoseasons API returned ${response.status}: ${response.statusText} for URL: ${url}`);
                 return [];
             }
 
             const data: any = await response.json();
-            console.log(`✅ Hoseasons API returned ${data.properties?.length || 0} properties`);
-
             return this.parseApiResponse(data, params);
         } catch (error) {
             console.error('❌ Hoseasons API call failed:', error);
@@ -49,7 +61,7 @@ export class HoseasonsAdapter extends BaseAdapter {
     /**
      * Build the Hoseasons search API URL
      */
-    private buildSearchApiUrl(params: SearchParams): string {
+    private buildSearchApiUrl(params: SearchParams, parkIdOverride?: string): string {
         const apiUrl = new URL(`${this.baseUrl}/api/search/properties/list`);
 
         // Add search parameters
@@ -61,7 +73,10 @@ export class HoseasonsAdapter extends BaseAdapter {
         apiUrl.searchParams.append('nights', params.nights.min.toString());
         apiUrl.searchParams.append('accommodationType', 'holiday-parks');
 
-        if (params.region) {
+        // Priority: Specific Park ID > Region name
+        if (parkIdOverride) {
+            apiUrl.searchParams.append('placesId', parkIdOverride);
+        } else if (params.region) {
             apiUrl.searchParams.append('regionName', params.region);
         }
 
@@ -258,7 +273,18 @@ export class HoseasonsAdapter extends BaseAdapter {
                 }
 
                 // Extract property details
-                const bedrooms = property.bedrooms || property.bedroomCount;
+                // Try multiple fields for bedrooms
+                let bedrooms = property.bedrooms || property.bedroomCount;
+
+                // If bedrooms missing, try to infer from 'sleeps' or default based on party size
+                if (!bedrooms) {
+                    if (property.sleeps) {
+                        bedrooms = Math.ceil(property.sleeps / 2);
+                    } else {
+                        // Default to 1 bedroom per 2 adults (safe assumption for parks)
+                        bedrooms = Math.ceil((params.party.adults || 1) / 2);
+                    }
+                }
 
                 // If we searched for pets, assume the result allows pets (API filtering)
                 // Otherwise check specific flags
@@ -279,6 +305,8 @@ export class HoseasonsAdapter extends BaseAdapter {
                 }
 
                 const accomType = property.accommodationType || 'holiday-park';
+                const propertyName = property.displayName || property.name || property.title;
+                const location = property.location || property.rhs3 || property.regionName;
 
                 // Build source URL
                 const sourceUrl = property.code
@@ -307,12 +335,6 @@ export class HoseasonsAdapter extends BaseAdapter {
                     }
                 });
 
-                // Debug: Log first few mismatches
-                if (results.length < 3) {
-                    console.log(`Property ${results.length + 1}: ${matchResult.confidence} - ${matchResult.description}`);
-                    console.log(`  Date: ${stayStartDate} (want: ${params.dateWindow.start}), Nights: ${stayNights}, Price: £${priceTotalGbp}`);
-                }
-
                 results.push({
                     stayStartDate,
                     stayNights,
@@ -324,7 +346,9 @@ export class HoseasonsAdapter extends BaseAdapter {
                     matchConfidence: matchResult.confidence,
                     matchDetails: matchResult.description,
                     bedrooms,
-                    petsAllowed
+                    petsAllowed,
+                    propertyName,
+                    location
                 });
             } catch (error) {
                 console.error('Error parsing property from API:', error);

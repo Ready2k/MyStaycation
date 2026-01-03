@@ -4,7 +4,8 @@ import { AccommodationType } from '../entities/HolidayProfile';
 
 export interface SearchParams {
     provider: string;
-    park?: string;
+    provider: string;
+    parks?: string[]; // Multiple park IDs (e.g. ['39248', '12345'])
     party: {
         adults: number;
         children: number;
@@ -40,6 +41,8 @@ export interface PriceResult {
     bedrooms?: number;
     petsAllowed?: boolean;
     tier?: string;
+    propertyName?: string;
+    location?: string;
 }
 
 export interface DealResult {
