@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 
 interface ProfileFormData {
@@ -9,7 +9,7 @@ interface ProfileFormData {
     partySizeChildren: number;
     pets: boolean;
     petsNumber: number;
-    budgetCeilingGbp?: number;
+    budgetCeilingGbp?: number | string; // Allow string from form input
     enabled: boolean;
 
     // Dates
@@ -38,6 +38,7 @@ interface ProfileFormData {
     region?: string;
     maxResults: number;
     sortOrder: 'PRICE_ASC' | 'PRICE_DESC' | 'DATE_ASC';
+    enabledProviders: string[];
 }
 
 const initialFormState: ProfileFormData = {
@@ -66,7 +67,8 @@ const initialFormState: ProfileFormData = {
 
     region: '',
     maxResults: 50,
-    sortOrder: 'PRICE_ASC'
+    sortOrder: 'PRICE_ASC',
+    enabledProviders: [] // Default to all providers
 };
 
 interface ProfileFormProps {
@@ -85,6 +87,17 @@ export function ProfileForm({ initialData, onSuccess, onCancel }: ProfileFormPro
 
     const queryClient = useQueryClient();
 
+    // Fetch available providers
+    const { data: providersData } = useQuery({
+        queryKey: ['providers'],
+        queryFn: async () => {
+            const { data } = await api.get('/providers');
+            return data;
+        }
+    });
+
+    const availableProviders = providersData?.providers || [];
+
     useEffect(() => {
         if (initialData) {
             setFormData({
@@ -92,6 +105,7 @@ export function ProfileForm({ initialData, onSuccess, onCancel }: ProfileFormPro
                 ...initialData,
                 dateStart: initialData.dateStart ? initialData.dateStart.split('T')[0] : '',
                 dateEnd: initialData.dateEnd ? initialData.dateEnd.split('T')[0] : '',
+                enabledProviders: initialData.enabledProviders || []
             });
         }
     }, [initialData]);
@@ -101,6 +115,13 @@ export function ProfileForm({ initialData, onSuccess, onCancel }: ProfileFormPro
             const payload = { ...data };
             if (!payload.dateStart) delete payload.dateStart;
             if (!payload.dateEnd) delete payload.dateEnd;
+
+            // Convert budgetCeilingGbp to number or undefined
+            if (payload.budgetCeilingGbp === '' || payload.budgetCeilingGbp === undefined) {
+                delete (payload as any).budgetCeilingGbp;
+            } else if (typeof payload.budgetCeilingGbp === 'string') {
+                (payload as any).budgetCeilingGbp = parseFloat(payload.budgetCeilingGbp);
+            }
 
             if (initialData?.id) {
                 const { data: res } = await api.put(`/profiles/${initialData.id}`, payload);
@@ -325,6 +346,41 @@ export function ProfileForm({ initialData, onSuccess, onCancel }: ProfileFormPro
                                 "Exceptional Only" reduces noise and only emails you when we find significant savings.
                             </p>
                         </div>
+                    </div>
+                )}
+            </div>
+
+            {/* --- PROVIDER SELECTION --- */}
+            <div className="px-6 py-2 bg-gray-50 border-t border-gray-100">
+                <SectionHeader title="Provider Selection" id="providers" />
+                {activeSection === 'providers' && (
+                    <div className="pb-4 pt-2">
+                        <p className="text-sm text-gray-600 mb-3">
+                            Select which holiday providers to monitor for this watcher:
+                        </p>
+                        <div className="space-y-2">
+                            {availableProviders.map((provider: { code: string; name: string }) => (
+                                <label key={provider.code} className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded text-primary-600 focus:ring-primary-500"
+                                        checked={formData.enabledProviders.includes(provider.code)}
+                                        onChange={e => {
+                                            const updated = e.target.checked
+                                                ? [...formData.enabledProviders, provider.code]
+                                                : formData.enabledProviders.filter(p => p !== provider.code);
+                                            setFormData({ ...formData, enabledProviders: updated });
+                                        }}
+                                    />
+                                    <span className="ml-2 text-sm text-gray-900">{provider.name}</span>
+                                </label>
+                            ))}
+                        </div>
+                        {formData.enabledProviders.length === 0 && (
+                            <p className="mt-2 text-xs text-amber-600">
+                                ⚠️ No providers selected. All providers will be searched by default.
+                            </p>
+                        )}
                     </div>
                 )}
             </div>

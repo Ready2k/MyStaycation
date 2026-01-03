@@ -130,9 +130,19 @@ export class PreviewService {
         }
 
         // 2. Determine Providers
-        const providersToRun = req.providers && req.providers.length > 0
+        let providersToRun = req.providers && req.providers.length > 0
             ? req.providers
             : Array.from(adapterRegistry.getAllAdapters().keys());
+
+        // Filter by profile's enabled providers if specified
+        if (profile.enabledProviders && profile.enabledProviders.length > 0) {
+            providersToRun = providersToRun.filter(p => profile.enabledProviders!.includes(p));
+        }
+
+        // Deduplicate providers to prevent running the same provider twice
+        providersToRun = Array.from(new Set(providersToRun));
+        console.log(`🔍 Running preview for providers: ${providersToRun.join(', ')}`);
+
 
         // 3. Run for each provider
         for (const providerKey of providersToRun) {

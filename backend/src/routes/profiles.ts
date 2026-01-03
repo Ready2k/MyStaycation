@@ -33,7 +33,8 @@ export const createProfileSchema = z.object({
     // Metadata & Advanced Search
     region: z.string().optional(),
     maxResults: z.number().int().min(1).max(100).default(50),
-    sortOrder: z.enum(['PRICE_ASC', 'PRICE_DESC', 'DATE_ASC']).default('PRICE_ASC')
+    sortOrder: z.enum(['PRICE_ASC', 'PRICE_DESC', 'DATE_ASC']).default('PRICE_ASC'),
+    enabledProviders: z.array(z.string()).default([])
 });
 
 const updateProfileSchema = createProfileSchema.partial();
@@ -134,6 +135,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
             return profile;
         } catch (error) {
             if (error instanceof z.ZodError) {
+                console.error('Validation Error:', JSON.stringify(error.errors, null, 2));
                 return reply.code(400).send({ message: 'Validation Error', errors: error.errors });
             }
             request.log.error(error);

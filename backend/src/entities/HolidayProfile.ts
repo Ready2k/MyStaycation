@@ -138,6 +138,9 @@ export class HolidayProfile {
     @Column({ type: 'varchar', default: 'PRICE_ASC' })
     sortOrder!: 'PRICE_ASC' | 'PRICE_DESC' | 'DATE_ASC';
 
+    @Column({ type: 'simple-array', default: '' })
+    enabledProviders!: string[]; // e.g. ['hoseasons', 'haven', 'centerparcs']
+
     @CreateDateColumn()
     createdAt!: Date;
 

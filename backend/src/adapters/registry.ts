@@ -1,6 +1,7 @@
 import { BaseAdapter } from './base.adapter';
 import { HoseasonsAdapter } from './hoseasons.adapter';
 import { HavenAdapter } from './haven.adapter';
+import { CenterParcsAdapter } from './centerparcs.adapter';
 
 export class AdapterRegistry {
     private adapters: Map<string, BaseAdapter> = new Map();
@@ -8,6 +9,7 @@ export class AdapterRegistry {
     constructor() {
         this.registerAdapter('hoseasons', new HoseasonsAdapter());
         this.registerAdapter('haven', new HavenAdapter());
+        this.registerAdapter('centerparcs', new CenterParcsAdapter());
     }
 
     registerAdapter(providerCode: string, adapter: BaseAdapter): void {
@@ -24,6 +26,14 @@ export class AdapterRegistry {
 
     getAllAdapters(): Map<string, BaseAdapter> {
         return this.adapters;
+    }
+
+    getProviderMetadata(): Array<{ code: string; name: string; enabled: boolean }> {
+        return [
+            { code: 'hoseasons', name: 'Hoseasons', enabled: true },
+            { code: 'haven', name: 'Haven', enabled: true },
+            { code: 'centerparcs', name: 'Center Parcs', enabled: true }
+        ];
     }
 
     async cleanupAll(): Promise<void> {

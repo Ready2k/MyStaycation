@@ -59,25 +59,39 @@ export class HavenAdapter extends BaseAdapter {
     }
 
     protected buildSearchUrl(params: SearchParams): string {
-        // Haven URL structure (example - needs verification)
-        const queryParams = new URLSearchParams({
-            adults: params.party.adults.toString(),
-            children: params.party.children.toString(),
-            'check-in': params.dateWindow.start,
-            'check-out': params.dateWindow.end,
-            nights: params.nights.min.toString(),
-        });
+        // Haven URL structure
+        // User provided URL example:
+        // https://www.haven.com/search-results/break-builder/accommodation?parkCode=PS&arrivalDate=2026-03-13&duration=3&adults=2&children=0&tots=0&dogs=0&accessibleVans=false&packageType=HAVEN%20HOLIDAY&accommodationSubType=beach_house
 
+        const queryParams = new URLSearchParams();
+        const searchPath = '/search-results/break-builder/accommodation';
+
+        queryParams.append('arrivalDate', params.dateWindow.start); // YYYY-MM-DD
+        queryParams.append('duration', params.nights.min.toString());
+        queryParams.append('adults', params.party.adults.toString());
+        queryParams.append('children', (params.party.children || 0).toString());
+        queryParams.append('tots', '0'); // Defaulting to 0
+        queryParams.append('dogs', params.pets ? '1' : '0'); // Assuming 1 if pets selected
+        queryParams.append('accessibleVans', 'false');
+        queryParams.append('packageType', 'HAVEN HOLIDAY');
+
+        // We don't have a map for Region -> parkCode yet.
+        // If a region is explicitly provided in a way we can't map, we might need to skip or warn.
+        // However, for testing, if we omit parkCode, we hope it searches all.
+        // If strict, we might fail.
+        // For now, let's NOT append parkCode unless we know it.
         if (params.park) {
-            queryParams.append('park', params.park);
+            queryParams.append('parkCode', params.park);
+        } else if (params.region) {
+            queryParams.append('region', params.region);
         }
 
         // [NEW] Respect Fingerprint pets
         if (params.pets) {
-            queryParams.append('pets', 'true');
+            queryParams.append('pet-friendly', '1'); // 'pets=true' -> 'pet-friendly=1'
         }
 
-        return `${this.baseUrl}/holidays/search?${queryParams.toString()}`;
+        return `${this.baseUrl}/search?${queryParams.toString()}`;
     }
 
     protected buildOffersUrl(): string {

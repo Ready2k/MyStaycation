@@ -101,4 +101,16 @@ export async function searchRoutes(fastify: FastifyInstance) {
         }
     });
 
+    // GET /providers - Get available providers
+    fastify.get('/providers', async (request, reply) => {
+        try {
+            const { adapterRegistry } = await import('../adapters/registry');
+            const providers = adapterRegistry.getProviderMetadata();
+            return reply.send({ providers });
+        } catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({ message: 'Failed to fetch providers' });
+        }
+    });
+
 }

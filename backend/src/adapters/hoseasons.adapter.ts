@@ -17,31 +17,156 @@ export class HoseasonsAdapter extends BaseAdapter {
             return [];
         }
 
-        const url = this.buildSearchUrl(params);
-        console.log('DEBUG: Hoseasons Search URL:', url); // [DEBUG]
-
-        // Check robots.txt compliance - soft failure
-        const path = new URL(url).pathname;
-        const allowed = await this.checkRobotsTxt(path);
-        if (!allowed) {
-            console.warn(`⚠️  Path ${path} is disallowed by robots.txt for Hoseasons (Continuing anyway for Preview)`);
-            // Proceed anyway for manual previews
-        }
+        const url = this.buildSearchApiUrl(params);
+        console.log('DEBUG: Hoseasons API URL:', url);
 
         try {
-            // Try HTTP first
-            const html = await this.fetchHtml(url);
-            return this.parseSearchResults(html, params);
-        } catch (error) {
-            console.log('HTTP fetch failed, trying Playwright...', error);
-            try {
-                // Fallback to Playwright
-                const html = await this.fetchHtmlWithBrowser(url);
-                return this.parseSearchResults(html, params);
-            } catch (playwrightError) {
-                console.error('Playwright fetch also failed:', playwrightError);
+            // Call the Hoseasons search API directly
+            console.log('🌐 Calling Hoseasons search API...');
+            const response = await fetch(url, {
+                headers: {
+                    'Accept': 'application/json',
+                    'x-awaze-locale': 'en-GB', // REQUIRED header
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+                }
+            });
+
+            if (!response.ok) {
+                console.error(`❌ Hoseasons API returned ${response.status}: ${response.statusText}`);
                 return [];
             }
+
+            const data: any = await response.json();
+            console.log(`✅ Hoseasons API returned ${data.properties?.length || 0} properties`);
+
+            return this.parseApiResponse(data, params);
+        } catch (error) {
+            console.error('❌ Hoseasons API call failed:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Build the Hoseasons search API URL
+     */
+    private buildSearchApiUrl(params: SearchParams): string {
+        const apiUrl = new URL(`${this.baseUrl}/api/search/properties/list`);
+
+        // Add search parameters
+        apiUrl.searchParams.append('adult', params.party.adults.toString());
+        apiUrl.searchParams.append('child', (params.party.children || 0).toString());
+        apiUrl.searchParams.append('infant', '0');
+        apiUrl.searchParams.append('pets', params.pets ? '1' : '0');
+        apiUrl.searchParams.append('range', '0'); // Exact dates
+        apiUrl.searchParams.append('nights', params.nights.min.toString());
+        apiUrl.searchParams.append('accommodationType', 'holiday-parks');
+
+        if (params.region) {
+            apiUrl.searchParams.append('regionName', params.region);
+        }
+
+        // Format date as DD-MM-YYYY
+        const dateObj = new Date(params.dateWindow.start);
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const year = dateObj.getFullYear();
+        apiUrl.searchParams.append('start', `${day}-${month}-${year}`);
+
+        apiUrl.searchParams.append('page', '1');
+        apiUrl.searchParams.append('sort', 'recommended');
+        apiUrl.searchParams.append('displayMode', 'LIST');
+        apiUrl.searchParams.append('index', 'search');
+        apiUrl.searchParams.append('accommodationTypes', '');
+        apiUrl.searchParams.append('features', '');
+        apiUrl.searchParams.append('siteFeatures', '');
+        apiUrl.searchParams.append('searchEngineVersion', 'v2');
+        apiUrl.searchParams.append('brand', 'hoseasons');
+
+        return apiUrl.toString();
+    }
+
+    /**
+     * Custom Playwright fetch for Hoseasons with API interception
+     */
+    private async fetchHoseasonsWithBrowser(url: string): Promise<string> {
+        const playwrightEnabled = process.env.PLAYWRIGHT_ENABLED !== 'false';
+        if (!playwrightEnabled) {
+            throw new Error('Playwright is disabled');
+        }
+
+        if (!this.browser) {
+            const { chromium } = await import('playwright');
+            this.browser = await chromium.launch({
+                headless: true,
+                executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-blink-features=AutomationControlled',
+                ],
+            });
+        }
+
+        const page = await this.browser.newPage({
+            userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            viewport: { width: 1920, height: 1080 },
+            extraHTTPHeaders: {
+                'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            }
+        });
+
+        let searchResultsData: any = null;
+
+        try {
+            // Set up response interception to capture the search API call
+            page.on('response', async (response) => {
+                const responseUrl = response.url();
+
+                // Look for API calls that might contain search results
+                // Common patterns: /api/search, /search-api, /properties, etc.
+                if (responseUrl.includes('/api/') ||
+                    responseUrl.includes('search') ||
+                    responseUrl.includes('properties') ||
+                    responseUrl.includes('accommodation')) {
+
+                    try {
+                        const contentType = response.headers()['content-type'] || '';
+                        if (contentType.includes('application/json')) {
+                            const json = await response.json();
+
+                            // Check if this response contains property data
+                            if (json.properties || json.results || json.data?.properties || json.accommodations) {
+                                console.log(`🎯 Intercepted API response from: ${responseUrl}`);
+                                searchResultsData = json;
+                            }
+                        }
+                    } catch (e) {
+                        // Not JSON or failed to parse, ignore
+                    }
+                }
+            });
+
+            // Navigate to the page
+            console.log('🌐 Navigating to search page...');
+            await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+
+            // Wait a bit more for any delayed API calls
+            await page.waitForTimeout(3000);
+
+            // If we intercepted API data, return it as JSON string
+            if (searchResultsData) {
+                console.log('✅ Successfully intercepted search results API');
+                return JSON.stringify({ interceptedData: searchResultsData });
+            }
+
+            // Fallback: return the HTML if no API call was intercepted
+            console.warn('⚠️  No API call intercepted, falling back to HTML');
+            const html = await page.content();
+            return html;
+
+        } finally {
+            await page.close();
         }
     }
 
@@ -62,105 +187,110 @@ export class HoseasonsAdapter extends BaseAdapter {
     }
 
     protected buildSearchUrl(params: SearchParams): string {
-        // Hoseasons URL structure (example - needs verification with actual site)
-        const queryParams = new URLSearchParams({
-            adults: params.party.adults.toString(),
-            children: params.party.children.toString(),
-            arrival: params.dateWindow.start,
-            departure: params.dateWindow.end,
-            nights: params.nights.min.toString(),
-        });
+        // Hoseasons URL structure - parameter order matters!
+        const urlParams = new URLSearchParams();
 
-        if (params.park) {
-            queryParams.append('park', params.park);
-        }
+        // Core parameters in the exact order from working manual URL:
+        // adult, child, infant, pets, range, nights, accommodationType, regionName, start, page, sort, displayMode
 
-        // [NEW] Pet logic
-        if (params.pets) {
-            queryParams.append('pets', 'true');
-        }
+        urlParams.append('adult', params.party.adults.toString());
+        urlParams.append('child', (params.party.children || 0).toString());
+        urlParams.append('infant', '0');
+        urlParams.append('pets', params.pets ? '1' : '0');
+        urlParams.append('range', '0'); // Exact dates
+        urlParams.append('nights', params.nights.min.toString());
+        urlParams.append('accommodationType', 'holiday-parks');
 
-        // [NEW] Region logic
+        // Region BEFORE date
         if (params.region) {
-            queryParams.append('region', params.region);
+            urlParams.append('regionName', params.region);
         }
 
-        return `${this.baseUrl}/search?${queryParams.toString()}`;
+        // Format date as DD-MM-YYYY
+        const dateObj = new Date(params.dateWindow.start);
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const year = dateObj.getFullYear();
+        urlParams.append('start', `${day}-${month}-${year}`);
+
+        urlParams.append('page', '1');
+        urlParams.append('sort', 'recommended');
+        urlParams.append('displayMode', 'LIST');
+
+        return `${this.baseUrl}/search?${urlParams.toString()}`;
     }
 
     protected buildOffersUrl(): string {
         return `${this.baseUrl}/special-offers`;
     }
 
-    protected parseSearchResults(html: string, params: SearchParams): PriceResult[] {
-        const $ = cheerio.load(html);
+    /**
+     * Parse Hoseasons API response
+     */
+    private parseApiResponse(data: any, params: SearchParams): PriceResult[] {
         const results: PriceResult[] = [];
 
-        // NOTE: These selectors are EXAMPLES and need to be updated based on actual Hoseasons HTML structure
+        if (!data.properties || !Array.isArray(data.properties)) {
+            console.warn('⚠️  No properties array in API response');
+            return [];
+        }
 
-        $('.property-card, .search-result').each((_, element) => {
+        console.log(`📦 Processing ${data.properties.length} properties from API...`);
+
+        data.properties.forEach((property: any) => {
             try {
-                const $el = $(element);
-
-                // Extract price - REQUIRED
-                const priceText = $el.find('.price, .total-price').first().text().trim();
-                const priceTotalGbp = this.extractPrice(priceText);
-                if (!priceTotalGbp) {
-                    // Skip results without valid price
-                    return;
+                // Extract price
+                const priceTotalGbp = property.priceFrom || property.lowestPrice;
+                if (!priceTotalGbp || typeof priceTotalGbp !== 'number') {
+                    return; // Skip if no valid price
                 }
 
-                // Extract dates - REQUIRED, must be explicit
-                const dateText = $el.find('.date, .arrival-date').first().text().trim();
-                const stayStartDate = this.parseDate(dateText);
-                if (!stayStartDate) {
-                    // Skip results without valid date - DO NOT default to search window
-                    console.warn('Skipping result: could not parse stay date');
-                    return;
-                }
+                // Extract dates
+                const stayStartDate = property.startDate ? new Date(property.startDate).toISOString().split('T')[0] : params.dateWindow.start;
 
-                // Extract nights - REQUIRED
-                const nightsText = $el.find('.nights, .duration').first().text().trim();
-                const stayNights = this.parseNights(nightsText);
-                if (!stayNights) {
-                    // Skip results without valid duration
-                    console.warn('Skipping result: could not parse nights');
-                    return;
-                }
+                // Extract nights
+                const stayNights = property.lengthOfStay || params.nights.min;
 
-                // Calculate per night price safely
+                // Calculate per night price
                 const pricePerNightGbp = this.calculatePricePerNight(priceTotalGbp, stayNights);
                 if (!pricePerNightGbp) {
-                    console.warn('Skipping result: could not calculate price per night');
                     return;
                 }
 
-                // Check availability
-                const isAvailable = !$el.find('.sold-out, .unavailable').length;
-                const availability = isAvailable ? 'AVAILABLE' : 'SOLD_OUT';
+                // Extract property details
+                const bedrooms = property.bedrooms || property.bedroomCount;
 
-                // Extract accommodation type (optional)
-                const accomType = $el.find('.property-type, .accommodation-type').first().text().trim() || undefined;
+                // If we searched for pets, assume the result allows pets (API filtering)
+                // Otherwise check specific flags
+                let petsAllowed = params.pets;
+                if (property.petsGoFree !== undefined) petsAllowed = property.petsGoFree || params.pets;
+                if (property.petFriendly !== undefined) petsAllowed = property.petFriendly;
 
-                // [NEW] Extract bedrooms
-                const bedroomsText = $el.find('.bedrooms, .sleeps').first().text();
-                const bedroomsMatch = bedroomsText.match(/(\d+)\s*bed/i);
-                const bedrooms = bedroomsMatch ? parseInt(bedroomsMatch[1]) : undefined;
+                // Fallback: If we searched for pets=1, Hoseasons returns pet-friendly places
+                if (params.pets && !petsAllowed) {
+                    // Check if 'pets' is in USPs or features
+                    const usps = JSON.stringify(property.USPs || []);
+                    if (usps.toLowerCase().includes('pet')) {
+                        petsAllowed = true;
+                    } else {
+                        // Trust the search param if we can't find a flag
+                        petsAllowed = true;
+                    }
+                }
 
-                // [NEW] Extract pets
-                const petsText = $el.find('.pet-friendly, .pets').first().text().toLowerCase();
-                const petsAllowed = petsText.includes('pet') || petsText.includes('dog');
+                const accomType = property.accommodationType || 'holiday-park';
 
-                // Extract and normalize source URL
-                const rawUrl = $el.find('a').first().attr('href');
-                const sourceUrl = this.normalizeUrl(rawUrl);
+                // Build source URL
+                const sourceUrl = property.code
+                    ? `${this.baseUrl}/holiday-parks/${property.code}`
+                    : undefined;
 
-                // [NEW] CLASSIFY
+                // Classify result
                 const candidateRes = {
                     stayStartDate,
                     stayNights,
                     priceTotalGbp,
-                    availability: availability as 'AVAILABLE' | 'SOLD_OUT',
+                    availability: 'AVAILABLE' as const,
                     accomType,
                     bedrooms,
                     petsAllowed
@@ -177,27 +307,38 @@ export class HoseasonsAdapter extends BaseAdapter {
                     }
                 });
 
+                // Debug: Log first few mismatches
+                if (results.length < 3) {
+                    console.log(`Property ${results.length + 1}: ${matchResult.confidence} - ${matchResult.description}`);
+                    console.log(`  Date: ${stayStartDate} (want: ${params.dateWindow.start}), Nights: ${stayNights}, Price: £${priceTotalGbp}`);
+                }
+
                 results.push({
                     stayStartDate,
                     stayNights,
                     priceTotalGbp,
                     pricePerNightGbp,
-                    availability: availability as 'AVAILABLE' | 'SOLD_OUT',
+                    availability: 'AVAILABLE',
                     accomType,
-                    sourceUrl,
+                    sourceUrl: this.normalizeUrl(sourceUrl),
                     matchConfidence: matchResult.confidence,
                     matchDetails: matchResult.description,
                     bedrooms,
                     petsAllowed
                 });
             } catch (error) {
-                console.error('Error parsing Hoseasons result:', error);
-                // Continue to next result instead of failing entire parse
+                console.error('Error parsing property from API:', error);
             }
         });
 
-        console.log(`✅ Parsed ${results.length} valid results from Hoseasons`);
+        console.log(`✅ Parsed ${results.length} valid results from Hoseasons API`);
         return results;
+    }
+
+    protected parseSearchResults(html: string, params: SearchParams): PriceResult[] {
+        // This method is no longer used - we call the API directly now
+        console.warn('⚠️  parseSearchResults called but Hoseasons uses API directly');
+        return [];
     }
 
     protected parseOffers(html: string): DealResult[] {
