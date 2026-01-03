@@ -1,0 +1,147 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: staycation-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-staycation_db}
+      POSTGRES_USER: ${POSTGRES_USER:-staycation}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-staycation_dev}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-staycation}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - staycation-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: staycation-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - staycation-network
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: staycation-api
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-staycation_db}
+      POSTGRES_USER: ${POSTGRES_USER:-staycation}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-staycation_dev}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-7d}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-ses}
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      EMAIL_FROM: ${EMAIL_FROM}
+      APP_URL: ${APP_URL:-http://localhost}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - staycation-network
+    command: npm run dev
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: staycation-worker
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-staycation_db}
+      POSTGRES_USER: ${POSTGRES_USER:-staycation}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-staycation_dev}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      HOSEASONS_BASE_URL: ${HOSEASONS_BASE_URL}
+      HAVEN_BASE_URL: ${HAVEN_BASE_URL}
+      PROVIDER_REQUEST_DELAY_MS: ${PROVIDER_REQUEST_DELAY_MS:-2000}
+      MONITORING_INTERVAL_HOURS: ${MONITORING_INTERVAL_HOURS:-48}
+      MONITORING_JITTER_PERCENT: ${MONITORING_JITTER_PERCENT:-30}
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - staycation-network
+    command: npm run worker
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: staycation-web
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - staycation-network
+    command: npm run dev
+
+  nginx:
+    image: nginx:alpine
+    container_name: staycation-nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - api
+      - web
+    networks:
+      - staycation-network
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  staycation-network:
+    driver: bridge
