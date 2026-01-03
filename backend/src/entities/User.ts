@@ -26,8 +26,20 @@ export class User {
     @Column({ type: 'timestamp', nullable: true })
     verificationTokenExpires?: Date;
 
+    @Column({ type: 'varchar', nullable: true })
+    passwordResetToken?: string;
+
+    @Column({ type: 'timestamp', nullable: true })
+    passwordResetExpires?: Date;
+
     @Column({ type: 'boolean', default: true })
     notificationsEnabled!: boolean;
+
+    @Column("text", { array: true, default: ['email'] })
+    notificationChannels!: string[];
+
+    @Column({ type: 'boolean', default: false })
+    digestMode!: boolean;
 
     @CreateDateColumn()
     createdAt!: Date;

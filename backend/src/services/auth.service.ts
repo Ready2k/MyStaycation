@@ -30,8 +30,8 @@ export class AuthService {
 
         const user = userRepository.create({
             email,
-            password: hashedPassword,
-            emailVerificationToken,
+            passwordHash: hashedPassword,
+            verificationToken: emailVerificationToken,
             emailVerified: false,
             notificationsEnabled: true,
             notificationChannels: ['email'],
@@ -43,7 +43,7 @@ export class AuthService {
 
     async verifyEmail(token: string): Promise<User> {
         const user = await userRepository.findOne({
-            where: { emailVerificationToken: token },
+            where: { verificationToken: token },
         });
 
         if (!user) {
@@ -51,7 +51,7 @@ export class AuthService {
         }
 
         user.emailVerified = true;
-        user.emailVerificationToken = undefined;
+        user.verificationToken = undefined;
 
         return userRepository.save(user);
     }
@@ -94,7 +94,7 @@ export class AuthService {
             throw new Error('Reset token expired');
         }
 
-        user.password = await this.hashPassword(newPassword);
+        user.passwordHash = await this.hashPassword(newPassword);
         user.passwordResetToken = undefined;
         user.passwordResetExpires = undefined;
 
