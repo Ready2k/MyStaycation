@@ -9,18 +9,38 @@ echo "🚀 Starting UK Staycation Watcher in DEVELOPMENT mode..."
 
 # Check if .env exists
 if [ ! -f .env ]; then
-    echo "📝 Creating .env file from template..."
-    cp .env.example .env
-    echo "⚠️  Please edit .env and set JWT_SECRET before continuing!"
-    echo "   You can generate a secret with: openssl rand -hex 32"
-    exit 1
+    echo "📝 No .env file found!"
+    echo ""
+    echo "You can either:"
+    echo "  1. Run the automated setup: ./setup-env.sh"
+    echo "  2. Manually copy and edit: cp .env.example .env"
+    echo ""
+    read -p "Run automated setup now? (Y/n) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+        ./setup-env.sh
+    else
+        echo "Please create .env file manually before continuing."
+        exit 1
+    fi
 fi
 
 # Check if JWT_SECRET is set
 if grep -q "change_me" .env; then
-    echo "⚠️  Please set a strong JWT_SECRET in .env before continuing!"
-    echo "   You can generate one with: openssl rand -hex 32"
-    exit 1
+    echo "⚠️  Insecure secrets detected in .env file!"
+    echo ""
+    echo "You can either:"
+    echo "  1. Run the automated setup: ./setup-env.sh"
+    echo "  2. Manually generate secrets with: openssl rand -hex 32"
+    echo ""
+    read -p "Run automated setup now? (Y/n) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+        ./setup-env.sh
+    else
+        echo "Please update .env file with secure secrets before continuing."
+        exit 1
+    fi
 fi
 
 # Start Docker containers in dev mode (no nginx)
