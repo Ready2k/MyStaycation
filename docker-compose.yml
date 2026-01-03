@@ -3,6 +3,7 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
+    platform: linux/amd64 # Synology compatibility
     container_name: staycation-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-staycation_db}
@@ -24,6 +25,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    platform: linux/amd64 # Synology compatibility
     container_name: staycation-redis
     command: redis-server --appendonly yes
     volumes:
@@ -42,6 +44,9 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-development}
+      platforms:
+        - linux/amd64 # Synology compatibility
+    platform: linux/amd64
     container_name: staycation-api
     env_file: .env
     environment:
@@ -63,12 +68,16 @@ services:
     profiles:
       - dev
       - prod
+    restart: unless-stopped
 
   worker:
     build:
       context: ./backend
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-development}
+      platforms:
+        - linux/amd64 # Synology compatibility
+    platform: linux/amd64
     container_name: staycation-worker
     env_file: .env
     environment:
@@ -89,12 +98,16 @@ services:
     profiles:
       - dev
       - prod
+    restart: unless-stopped
 
   web:
     build:
       context: ./web
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-development}
+      platforms:
+        - linux/amd64 # Synology compatibility
+    platform: linux/amd64
     container_name: staycation-web
     env_file: .env
     environment:
@@ -113,9 +126,11 @@ services:
     profiles:
       - dev
       - prod
+    restart: unless-stopped
 
   nginx:
     image: nginx:alpine
+    platform: linux/amd64 # Synology compatibility
     container_name: staycation-nginx
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
@@ -132,6 +147,36 @@ services:
       - staycation-network
     profiles:
       - prod # Only run nginx in production
+    restart: unless-stopped
+
+  monitoring:
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64 # Synology compatibility
+    platform: linux/amd64
+    container_name: staycation-monitoring
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-staycation}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-staycation_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-staycation_db}
+      TZ: ${TZ:-Europe/London}
+    volumes:
+      - ./monitoring/reports:/reports
+      - ./monitoring/backups:/backups
+      - ./monitoring/scripts:/scripts:ro
+      - ./monitoring-queries.sql:/scripts/monitoring-queries.sql:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - staycation-network
+    profiles:
+      - dev
+      - prod
+    restart: unless-stopped
 
 networks:
   staycation-network:

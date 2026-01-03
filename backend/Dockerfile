@@ -1,45 +1,54 @@
-FROM node:20-alpine AS base
+# Multi-stage Dockerfile for backend API and worker
+# Compatible with Synology NAS (x86_64/amd64)
 
-# Install dependencies for Playwright (if needed)
-RUN apk add --no-cache \
-    chromium \
-    nss \
-    freetype \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont
-
-# Set Playwright to use installed Chromium
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
-    PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+# Stage 1: Base dependencies
+FROM --platform=linux/amd64 node:20-alpine AS base
 
 WORKDIR /app
 
-# Development stage
-FROM base AS development
+# Install system dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    curl
+
+# Stage 2: Dependencies installation
+FROM base AS dependencies
 
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --only=production && \
+    cp -R node_modules /prod_node_modules && \
+    npm ci
 
+# Stage 3: Build
+FROM base AS build
+
+COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
+
+RUN npm run build
+
+# Stage 4: Development
+FROM base AS development
+
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY . .
+
+# Install Playwright browsers for scraping
+RUN npx playwright install-deps && \
+    npx playwright install chromium
 
 EXPOSE 4000
 
 CMD ["npm", "run", "dev"]
 
-# Build stage
-FROM base AS build
+# Stage 5: Production
+FROM --platform=linux/amd64 node:20-alpine AS production
 
-COPY package*.json ./
-RUN npm ci
+WORKDIR /app
 
-COPY . .
-RUN npm run build
-
-# Production stage
-FROM node:20-alpine AS production
-
-# Install Playwright dependencies for production
+# Install runtime dependencies only
 RUN apk add --no-cache \
     chromium \
     nss \
@@ -48,20 +57,20 @@ RUN apk add --no-cache \
     ca-certificates \
     ttf-freefont
 
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
-    PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser \
-    NODE_ENV=production
-
-WORKDIR /app
-
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-COPY package*.json ./
-RUN npm ci --only=production
+# Copy production dependencies
+COPY --from=dependencies /prod_node_modules ./node_modules
 
+# Copy built application
 COPY --from=build --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=build --chown=nodejs:nodejs /app/package*.json ./
+
+# Set Playwright to use system chromium
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 USER nodejs
 
