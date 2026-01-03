@@ -30,7 +30,7 @@ SELECT
     COUNT(*) as count,
     ROUND(COUNT(*) * 100.0 / NULLIF(SUM(COUNT(*)) OVER (), 0), 2) as percentage
 FROM fetch_runs
-WHERE started_at > NOW() - INTERVAL '24 hours'
+WHERE \"startedAt\" > NOW() - INTERVAL '24 hours'
 GROUP BY status
 ORDER BY count DESC;
 " >> "$REPORT_FILE" 2>&1
@@ -41,13 +41,13 @@ echo "## Parse Failures (Last 24h)" >> "$REPORT_FILE"
 PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "
 SELECT 
     p.name as provider,
-    fr.error_message,
+    fr.\"errorMessage\",
     COUNT(*) as count
 FROM fetch_runs fr
 JOIN providers p ON fr.provider_id = p.id
 WHERE fr.status IN ('PARSE_FAILED', 'ERROR')
-  AND fr.started_at > NOW() - INTERVAL '24 hours'
-GROUP BY p.name, fr.error_message
+  AND fr.\"startedAt\" > NOW() - INTERVAL '24 hours'
+GROUP BY p.name, fr.\"errorMessage\"
 ORDER BY count DESC
 LIMIT 10;
 " >> "$REPORT_FILE" 2>&1
@@ -58,10 +58,10 @@ echo "## Observations Created (Last 24h)" >> "$REPORT_FILE"
 PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "
 SELECT 
     COUNT(*) as total_observations,
-    COUNT(DISTINCT series_key) as unique_series,
+    COUNT(DISTINCT \"seriesKey\") as unique_series,
     COUNT(DISTINCT fingerprint_id) as unique_fingerprints
 FROM price_observations
-WHERE observed_at > NOW() - INTERVAL '24 hours';
+WHERE \"observedAt\" > NOW() - INTERVAL '24 hours';
 " >> "$REPORT_FILE" 2>&1
 echo "" >> "$REPORT_FILE"
 
@@ -72,7 +72,7 @@ SELECT
     type,
     COUNT(*) as count
 FROM insights
-WHERE created_at > NOW() - INTERVAL '24 hours'
+WHERE \"createdAt\" > NOW() - INTERVAL '24 hours'
 GROUP BY type
 ORDER BY count DESC;
 " >> "$REPORT_FILE" 2>&1
@@ -85,7 +85,7 @@ SELECT
     status,
     COUNT(*) as count
 FROM alerts
-WHERE created_at > NOW() - INTERVAL '24 hours'
+WHERE \"createdAt\" > NOW() - INTERVAL '24 hours'
 GROUP BY status
 ORDER BY count DESC;
 " >> "$REPORT_FILE" 2>&1
@@ -100,7 +100,7 @@ SELECT
         ELSE '❌ FAIL: ' || COUNT(*) || ' observations missing series key'
     END
 FROM price_observations
-WHERE series_key IS NULL OR series_key = '';
+WHERE \"seriesKey\" IS NULL OR \"seriesKey\" = '';
 " >> "$REPORT_FILE" 2>&1
 echo "" >> "$REPORT_FILE"
 
@@ -113,9 +113,9 @@ SELECT
         ELSE '❌ FAIL: ' || COUNT(*) || ' duplicate insights found'
     END
 FROM (
-    SELECT dedupe_key
+    SELECT \"dedupeKey\"
     FROM insights
-    GROUP BY dedupe_key
+    GROUP BY \"dedupeKey\"
     HAVING COUNT(*) > 1
 ) duplicates;
 " >> "$REPORT_FILE" 2>&1

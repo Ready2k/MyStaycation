@@ -11,7 +11,7 @@ echo "Checking for stale jobs at $TIMESTAMP"
 STALE_RUNS=$(PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -c "
 SELECT COUNT(*) 
 FROM fetch_runs 
-WHERE started_at < NOW() - INTERVAL '1 hour' 
+WHERE \"startedAt\" < NOW() - INTERVAL '1 hour' 
   AND finished_at IS NULL;
 ")
 
@@ -22,13 +22,13 @@ if [ "$STALE_RUNS" -gt 0 ]; then
     PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "
     SELECT 
         id,
-        started_at,
-        NOW() - started_at as running_for,
+        \"startedAt\",
+        NOW() - \"startedAt\" as running_for,
         status
     FROM fetch_runs 
-    WHERE started_at < NOW() - INTERVAL '1 hour' 
+    WHERE \"startedAt\" < NOW() - INTERVAL '1 hour' 
       AND finished_at IS NULL
-    ORDER BY started_at;
+    ORDER BY \"startedAt\";
     "
 else
     echo "✅ No stale jobs detected"

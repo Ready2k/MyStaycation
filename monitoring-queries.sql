@@ -48,15 +48,15 @@ ORDER BY date DESC;
 
 -- 5. Series Key Distribution
 SELECT 
-    series_key,
-    MIN(stay_start_date) as first_stay_date,
-    stay_nights,
+    \"seriesKey\",
+    MIN(\"stayStartDate\") as first_stay_date,
+    \"stayNights\",
     COUNT(*) as observation_count,
-    MIN(price_total_gbp) as min_price,
-    MAX(price_total_gbp) as max_price,
-    AVG(price_total_gbp) as avg_price
+    MIN(\"priceTotalGbp\") as min_price,
+    MAX(\"priceTotalGbp\") as max_price,
+    AVG(\"priceTotalGbp\") as avg_price
 FROM price_observations
-GROUP BY series_key, stay_nights
+GROUP BY \"seriesKey\", \"stayNights\"
 HAVING COUNT(*) > 1
 ORDER BY observation_count DESC
 LIMIT 20;

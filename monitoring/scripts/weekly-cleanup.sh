@@ -9,7 +9,7 @@ echo "Starting weekly cleanup at $(date)"
 echo "Cleaning up old fetch runs..."
 DELETED_RUNS=$(PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -c "
 DELETE FROM fetch_runs 
-WHERE started_at < NOW() - INTERVAL '90 days'
+WHERE \"startedAt\" < NOW() - INTERVAL '90 days'
 RETURNING id;
 " | wc -l)
 echo "Deleted $DELETED_RUNS old fetch runs"
@@ -18,7 +18,7 @@ echo "Deleted $DELETED_RUNS old fetch runs"
 echo "Cleaning up old insights..."
 DELETED_INSIGHTS=$(PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -c "
 DELETE FROM insights 
-WHERE created_at < NOW() - INTERVAL '180 days'
+WHERE \"createdAt\" < NOW() - INTERVAL '180 days'
 RETURNING id;
 " | wc -l)
 echo "Deleted $DELETED_INSIGHTS old insights"
@@ -27,7 +27,7 @@ echo "Deleted $DELETED_INSIGHTS old insights"
 echo "Cleaning up old alerts..."
 DELETED_ALERTS=$(PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -c "
 DELETE FROM alerts 
-WHERE created_at < NOW() - INTERVAL '90 days'
+WHERE \"createdAt\" < NOW() - INTERVAL '90 days'
 RETURNING id;
 " | wc -l)
 echo "Deleted $DELETED_ALERTS old alerts"

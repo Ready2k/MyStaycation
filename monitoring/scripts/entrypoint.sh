@@ -20,4 +20,4 @@ echo "Generating initial report..."
 
 # Start cron
 echo "Starting cron daemon..."
-exec "$@"
+"$@"

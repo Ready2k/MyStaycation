@@ -1,12 +1,67 @@
 ========================================
-Daily Health Check - 2026-01-03 16:59:38
+Daily Health Check - 2026-01-03 17:15:42
 ========================================
 
 ## Database Connection
 ✅ Database connection: OK
 
 ## Fetch Runs (Last 24h)
-ERROR:  column "started_at" does not exist
-LINE 7: WHERE started_at > NOW() - INTERVAL '24 hours'
-              ^
-HINT:  Perhaps you meant to reference the column "fetch_runs.startedAt".
+ status | count | percentage 
+--------+-------+------------
+(0 rows)
+
+
+## Parse Failures (Last 24h)
+ provider | errorMessage | count 
+----------+--------------+-------
+(0 rows)
+
+
+## Observations Created (Last 24h)
+ total_observations | unique_series | unique_fingerprints 
+--------------------+---------------+---------------------
+                  0 |             0 |                   0
+(1 row)
+
+
+## Insights Created (Last 24h)
+ type | count 
+------+-------
+(0 rows)
+
+
+## Alerts Sent (Last 24h)
+ status | count 
+--------+-------
+(0 rows)
+
+
+## Series Key Integrity
+ ✅ PASS: All observations have series keys
+
+
+## Deduplication Check
+ ✅ PASS: No duplicate insights
+
+
+## Database Size
+ database_size 
+---------------
+ 8260 kB
+(1 row)
+
+
+## Top 5 Largest Tables
+         table_name         | size  
+----------------------------+-------
+ public.provider_parks      | 48 kB
+ public.providers           | 48 kB
+ public.price_observations  | 32 kB
+ public.search_fingerprints | 32 kB
+ public.alerts              | 32 kB
+(5 rows)
+
+
+## Summary
+Report generated at: Sat Jan  3 17:15:42 GMT 2026
+Report saved to: /reports/health-check-2026-01-03.txt

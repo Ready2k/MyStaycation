@@ -19,7 +19,7 @@ SELECT
     COUNT(*) as count,
     ROUND(COUNT(*) * 100.0 / NULLIF(SUM(COUNT(*)) OVER (), 0), 2) as percentage
 FROM fetch_runs
-WHERE started_at > NOW() - INTERVAL '24 hours'
+WHERE \"startedAt\" > NOW() - INTERVAL '24 hours'
 GROUP BY status
 ORDER BY count DESC;
 " >> "$REPORT_FILE" 2>&1
@@ -30,10 +30,10 @@ echo "## Observations Created (Last 24h)" >> "$REPORT_FILE"
 PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "
 SELECT 
     COUNT(*) as total_observations,
-    COUNT(DISTINCT series_key) as unique_series,
+    COUNT(DISTINCT \"seriesKey\") as unique_series,
     COUNT(DISTINCT fingerprint_id) as unique_fingerprints
 FROM price_observations
-WHERE observed_at > NOW() - INTERVAL '24 hours';
+WHERE \"observedAt\" > NOW() - INTERVAL '24 hours';
 " >> "$REPORT_FILE" 2>&1
 echo "" >> "$REPORT_FILE"
 
@@ -44,7 +44,7 @@ SELECT
     type,
     COUNT(*) as count
 FROM insights
-WHERE created_at > NOW() - INTERVAL '24 hours'
+WHERE \"createdAt\" > NOW() - INTERVAL '24 hours'
 GROUP BY type
 ORDER BY count DESC;
 " >> "$REPORT_FILE" 2>&1

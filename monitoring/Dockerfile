@@ -9,7 +9,8 @@ RUN apk add --no-cache \
     curl \
     postgresql-client \
     tzdata \
-    dcron
+    dcron \
+    tini
 
 # Set timezone
 ENV TZ=Europe/London
@@ -32,5 +33,5 @@ RUN chmod +x /scripts/*.sh /entrypoint.sh
 # Copy crontab
 COPY crontab /etc/crontabs/root
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/sbin/tini", "--", "/entrypoint.sh"]
 CMD ["crond", "-f", "-l", "2"]

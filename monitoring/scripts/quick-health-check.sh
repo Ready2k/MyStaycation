@@ -10,7 +10,7 @@ FAILED_RUNS=$(PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGR
 SELECT COUNT(*) 
 FROM fetch_runs 
 WHERE status IN ('ERROR', 'PARSE_FAILED') 
-  AND started_at > NOW() - INTERVAL '1 hour';
+  AND \"startedAt\" > NOW() - INTERVAL '1 hour';
 ")
 
 if [ "$FAILED_RUNS" -gt 10 ]; then
@@ -21,7 +21,7 @@ fi
 RECENT_OBS=$(PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -c "
 SELECT COUNT(*) 
 FROM price_observations 
-WHERE observed_at > NOW() - INTERVAL '2 hours';
+WHERE \"observedAt\" > NOW() - INTERVAL '2 hours';
 ")
 
 if [ "$RECENT_OBS" -eq 0 ]; then
