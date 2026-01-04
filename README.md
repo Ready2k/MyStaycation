@@ -122,9 +122,22 @@ npm test
 
 ## Documentation
 
-- [Deployment Guide](./DEPLOYMENT.md) - Production deployment instructions
-- [API Documentation](./API.md) - API endpoints and usage
-- [Provider Guide](./PROVIDER_GUIDE.md) - Adding new providers
+📚 **Complete documentation is available in the [`docs/`](docs/) directory**
+
+### Quick Links
+- [📖 Full Documentation Index](docs/README.md) - Complete documentation overview
+- [🚀 Deployment Guide](docs/deployment/DEPLOYMENT.md) - Production deployment instructions
+- [🏗️ Architecture & Requirements](docs/architecture/REQUIREMENTS.md) - System requirements and design
+- [👨‍💻 Provider Guide](docs/development/PROVIDER_GUIDE.md) - Adding new holiday providers
+- [✅ Project Status](docs/status/FIXES_COMPLETED.md) - Current completion status
+- [🔧 API Reference](docs/SEARCH_PREVIEW_API.md) - API endpoints and usage
+
+### Documentation Categories
+- **Architecture**: System design, requirements, technical specifications
+- **Deployment**: Production deployment guides and status
+- **Development**: Developer guides and implementation details  
+- **Testing**: Testing strategies and procedures
+- **Status**: Project progress and completion tracking
 
 ## Security
 
