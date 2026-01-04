@@ -2,6 +2,8 @@ import 'reflect-metadata';
 import * as dotenv from 'dotenv';
 import { initializeDatabase } from '../config/database';
 import { monitorWorker } from './workers/monitor.worker';
+import { insightWorker } from './workers/insight.worker';
+import { alertWorker } from './workers/alert.worker';
 
 dotenv.config();
 
@@ -14,17 +16,23 @@ async function startWorker() {
 
         console.log('✅ Worker started and listening for jobs');
         console.log(`   - Monitor worker: ${monitorWorker.name}`);
+        console.log(`   - Insight worker: ${insightWorker.name}`);
+        console.log(`   - Alert worker: ${alertWorker.name}`);
 
         // Handle graceful shutdown
         process.on('SIGTERM', async () => {
-            console.log('📴 SIGTERM received, closing worker...');
+            console.log('📴 SIGTERM received, closing workers...');
             await monitorWorker.close();
+            await insightWorker.close();
+            await alertWorker.close();
             process.exit(0);
         });
 
         process.on('SIGINT', async () => {
-            console.log('📴 SIGINT received, closing worker...');
+            console.log('📴 SIGINT received, closing workers...');
             await monitorWorker.close();
+            await insightWorker.close();
+            await alertWorker.close();
             process.exit(0);
         });
 

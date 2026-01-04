@@ -16,6 +16,15 @@ export enum RunStatus {
     PARSE_FAILED = 'PARSE_FAILED'
 }
 
+export enum ProviderStatus {
+    OK = 'OK',
+    FETCH_FAILED = 'FETCH_FAILED',
+    PARSE_FAILED = 'PARSE_FAILED',
+    BLOCKED = 'BLOCKED',
+    TIMEOUT = 'TIMEOUT'
+}
+
+
 @Entity('fetch_runs')
 @Index(['provider', 'startedAt'])
 export class FetchRun {
@@ -44,6 +53,12 @@ export class FetchRun {
 
     @Column({ type: 'enum', enum: RunStatus })
     status!: RunStatus;
+
+    @Column({ type: 'varchar', nullable: true })
+    requestId?: string;
+
+    @Column({ type: 'enum', enum: ProviderStatus, nullable: true })
+    providerStatus?: ProviderStatus;
 
     @Column({ type: 'int', nullable: true })
     httpStatus?: number;

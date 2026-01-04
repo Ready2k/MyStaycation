@@ -1,5 +1,5 @@
 ========================================
-Daily Health Check - 2026-01-04 08:02:33
+Daily Health Check - 2026-01-04 17:02:59
 ========================================
 
 ## Database Connection
@@ -26,15 +26,17 @@ Daily Health Check - 2026-01-04 08:02:33
 
 
 ## Insights Created (Last 24h)
- type | count 
-------+-------
-(0 rows)
+        type        | count 
+--------------------+-------
+ PRICE_DROP_PERCENT |     1
+(1 row)
 
 
 ## Alerts Sent (Last 24h)
- status | count 
---------+-------
-(0 rows)
+ status  | count 
+---------+-------
+ PENDING |     1
+(1 row)
 
 
 ## Series Key Integrity
@@ -48,21 +50,21 @@ Daily Health Check - 2026-01-04 08:02:33
 ## Database Size
  database_size 
 ---------------
- 8780 kB
+ 8844 kB
 (1 row)
 
 
 ## Top 5 Largest Tables
-       table_name        | size  
--------------------------+-------
- public.users            | 96 kB
- public.fetch_runs       | 88 kB
- public.providers        | 80 kB
- public.provider_parks   | 80 kB
- public.holiday_profiles | 64 kB
+      table_name       | size  
+-----------------------+-------
+ public.users          | 96 kB
+ public.fetch_runs     | 88 kB
+ public.providers      | 80 kB
+ public.provider_parks | 80 kB
+ public.alerts         | 64 kB
 (5 rows)
 
 
 ## Summary
-Report generated at: Sun Jan  4 08:02:34 GMT 2026
+Report generated at: Sun Jan  4 17:03:00 GMT 2026
 Report saved to: /reports/health-check-2026-01-04.txt

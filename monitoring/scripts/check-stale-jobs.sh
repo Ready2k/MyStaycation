@@ -12,7 +12,7 @@ STALE_RUNS=$(PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRE
 SELECT COUNT(*) 
 FROM fetch_runs 
 WHERE \"startedAt\" < NOW() - INTERVAL '1 hour' 
-  AND finished_at IS NULL;
+  AND \"finishedAt\" IS NULL;
 ")
 
 if [ "$STALE_RUNS" -gt 0 ]; then
@@ -27,7 +27,7 @@ if [ "$STALE_RUNS" -gt 0 ]; then
         status
     FROM fetch_runs 
     WHERE \"startedAt\" < NOW() - INTERVAL '1 hour' 
-      AND finished_at IS NULL
+      AND \"finishedAt\" IS NULL
     ORDER BY \"startedAt\";
     "
 else

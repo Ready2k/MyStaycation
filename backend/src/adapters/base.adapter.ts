@@ -4,7 +4,6 @@ import { AccommodationType } from '../entities/HolidayProfile';
 
 export interface SearchParams {
     provider: string;
-    provider: string;
     parks?: string[]; // Multiple park IDs (e.g. ['39248', '12345'])
     party: {
         adults: number;
@@ -43,6 +42,7 @@ export interface PriceResult {
     tier?: string;
     propertyName?: string;
     location?: string;
+    parkId?: string; // Critical for SeriesKey generation
 }
 
 export interface DealResult {
@@ -147,8 +147,15 @@ export abstract class BaseAdapter {
         const page = await this.browser.newPage();
 
         try {
-            await page.goto(url, { waitUntil: 'networkidle' });
-            await this.delay(this.requestDelay);
+            // Use domcontentloaded instead of networkidle for better reliability
+            // Modern sites often have background requests that prevent networkidle
+            await page.goto(url, {
+                waitUntil: 'domcontentloaded',
+                timeout: 60000 // Increase timeout to 60 seconds
+            });
+
+            // Wait a bit for dynamic content to load
+            await this.delay(3000);
 
             const html = await page.content();
             return html;

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ProfileList } from '@/components/ProfileList';
 import { ProfileForm } from '@/components/ProfileForm';
+import { AlertTicker } from '@/components/AlertTicker';
 
 export default function DashboardPage() {
     const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
@@ -10,6 +11,9 @@ export default function DashboardPage() {
 
     return (
         <div className="px-4 py-6 sm:px-0">
+            {/* Alert Ticker */}
+            <AlertTicker />
+
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Your Holiday Watchers</h1>

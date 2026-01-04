@@ -7,9 +7,19 @@ export class AdapterRegistry {
     private adapters: Map<string, BaseAdapter> = new Map();
 
     constructor() {
-        this.registerAdapter('hoseasons', new HoseasonsAdapter());
-        this.registerAdapter('haven', new HavenAdapter());
-        this.registerAdapter('centerparcs', new CenterParcsAdapter());
+        const hoseasons = new HoseasonsAdapter();
+        const haven = new HavenAdapter();
+        const centerparcs = new CenterParcsAdapter();
+
+        // Register lowercase variants
+        this.registerAdapter('hoseasons', hoseasons);
+        this.registerAdapter('haven', haven);
+        this.registerAdapter('centerparcs', centerparcs);
+
+        // Register uppercase variants for robustness
+        this.registerAdapter('HOSEASONS', hoseasons);
+        this.registerAdapter('HAVEN', haven);
+        this.registerAdapter('CENTERPARCS', centerparcs);
     }
 
     registerAdapter(providerCode: string, adapter: BaseAdapter): void {

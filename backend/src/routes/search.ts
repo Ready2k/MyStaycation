@@ -53,18 +53,19 @@ export async function searchRoutes(fastify: FastifyInstance) {
 
         try {
             // Parse common envelope
-            // Note: complex validation best done with Zod
             const previewSchema = z.object({
                 mode: z.enum(['PROFILE_ID', 'INLINE_PROFILE']),
                 profileId: z.string().uuid().optional(),
-                profile: createProfileSchema.partial().optional(), // Use shared schema
+                profile: createProfileSchema.partial().optional(),
                 providers: z.array(z.string()).optional(),
                 options: z.object({
                     maxResults: z.number().int().optional(),
                     enrichTopN: z.number().int().optional(),
                     allowWeakMatches: z.boolean().optional(),
                     includeMismatches: z.boolean().optional(),
-                    dryRun: z.boolean().optional()
+                    includeDebug: z.boolean().optional(),
+                    forcePlaywright: z.boolean().optional(),
+                    includeRaw: z.boolean().optional().default(false)
                 }).optional()
             }).refine(data => {
                 if (data.mode === 'PROFILE_ID' && !data.profileId) return false;
@@ -77,27 +78,77 @@ export async function searchRoutes(fastify: FastifyInstance) {
 
             const validated = previewSchema.parse(request.body);
 
-            // Execute service
+            // Execute service with userId
             const response = await previewService.executePreview({
                 mode: validated.mode as any,
                 profileId: validated.profileId,
                 profile: validated.profile as any,
                 providers: validated.providers,
-                options: validated.options
+                options: validated.options,
+                userId: user.id
             });
 
             return reply.send(response);
 
         } catch (error) {
             if (error instanceof z.ZodError) {
-                return reply.code(400).send({ message: 'Validation Error', errors: error.errors });
+                return reply.code(400).send({
+                    message: 'Validation Error',
+                    errors: error.errors,
+                    sideEffects: {
+                        observationsStored: false,
+                        alertsGenerated: false,
+                        emailsSent: false
+                    }
+                });
             }
             request.log.error(error);
+
+            // Handle PROFILE_INCOMPLETE errors
+            if (error instanceof Error && error.message.includes('PROFILE_INCOMPLETE')) {
+                return reply.code(400).send({
+                    message: error.message,
+                    sideEffects: {
+                        observationsStored: false,
+                        alertsGenerated: false,
+                        emailsSent: false
+                    }
+                });
+            }
+
+            // Handle access denied errors
+            if (error instanceof Error && error.message.includes('access denied')) {
+                return reply.code(403).send({
+                    message: 'Access denied',
+                    sideEffects: {
+                        observationsStored: false,
+                        alertsGenerated: false,
+                        emailsSent: false
+                    }
+                });
+            }
+
             // Handle service errors
             if (error instanceof Error && error.message.includes('Profile not found')) {
-                return reply.code(404).send({ message: error.message });
+                return reply.code(404).send({
+                    message: error.message,
+                    sideEffects: {
+                        observationsStored: false,
+                        alertsGenerated: false,
+                        emailsSent: false
+                    }
+                });
             }
-            return reply.code(500).send({ message: 'Preview failed', error: error instanceof Error ? error.message : 'Unknown' });
+
+            return reply.code(500).send({
+                message: 'Preview failed',
+                error: error instanceof Error ? error.message : 'Unknown',
+                sideEffects: {
+                    observationsStored: false,
+                    alertsGenerated: false,
+                    emailsSent: false
+                }
+            });
         }
     });
 

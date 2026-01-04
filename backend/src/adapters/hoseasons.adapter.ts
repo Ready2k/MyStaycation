@@ -356,7 +356,8 @@ export class HoseasonsAdapter extends BaseAdapter {
                     bedrooms,
                     petsAllowed,
                     propertyName,
-                    location
+                    location,
+                    parkId: property.code
                 });
             } catch (error) {
                 console.error('Error parsing property from API:', error);

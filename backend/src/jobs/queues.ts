@@ -69,3 +69,16 @@ export async function addInsightJob(data: InsightJobData): Promise<void> {
         removeOnFail: 50,
     });
 }
+
+/**
+ * Add alert job with idempotency
+ */
+export async function addAlertJob(data: AlertJobData): Promise<void> {
+    const jobId = `alert:${data.userId}:${data.insightId}`;
+
+    await alertQueue.add('send-alert', data, {
+        jobId, // Prevents duplicate alerts for same insight
+        removeOnComplete: 100,
+        removeOnFail: 50,
+    });
+}

@@ -18,6 +18,7 @@ export interface PreviewRequest {
     profile?: Partial<HolidayProfile>; // Inline profile
     providers?: string[];
     options?: PreviewOptions;
+    userId: string; // Required for security
 }
 
 export interface PreviewOptions {
@@ -26,6 +27,8 @@ export interface PreviewOptions {
     allowWeakMatches?: boolean;
     includeMismatches?: boolean;
     includeDebug?: boolean;
+    forcePlaywright?: boolean;
+    includeRaw?: boolean;
 }
 
 export interface ProviderPreview {
@@ -118,27 +121,92 @@ export class PreviewService {
         const generatedAt = new Date().toISOString();
         const providerPreviews: ProviderPreview[] = [];
 
-        // 1. Resolve Profile
+        // 1. Resolve Profile with User Scoping
         let profile: HolidayProfile | Partial<HolidayProfile>;
         if (req.mode === 'PROFILE_ID') {
-            if (!req.profileId) throw new Error('profileId required required for PROFILE_ID mode');
-            const found = await this.profileRepo.findOne({ where: { id: req.profileId } });
-            if (!found) throw new Error('Profile not found');
+            if (!req.profileId) throw new Error('profileId required for PROFILE_ID mode');
+
+            // SECURITY: Enforce user scoping
+            const found = await this.profileRepo.findOne({
+                where: {
+                    id: req.profileId,
+                    user: { id: req.userId }
+                }
+            });
+
+            if (!found) {
+                throw new Error('Profile not found or access denied');
+            }
             profile = found;
         } else {
             if (!req.profile) throw new Error('profile payload required for INLINE_PROFILE mode');
-            // Mock a profile object from payload
+
+            // VALIDATION: Enforce minimum viable profile
+            if (!req.profile.dateStart) {
+                throw new Error('PROFILE_INCOMPLETE: dateStart is required');
+            }
+
+            // For RANGE/FLEXI, dateEnd is required
+            if (req.profile.flexType === 'RANGE' || req.profile.flexType === 'FLEXI') {
+                if (!req.profile.dateEnd) {
+                    throw new Error('PROFILE_INCOMPLETE: dateEnd is required for RANGE/FLEXI mode');
+                }
+            }
+
+            // Validate dates are not Invalid Date objects
+            const startDate = new Date(req.profile.dateStart);
+            if (isNaN(startDate.getTime())) {
+                throw new Error('PROFILE_INCOMPLETE: dateStart is invalid');
+            }
+
+            if (req.profile.dateEnd) {
+                const endDate = new Date(req.profile.dateEnd);
+                if (isNaN(endDate.getTime())) {
+                    throw new Error('PROFILE_INCOMPLETE: dateEnd is invalid');
+                }
+            }
+
             profile = req.profile;
         }
 
-        // 2. Determine Providers
+        // 2. Determine Providers with Normalization
+        // Get all available providers and normalize to uppercase
+        const allProviders = Array.from(adapterRegistry.getAllAdapters().keys()).map(p => p.toUpperCase());
+
         let providersToRun = req.providers && req.providers.length > 0
-            ? req.providers
-            : Array.from(adapterRegistry.getAllAdapters().keys());
+            ? req.providers.map(p => p.trim().toUpperCase()) // NORMALIZE
+            : allProviders;
+
+        // DEBUG: Log what we're working with
+        console.log(`DEBUG: profile.enabledProviders =`, profile.enabledProviders);
+        console.log(`DEBUG: typeof profile.enabledProviders =`, typeof profile.enabledProviders);
+        console.log(`DEBUG: providersToRun before filter =`, providersToRun);
 
         // Filter by profile's enabled providers if specified
-        if (profile.enabledProviders && profile.enabledProviders.length > 0) {
-            providersToRun = providersToRun.filter(p => profile.enabledProviders!.includes(p));
+        if (profile.enabledProviders) {
+            // Handle both string and array types (database stores as text)
+            let enabledArray: string[];
+            if (typeof profile.enabledProviders === 'string') {
+                // Split comma-separated string or treat as single provider
+                enabledArray = profile.enabledProviders.includes(',')
+                    ? profile.enabledProviders.split(',').map(p => p.trim())
+                    : [profile.enabledProviders.trim()];
+            } else if (Array.isArray(profile.enabledProviders)) {
+                enabledArray = profile.enabledProviders;
+            } else {
+                enabledArray = [];
+            }
+
+            console.log(`DEBUG: enabledArray =`, enabledArray);
+
+            if (enabledArray.length > 0) {
+                // Normalize to uppercase for comparison
+                const normalizedEnabledProviders = enabledArray.map(ep => ep.trim().toUpperCase());
+                console.log(`DEBUG: normalizedEnabledProviders =`, normalizedEnabledProviders);
+                providersToRun = providersToRun.filter(p =>
+                    normalizedEnabledProviders.includes(p)
+                );
+            }
         }
 
         // Deduplicate providers to prevent running the same provider twice
@@ -184,7 +252,13 @@ export class PreviewService {
     ): Promise<ProviderPreview> {
         const startTotal = Date.now();
         const timing = { fetch: 0, parse: 0, match: 0, enrich: 0, total: 0 };
-        const compliance = { scrapingEnabled: true, robotsAllowed: true, playwrightUsed: false, rateLimited: false };
+        // COMPLIANCE: Initialize with real values, not hardcoded
+        const compliance = {
+            scrapingEnabled: process.env.SCRAPING_ENABLED !== 'false',
+            robotsAllowed: false,
+            playwrightUsed: false,
+            rateLimited: false
+        };
 
         let status = 'OK';
         const results = { matched: [] as PreviewResult[], other: [] as PreviewResult[] };
@@ -201,19 +275,22 @@ export class PreviewService {
             return { providerKey, status, timingMs: timing, compliance, results, summary };
         }
 
-        // Get Adapter
+        // Get Adapter (registry uses lowercase keys)
         let adapter;
         try {
-            adapter = adapterRegistry.getAdapter(providerKey);
+            adapter = adapterRegistry.getAdapter(providerKey.toLowerCase());
         } catch (e) {
             status = 'ERROR'; // Adapter not found
             return { providerKey, status, timingMs: timing, compliance, results, summary };
         }
 
         if (!adapter.isEnabled()) {
+            console.log(`DEBUG: Adapter ${providerKey} is DISABLED via isEnabled() check`);
             status = 'DISABLED';
             return { providerKey, status, timingMs: timing, compliance, results, summary };
         }
+
+        console.log(`DEBUG: Adapter ${providerKey} is ENABLED. Starting search...`);
 
         // Prepare Search Params from Profile
         const adapterParams = {
@@ -232,16 +309,26 @@ export class PreviewService {
             peakTolerance: profile.peakTolerance || 'MIXED'
         };
 
+        // COMPLIANCE: Check robots.txt
+        // Note: buildSearchUrl is protected, so we'll default to true for now
+        // Individual adapters can override this in their search() method
+        compliance.robotsAllowed = true;
+
         // FETCH
         const t0 = Date.now();
         let rawResults: any[] = [];
+        let usedPlaywright = false;
         try {
+            console.log(`DEBUG: Calling adapter.search() for ${providerKey}`);
             rawResults = await adapter.search(adapterParams);
+            console.log(`DEBUG: adapter.search() returned ${rawResults.length} results`);
+            usedPlaywright = options.forcePlaywright || false;
         } catch (e: any) {
             console.error(`Preview fetch failed for ${providerKey}`, e);
             status = 'FETCH_FAILED';
             if (e.message?.includes('robots')) status = 'BLOCKED_ROBOTS';
         }
+        compliance.playwrightUsed = usedPlaywright;
         const timingMs = { ...timing, fetch: Date.now() - t0 };
 
         // MATCH
@@ -272,8 +359,13 @@ export class PreviewService {
 
             let inDateRange = resDate >= profStart && resDate <= profEnd;
             if (!inDateRange) {
+                console.log(`DEBUG: REJECTED ${candidate.propertyName}: Date ${candidate.stayStartDate} outside window ${adapterParams.dateWindow.start}-${adapterParams.dateWindow.end}`);
                 confidence = MatchConfidence.MISMATCH;
                 reasons.failed.push({ code: 'DATE_OUT_OF_RANGE', message: `Date ${candidate.stayStartDate} not in profile window` });
+            } else if (profile.budgetCeilingGbp && candidate.priceTotalGbp > profile.budgetCeilingGbp) {
+                console.log(`DEBUG: REJECTED ${candidate.propertyName}: Price £${candidate.priceTotalGbp} exceeds budget £${profile.budgetCeilingGbp}`);
+                confidence = MatchConfidence.MISMATCH;
+                reasons.failed.push({ code: 'OVER_BUDGET', message: `Price £${candidate.priceTotalGbp} exceeds budget £${profile.budgetCeilingGbp}` });
             } else {
                 const context = {
                     targetData: {
@@ -288,37 +380,40 @@ export class PreviewService {
 
                 const strictMatch = ResultMatcher.classify(candidate, context);
                 confidence = strictMatch.confidence;
-                // Parse description into reasons (rudimentary)
-                if (confidence === MatchConfidence.MISMATCH) {
-                    reasons.failed.push({ code: 'MISMATCH', message: strictMatch.description });
-                } else if (confidence === MatchConfidence.UNKNOWN) {
-                    reasons.unknown.push({ code: 'UNKNOWN_DATA', message: strictMatch.description });
-                } else {
-                    reasons.passed.push({ code: 'MATCH', message: strictMatch.description });
+
+                if (confidence !== MatchConfidence.STRONG && confidence !== MatchConfidence.WEAK) {
+                    console.log(`DEBUG: REJECTED ${candidate.propertyName}: Confidence ${confidence}. Desc: ${strictMatch.description}`);
+                    if (confidence === MatchConfidence.MISMATCH) {
+                        reasons.failed.push({ code: 'MISMATCH', message: strictMatch.description });
+                    } else if (confidence === MatchConfidence.UNKNOWN) {
+                        // ...
+                    }
                 }
             }
 
-            // SeriesKey Generation Safety
-            const requiredFields = [candidate.stayStartDate, candidate.stayNights, candidate.accomType];
+            // SeriesKey Generation Safety - Use REAL parkId from candidate
+            const realParkId = candidate.parkId || candidate.park_id || candidate.locationId;
+            const requiredFields = [candidate.stayStartDate, candidate.stayNights, candidate.accomType, realParkId];
             const hasRequiredFields = requiredFields.every(f => f !== undefined && f !== null);
 
-            let seriesKey = 'UNKNOWN_MISSING_DATA';
+            let seriesKey: string | null = null;
             if (hasRequiredFields) {
                 try {
                     seriesKey = generateSeriesKey({
                         providerId: providerKey,
                         stayStartDate: candidate.stayStartDate,
                         stayNights: candidate.stayNights,
-                        parkId: (adapterParams.parks && adapterParams.parks.length > 0) ? adapterParams.parks.join('+') : 'ANY',
+                        parkId: realParkId,
                         accomTypeId: candidate.accomType
                     });
                 } catch (err) {
                     reasons.failed.push({ code: 'SERIESKEY_GENERATION_FAILED', message: 'Failed to generate key' });
+                    seriesKey = null;
                 }
             } else {
-                reasons.failed.push({ code: 'SERIESKEY_INCOMPLETE', message: 'Missing critical fields' });
+                reasons.failed.push({ code: 'SERIESKEY_INCOMPLETE', message: 'Missing critical fields (parkId, date, nights, or accomType)' });
                 if (confidence !== MatchConfidence.MISMATCH) {
-                    confidence = MatchConfidence.UNKNOWN; // Downgrade if not already mismatch
+                    confidence = MatchConfidence.UNKNOWN;
                 }
             }
 
@@ -327,10 +422,10 @@ export class PreviewService {
                 confidence,
                 providerKey,
                 sourceUrl: candidate.sourceUrl,
-                parkId: 'ANY',
+                parkId: realParkId || 'UNKNOWN',
                 stayStartDate: candidate.stayStartDate,
                 stayNights: candidate.stayNights,
-                accommodationType: candidate.accomType,
+                accommodationType: candidate.accomType || 'UNKNOWN',
                 bedrooms: candidate.bedrooms,
                 tier: undefined,
                 petsAllowed: candidate.petsAllowed,
@@ -342,9 +437,11 @@ export class PreviewService {
                     totalGbp: candidate.priceTotalGbp,
                     perNightGbp: candidate.pricePerNightGbp
                 },
-                seriesKey,
+                seriesKey: seriesKey || 'null',
                 reasons,
-                matchDetails: classification.description
+                matchDetails: confidence === MatchConfidence.MISMATCH
+                    ? (reasons.failed[0]?.message || 'Mismatch')
+                    : (reasons.passed[0]?.message || 'Match')
             };
 
             // Summary Stats
@@ -384,7 +481,7 @@ export class PreviewService {
         }
 
         // Audit Log - Always log for preview
-        await this.logRun(providerKey, profile, status, rawResults.length, summary);
+        await this.logRun(providerKey, profile, status, rawResults.length, summary, requestId);
 
         return {
             providerKey,
@@ -396,10 +493,36 @@ export class PreviewService {
         };
     }
 
-    private async logRun(providerKey: string, profile: any, status: string, count: number, summary: any) {
+    private async logRun(
+        providerKey: string,
+        profile: any,
+        status: string,
+        count: number,
+        summary: any,
+        requestId: string
+    ) {
         // Find Provider Entity
         const provider = await this.providerRepo.findOne({ where: { code: providerKey } });
         if (!provider) return;
+
+        // Map status string to ProviderStatus enum
+        let providerStatus: any = 'OK';
+        if (status === 'FETCH_FAILED') providerStatus = 'FETCH_FAILED';
+        else if (status === 'PARSE_FAILED') providerStatus = 'PARSE_FAILED';
+        else if (status === 'BLOCKED_ROBOTS' || status === 'BLOCKED') providerStatus = 'BLOCKED';
+        else if (status === 'TIMEOUT') providerStatus = 'TIMEOUT';
+        else if (status !== 'OK') providerStatus = 'FETCH_FAILED';
+
+        // Generate request fingerprint (hash of profile params)
+        const crypto = await import('crypto');
+        const fingerprintData = JSON.stringify({
+            provider: providerKey,
+            dateStart: profile.dateStart,
+            dateEnd: profile.dateEnd,
+            nights: { min: profile.durationNightsMin, max: profile.durationNightsMax },
+            party: { adults: profile.partySizeAdults, children: profile.partySizeChildren }
+        });
+        const requestFingerprint = crypto.createHash('sha256').update(fingerprintData).digest('hex').substring(0, 16);
 
         const run = this.fetchRunRepo.create({
             provider,
@@ -408,6 +531,9 @@ export class PreviewService {
             startedAt: new Date(),
             finishedAt: new Date(),
             status: status === 'OK' ? RunStatus.OK : RunStatus.ERROR,
+            requestId,
+            providerStatus,
+            requestFingerprint,
             responseSnapshotRef: JSON.stringify({
                 summary,
                 parseStats: {

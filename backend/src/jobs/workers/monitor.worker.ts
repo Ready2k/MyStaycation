@@ -4,7 +4,7 @@ import { SearchFingerprint } from '../../entities/SearchFingerprint';
 import { PriceObservation, AvailabilityStatus } from '../../entities/PriceObservation';
 import { FetchRun, RunType, RunStatus } from '../../entities/FetchRun';
 import { adapterRegistry } from '../../adapters/registry';
-import { MonitorJobData } from '../queues';
+import { MonitorJobData, addInsightJob } from '../queues';
 import { generateSeriesKey } from '../../utils/series-key';
 import IORedis from 'ioredis';
 
@@ -112,6 +112,12 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
         }
 
         console.log(`✅ Stored ${storedCount} valid observations for fingerprint ${fingerprintId}`);
+
+        // Trigger insight generation if we stored new observations
+        if (storedCount > 0) {
+            await addInsightJob({ fingerprintId });
+            console.log(`🧠 Queued insight generation for fingerprint ${fingerprintId}`);
+        }
 
         // Update fingerprint last scheduled time
         fingerprint.lastScheduledAt = new Date();

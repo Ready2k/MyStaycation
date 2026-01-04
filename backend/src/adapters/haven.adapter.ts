@@ -78,10 +78,10 @@ export class HavenAdapter extends BaseAdapter {
         // We don't have a map for Region -> parkCode yet.
         // If a region is explicitly provided in a way we can't map, we might need to skip or warn.
         // However, for testing, if we omit parkCode, we hope it searches all.
-        // If strict, we might fail.
-        // For now, let's NOT append parkCode unless we know it.
-        if (params.park) {
-            queryParams.append('parkCode', params.park);
+
+        // Park filter (if specified)
+        if (params.parks && params.parks.length > 0) {
+            queryParams.append('parkCode', params.parks[0]); // Haven API takes single park
         } else if (params.region) {
             queryParams.append('region', params.region);
         }
