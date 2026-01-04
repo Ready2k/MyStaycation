@@ -3,13 +3,7 @@ import { AppDataSource } from '../../config/database';
 import { insightService } from '../../services/insight.service';
 import { InsightJobData } from '../queues';
 import { SearchFingerprint } from '../../entities/SearchFingerprint';
-import IORedis from 'ioredis';
-
-const connection = new IORedis({
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379'),
-    maxRetriesPerRequest: null,
-});
+import { redisConnection } from '../../config/redis';
 
 const fingerprintRepo = AppDataSource.getRepository(SearchFingerprint);
 
@@ -61,7 +55,7 @@ async function processInsightJob(job: Job<InsightJobData>) {
 }
 
 export const insightWorker = new Worker('insights', processInsightJob, {
-    connection,
+    connection: redisConnection,
     concurrency: 5, // Can process multiple fingerprints in parallel
 });
 

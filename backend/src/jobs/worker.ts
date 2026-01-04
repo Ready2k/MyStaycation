@@ -4,6 +4,7 @@ import { initializeDatabase } from '../config/database';
 import { monitorWorker } from './workers/monitor.worker';
 import { insightWorker } from './workers/insight.worker';
 import { alertWorker } from './workers/alert.worker';
+import { redisConnection } from '../config/redis';
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ async function startWorker() {
             await monitorWorker.close();
             await insightWorker.close();
             await alertWorker.close();
+            await redisConnection.disconnect();
             process.exit(0);
         });
 
@@ -33,6 +35,7 @@ async function startWorker() {
             await monitorWorker.close();
             await insightWorker.close();
             await alertWorker.close();
+            await redisConnection.disconnect();
             process.exit(0);
         });
 

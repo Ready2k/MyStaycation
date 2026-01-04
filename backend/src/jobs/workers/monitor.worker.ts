@@ -6,13 +6,7 @@ import { FetchRun, RunType, RunStatus } from '../../entities/FetchRun';
 import { adapterRegistry } from '../../adapters/registry';
 import { MonitorJobData, addInsightJob } from '../queues';
 import { generateSeriesKey } from '../../utils/series-key';
-import IORedis from 'ioredis';
-
-const connection = new IORedis({
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379'),
-    maxRetriesPerRequest: null,
-});
+import { redisConnection } from '../../config/redis';
 
 const fingerprintRepo = AppDataSource.getRepository(SearchFingerprint);
 const observationRepo = AppDataSource.getRepository(PriceObservation);
@@ -144,7 +138,7 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
 }
 
 export const monitorWorker = new Worker('monitor', processMonitorJob, {
-    connection,
+    connection: redisConnection,
     concurrency: parseInt(process.env.PROVIDER_MAX_CONCURRENT || '2'),
 });
 

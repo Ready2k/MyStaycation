@@ -1,13 +1,7 @@
 import { Worker, Job } from 'bullmq';
 import { alertService } from '../../services/alert.service';
 import { AlertJobData } from '../queues';
-import IORedis from 'ioredis';
-
-const connection = new IORedis({
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379'),
-    maxRetriesPerRequest: null,
-});
+import { redisConnection } from '../../config/redis';
 
 async function processAlertJob(job: Job<AlertJobData>) {
     const { userId, insightId, profileId } = job.data;
@@ -36,7 +30,7 @@ async function processAlertJob(job: Job<AlertJobData>) {
 }
 
 export const alertWorker = new Worker('alerts', processAlertJob, {
-    connection,
+    connection: redisConnection,
     concurrency: 10, // Emails can be sent in parallel
 });
 
