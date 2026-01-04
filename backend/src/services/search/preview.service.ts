@@ -188,9 +188,10 @@ export class PreviewService {
             let enabledArray: string[];
             if (typeof profile.enabledProviders === 'string') {
                 // Split comma-separated string or treat as single provider
-                enabledArray = profile.enabledProviders.includes(',')
-                    ? profile.enabledProviders.split(',').map(p => p.trim())
-                    : [profile.enabledProviders.trim()];
+                const providersStr = profile.enabledProviders as string;
+                enabledArray = providersStr.includes(',')
+                    ? providersStr.split(',').map(p => p.trim())
+                    : [providersStr.trim()];
             } else if (Array.isArray(profile.enabledProviders)) {
                 enabledArray = profile.enabledProviders;
             } else {

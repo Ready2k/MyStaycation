@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { AppDataSource } from '../config/database';
 import { Insight } from '../entities/Insight';
-import { Alert } from '../entities/Alert';
+import { Alert, AlertStatus } from '../entities/Alert';
 import { authenticate } from '../middleware/auth';
 
 const insightRepo = AppDataSource.getRepository(Insight);
@@ -92,7 +92,7 @@ export async function insightsRoutes(fastify: FastifyInstance) {
             return reply.code(404).send({ error: 'Alert not found' });
         }
 
-        alert.status = 'DISMISSED';
+        alert.status = AlertStatus.DISMISSED;
         await alertRepo.save(alert);
 
         return { success: true };

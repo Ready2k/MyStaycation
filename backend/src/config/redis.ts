@@ -6,9 +6,7 @@ export const redisConnection = new IORedis({
     port: parseInt(process.env.REDIS_PORT || '6379'),
     password: process.env.REDIS_PASSWORD || undefined,
     maxRetriesPerRequest: null,
-    retryDelayOnFailover: 100,
     enableReadyCheck: false,
-    maxRetriesPerRequest: null,
 });
 
 redisConnection.on('connect', () => {

@@ -1,10 +1,14 @@
 import { AppDataSource } from '../config/database';
 import { PriceObservation } from '../entities/PriceObservation';
 import { Insight, InsightType } from '../entities/Insight';
+import { Deal, DealSource, DiscountType } from '../entities/Deal';
+import { SearchFingerprint } from '../entities/SearchFingerprint';
 import { generateInsightDedupeKey } from '../utils/series-key';
 
 const observationRepo = AppDataSource.getRepository(PriceObservation);
 const insightRepo = AppDataSource.getRepository(Insight);
+const dealRepo = AppDataSource.getRepository(Deal);
+const fingerprintRepo = AppDataSource.getRepository(SearchFingerprint);
 
 export class InsightService {
     /**
@@ -53,11 +57,17 @@ export class InsightService {
 
         // Check for lowest price in X days
         const lowestInsight = await this.checkLowestInXDays(fingerprintId, seriesKey, observations);
-        if (lowestInsight) insights.push(lowestInsight);
+        if (lowestInsight) {
+            insights.push(lowestInsight);
+            await this.createDealFromInsight(fingerprintId, seriesKey, lowestInsight);
+        }
 
         // Check for price drop
         const dropInsight = await this.checkPriceDrop(fingerprintId, seriesKey, observations);
-        if (dropInsight) insights.push(dropInsight);
+        if (dropInsight) {
+            insights.push(dropInsight);
+            await this.createDealFromInsight(fingerprintId, seriesKey, dropInsight);
+        }
 
         // Check for rising risk
         const riskInsight = await this.checkRisingRisk(fingerprintId, seriesKey, observations);
@@ -74,6 +84,83 @@ export class InsightService {
         }
 
         return insights;
+    }
+
+    /**
+     * Create or update a Deal entity based on an Insight
+     */
+    private async createDealFromInsight(
+        fingerprintId: string,
+        seriesKey: string,
+        insight: Insight
+    ): Promise<void> {
+        try {
+            // Get fingerprint to identify provider
+            const fingerprint = await fingerprintRepo.findOne({
+                where: { id: fingerprintId },
+                relations: ['provider'],
+            });
+
+            if (!fingerprint || !fingerprint.provider) {
+                console.warn(`Could not find provider for fingerprint ${fingerprintId}, skipping deal creation`);
+                return;
+            }
+
+            const sourceRef = seriesKey; // Use seriesKey as unique reference for this specific holiday option
+            const existingDeal = await dealRepo.findOne({
+                where: {
+                    source: DealSource.PROVIDER_OFFERS,
+                    sourceRef,
+                },
+            });
+
+            let discountType = DiscountType.FIXED_OFF;
+            let discountValue = 0;
+
+            if (insight.type === InsightType.PRICE_DROP_PERCENT) {
+                discountType = DiscountType.PERCENT_OFF;
+                discountValue = insight.details.percentDrop || 0;
+            } else if (insight.type === InsightType.LOWEST_IN_X_DAYS) {
+                // For lowest price, we can treat the difference from previous min as a 'deal'
+                // Use a heuristic or default
+                discountType = DiscountType.SALE_PRICE;
+                discountValue = Number(insight.details.currentPrice);
+            }
+
+            if (existingDeal) {
+                // Update existing deal
+                existingDeal.lastSeenAt = new Date();
+                existingDeal.confidence = Math.min(existingDeal.confidence + 0.1, 1.0);
+                if (insight.details.currentPrice) {
+                    existingDeal.discountValue = discountValue; // Update value
+                }
+                await dealRepo.save(existingDeal);
+                console.log(`Updated deal for series ${seriesKey}`);
+            } else {
+                // Create new deal
+                const newDeal = dealRepo.create({
+                    provider: fingerprint.provider,
+                    source: DealSource.PROVIDER_OFFERS,
+                    sourceRef,
+                    title: insight.summary,
+                    discountType,
+                    discountValue,
+                    startsAt: new Date(),
+                    lastSeenAt: new Date(),
+                    detectedAt: new Date(),
+                    confidence: 0.7,
+                    eligibilityTags: ['price_drop'],
+                    restrictions: {
+                        stayStartDate: insight.details.stayStartDate,
+                        stayNights: insight.details.stayNights,
+                    },
+                });
+                await dealRepo.save(newDeal);
+                console.log(`Created new deal for series ${seriesKey}`);
+            }
+        } catch (error) {
+            console.error('Failed to create/update deal from insight:', error);
+        }
     }
 
     /**

@@ -50,10 +50,9 @@ export class AlertService {
         // Create alert
         const alert = alertRepo.create({
             user: { id: userId },
-            profile: profileId ? { id: profileId } : undefined,
             insight: { id: insightId },
             channel: AlertChannel.EMAIL,
-            status: AlertStatus.QUEUED,
+            status: AlertStatus.PENDING,
             dedupeKey,
         });
 

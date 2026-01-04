@@ -77,6 +77,15 @@ export async function profileRoutes(fastify: FastifyInstance) {
 
             await profileRepo.save(profile);
 
+            // Sync fingerprints for the scheduler
+            try {
+                const { fingerprintService } = await import('../services/search/fingerprint.service');
+                await fingerprintService.syncProfileFingerprints(profile);
+            } catch (err) {
+                request.log.error({ err }, 'Failed to sync fingerprints');
+                // Don't fail the request, just log
+            }
+
             return reply.code(201).send(profile);
         } catch (error) {
             if (error instanceof z.ZodError) {
@@ -132,6 +141,14 @@ export async function profileRoutes(fastify: FastifyInstance) {
             profileRepo.merge(profile, validatedData);
 
             await profileRepo.save(profile);
+
+            // Sync fingerprints for the scheduler
+            try {
+                const { fingerprintService } = await import('../services/search/fingerprint.service');
+                await fingerprintService.syncProfileFingerprints(profile);
+            } catch (err) {
+                request.log.error({ err }, 'Failed to sync fingerprints');
+            }
 
             return profile;
         } catch (error) {

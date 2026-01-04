@@ -4,7 +4,9 @@ import { initializeDatabase } from '../config/database';
 import { monitorWorker } from './workers/monitor.worker';
 import { insightWorker } from './workers/insight.worker';
 import { alertWorker } from './workers/alert.worker';
+import { dealWorker } from './workers/deal.worker';
 import { redisConnection } from '../config/redis';
+import { scheduler } from './scheduler';
 
 dotenv.config();
 
@@ -20,21 +22,28 @@ async function startWorker() {
         console.log(`   - Insight worker: ${insightWorker.name}`);
         console.log(`   - Alert worker: ${alertWorker.name}`);
 
+        // Start Scheduler
+        await scheduler.start();
+
         // Handle graceful shutdown
         process.on('SIGTERM', async () => {
             console.log('📴 SIGTERM received, closing workers...');
+            scheduler.stop();
             await monitorWorker.close();
             await insightWorker.close();
             await alertWorker.close();
+            await dealWorker.close();
             await redisConnection.disconnect();
             process.exit(0);
         });
 
         process.on('SIGINT', async () => {
             console.log('📴 SIGINT received, closing workers...');
+            scheduler.stop();
             await monitorWorker.close();
             await insightWorker.close();
             await alertWorker.close();
+            await dealWorker.close();
             await redisConnection.disconnect();
             process.exit(0);
         });

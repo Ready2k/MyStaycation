@@ -26,6 +26,8 @@ export class EmailService {
                     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
                 },
             });
+        } else if (this.provider === 'log') {
+            console.log('📝 Email service configured to LOG mode');
         } else {
             this.smtpTransporter = nodemailer.createTransport({
                 host: process.env.SMTP_HOST,

@@ -10,12 +10,11 @@ async function processAlertJob(job: Job<AlertJobData>) {
 
     try {
         // Create and send alert
-        const alert = await alertService.createAlert({
-            userId,
-            insightId,
-            profileId,
-            channel: 'EMAIL', // Start with email only
-        });
+        const alert = await alertService.createAlert(
+            job.data.userId,
+            job.data.insightId,
+            profileId
+        );
 
         if (alert) {
             console.log(`✅ Alert ${alert.id} created and sent`);

@@ -75,3 +75,16 @@ export async function addAlertJob(data: AlertJobData): Promise<void> {
         removeOnFail: 50,
     });
 }
+
+/**
+ * Add deal scan job
+ */
+export async function addDealScanJob(data: DealJobData): Promise<void> {
+    const jobId = `deal-scan:${data.providerId}:${new Date().toISOString().split('T')[0]}`;
+
+    await dealQueue.add('scan-deals', data, {
+        jobId, // Deduplicate daily scans
+        removeOnComplete: 100,
+        removeOnFail: 100
+    });
+}
