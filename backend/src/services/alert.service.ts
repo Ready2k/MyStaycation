@@ -34,8 +34,16 @@ export class AlertService {
             return null;
         }
 
+        // Check if fingerprint is snoozed
+        if (insight.fingerprint?.snoozedUntil && new Date(insight.fingerprint.snoozedUntil) > new Date()) {
+            console.log(`Fingerprint ${insight.fingerprint.id} is snoozed until ${insight.fingerprint.snoozedUntil}`);
+            return null;
+        }
+
         // Generate dedupe key (user + insight type + fingerprint + 7 days)
-        const dedupeKey = this.generateDedupeKey(userId, insight);
+        // Generate dedupe key with dynamic window based on sensitivity
+        const sensitivity = insight.fingerprint?.profile?.alertSensitivity || 'INSTANT';
+        const dedupeKey = this.generateDedupeKey(userId, insight, sensitivity);
 
         // Check if similar alert was sent recently (7 days)
         const existingAlert = await alertRepo.findOne({
@@ -106,13 +114,46 @@ export class AlertService {
     /**
      * Generate dedupe key for alert
      */
-    private generateDedupeKey(userId: string, insight: Insight): string {
+    /**
+     * Generate dedupe key for alert with dynamic time window
+     */
+    private generateDedupeKey(userId: string, insight: Insight, sensitivity: string): string {
         const now = new Date();
-        const weekStart = new Date(now);
-        weekStart.setDate(now.getDate() - 7);
+        const windowStart = new Date(now);
 
-        const data = `${userId}:${insight.type}:${insight.fingerprint.id}:${weekStart.toISOString().split('T')[0]}`;
+        // Adjust window based on sensitivity
+        // INSTANT: 24 hours (1/day)
+        // DIGEST: 7 days (1/week)
+        // EXCEPTIONAL_ONLY: 7 days (1/week) + high significance filter (handled in caller usually, but here just frequency)
+
+        let daysToSubtract = 1; // Default INSTANT (24h)
+
+        if (sensitivity === 'DIGEST') {
+            daysToSubtract = 7;
+        } else if (sensitivity === 'EXCEPTIONAL_ONLY') {
+            daysToSubtract = 7;
+        }
+
+        windowStart.setDate(now.getDate() - daysToSubtract);
+
+        const data = `${userId}:${insight.type}:${insight.fingerprint.id}:${windowStart.toISOString().split('T')[0]}`;
         return crypto.createHash('sha256').update(data).digest('hex');
+    }
+
+    /**
+     * Snooze alerts for a fingerprint
+     */
+    async snoozeFingerprint(fingerprintId: string, days: number): Promise<void> {
+        const fingerprintRepo = AppDataSource.getRepository('SearchFingerprint');
+        const fingerprint = await fingerprintRepo.findOne({ where: { id: fingerprintId } });
+
+        if (fingerprint) {
+            const until = new Date();
+            until.setDate(until.getDate() + days);
+            (fingerprint as any).snoozedUntil = until;
+            await fingerprintRepo.save(fingerprint);
+            console.log(`Fingerprint ${fingerprintId} snoozed for ${days} days`);
+        }
     }
 
     /**

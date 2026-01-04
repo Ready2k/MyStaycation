@@ -43,6 +43,9 @@ export class SearchFingerprint {
     @Column({ type: 'boolean', default: true })
     enabled!: boolean;
 
+    @Column({ type: 'timestamp', nullable: true })
+    snoozedUntil?: Date;
+
     @CreateDateColumn()
     createdAt!: Date;
 
