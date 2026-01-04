@@ -35,7 +35,7 @@ export const createProfileSchema = z.object({
     maxResults: z.number().int().min(1).max(100).default(50),
     sortOrder: z.enum(['PRICE_ASC', 'PRICE_DESC', 'DATE_ASC']).default('PRICE_ASC'),
     enabledProviders: z.array(z.string()).default([]),
-    parkIds: z.array(z.string()).default([])
+    parkIds: z.array(z.string()).nullable().optional().transform(val => val || [])
 });
 
 const updateProfileSchema = createProfileSchema.partial();
