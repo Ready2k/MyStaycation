@@ -1,0 +1,68 @@
+========================================
+Daily Health Check - 2026-01-04 08:02:33
+========================================
+
+## Database Connection
+✅ Database connection: OK
+
+## Fetch Runs (Last 24h)
+ status | count | percentage 
+--------+-------+------------
+ OK     |    57 |     100.00
+(1 row)
+
+
+## Parse Failures (Last 24h)
+ provider | errorMessage | count 
+----------+--------------+-------
+(0 rows)
+
+
+## Observations Created (Last 24h)
+ total_observations | unique_series | unique_fingerprints 
+--------------------+---------------+---------------------
+                  0 |             0 |                   0
+(1 row)
+
+
+## Insights Created (Last 24h)
+ type | count 
+------+-------
+(0 rows)
+
+
+## Alerts Sent (Last 24h)
+ status | count 
+--------+-------
+(0 rows)
+
+
+## Series Key Integrity
+ ✅ PASS: All observations have series keys
+
+
+## Deduplication Check
+ ✅ PASS: No duplicate insights
+
+
+## Database Size
+ database_size 
+---------------
+ 8780 kB
+(1 row)
+
+
+## Top 5 Largest Tables
+       table_name        | size  
+-------------------------+-------
+ public.users            | 96 kB
+ public.fetch_runs       | 88 kB
+ public.providers        | 80 kB
+ public.provider_parks   | 80 kB
+ public.holiday_profiles | 64 kB
+(5 rows)
+
+
+## Summary
+Report generated at: Sun Jan  4 08:02:34 GMT 2026
+Report saved to: /reports/health-check-2026-01-04.txt

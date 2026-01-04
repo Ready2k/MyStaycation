@@ -1,5 +1,5 @@
 import { BaseAdapter, SearchParams, PriceResult, DealResult } from './base.adapter';
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio';
 import { MatchConfidence } from '../utils/result-matcher';
 
 export class CenterParcsAdapter extends BaseAdapter {
@@ -41,20 +41,18 @@ export class CenterParcsAdapter extends BaseAdapter {
                 const url = this.buildVillageUrl(villageCode, params);
                 console.log(`DEBUG: CenterParcs URL: ${url}`);
 
-                const response = await fetch(url, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                    }
-                });
+                // Use Playwright (headless browser) as Center Parcs likely uses JS for results
+                const html = await this.fetchHtmlWithBrowser(url);
 
-                if (!response.ok) {
-                    console.error(`❌ Center Parcs API error for ${villageCode}: ${response.status}`);
+                if (!html) {
+                    console.error(`❌ Center Parcs: Empty HTML returned for ${villageCode}`);
                     continue;
                 }
 
-                const html = await response.text();
+                console.log(`DEBUG: CenterParcs: Fetched HTML length: ${html.length}`);
                 const villageResults = this.parseVillageResults(html, villageCode, params);
+                console.log(`DEBUG: CenterParcs ${villageCode}: Found ${villageResults.length} results`);
+
                 results.push(...villageResults);
 
             } catch (error) {
