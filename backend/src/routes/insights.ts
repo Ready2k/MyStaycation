@@ -20,7 +20,7 @@ export async function insightsRoutes(fastify: FastifyInstance) {
             },
         },
     }, async (request, reply) => {
-        const userId = (request as any).user.id;
+        const userId = (request as any).user.userId;
         const { limit = 10 } = request.query as any;
 
         // Get insights for user's fingerprints
@@ -49,7 +49,7 @@ export async function insightsRoutes(fastify: FastifyInstance) {
             },
         },
     }, async (request, reply) => {
-        const userId = (request as any).user.id;
+        const userId = (request as any).user.userId;
         const { limit = 10, unreadOnly = false } = request.query as any;
 
         const queryBuilder = alertRepo
@@ -81,7 +81,7 @@ export async function insightsRoutes(fastify: FastifyInstance) {
     fastify.patch('/alerts/:id/dismiss', {
         preHandler: [authenticate],
     }, async (request, reply) => {
-        const userId = (request as any).user.id;
+        const userId = (request as any).user.userId;
         const { id } = request.params as any;
 
         const alert = await alertRepo.findOne({

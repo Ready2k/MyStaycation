@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import api from '../services/api';
 
 interface Alert {
     id: string;
@@ -8,6 +9,11 @@ interface Alert {
         type: string;
         summary: string;
         details: any;
+        fingerprint?: {
+            profile: {
+                name: string;
+            };
+        };
     };
     profile: {
         name: string;
@@ -22,15 +28,11 @@ export function AlertTicker() {
     const [expanded, setExpanded] = useState(false);
     const [loading, setLoading] = useState(true);
 
+
+
     const fetchAlerts = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:4000/api/alerts/recent?limit=5&unreadOnly=true', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
-            const data = await response.json();
+            const { data } = await api.get('/alerts/recent?limit=5&unreadOnly=true');
             setAlerts(data.alerts || []);
             setTotalUnread(data.totalUnread || 0);
         } catch (error) {
@@ -49,13 +51,7 @@ export function AlertTicker() {
 
     const dismissAlert = async (id: string) => {
         try {
-            const token = localStorage.getItem('token');
-            await fetch(`http://localhost:4000/api/alerts/${id}/dismiss`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
+            await api.patch(`/alerts/${id}/dismiss`);
             setAlerts(alerts.filter(a => a.id !== id));
             setTotalUnread(Math.max(0, totalUnread - 1));
         } catch (error) {
