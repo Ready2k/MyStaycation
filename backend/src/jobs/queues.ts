@@ -45,6 +45,7 @@ export async function addMonitorJob(data: MonitorJobData): Promise<void> {
 
     await monitorQueue.add('monitor-search', data, {
         jobId, // BullMQ uses jobId for deduplication
+        attempts: 3, // CRITICAL: Without this, BullMQ defaults to 0 and skips processing!
         removeOnComplete: 100,
         removeOnFail: 100,
     });
@@ -58,6 +59,7 @@ export async function addInsightJob(data: InsightJobData): Promise<void> {
 
     await insightQueue.add('generate-insights', data, {
         jobId,
+        attempts: 3,
         removeOnComplete: 50,
         removeOnFail: 50,
     });
@@ -71,6 +73,7 @@ export async function addAlertJob(data: AlertJobData): Promise<void> {
 
     await alertQueue.add('send-alert', data, {
         jobId, // Prevents duplicate alerts for same insight
+        attempts: 3,
         removeOnComplete: 100,
         removeOnFail: 50,
     });
@@ -84,6 +87,7 @@ export async function addDealScanJob(data: DealJobData): Promise<void> {
 
     await dealQueue.add('scan-deals', data, {
         jobId, // Deduplicate daily scans
+        attempts: 3,
         removeOnComplete: 100,
         removeOnFail: 100
     });

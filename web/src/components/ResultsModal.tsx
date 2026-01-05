@@ -74,8 +74,11 @@ export function ResultsModal({ isOpen, onClose, results, isLoading, profileName 
                             <p className="text-sm text-gray-500">Checking providers real-time...</p>
                         </div>
                     ) : results.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500">
-                            No deals found at the moment. Try adjusting your watcher settings.
+                        <div className="text-center py-12">
+                            <p className="text-gray-600 mb-2">🔄 Monitoring job queued!</p>
+                            <p className="text-sm text-gray-500">
+                                Results are being collected in the background. Check the chart in a few moments to see price data.
+                            </p>
                         </div>
                     ) : (
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -103,7 +106,9 @@ export function ResultsModal({ isOpen, onClose, results, isLoading, profileName 
                                         <div>
                                             <p className="text-lg font-bold text-gray-900">£{result.priceGbp}</p>
                                             <div className="flex items-center text-xs text-gray-500 mt-1">
-                                                <span className="mr-3">📅 {format(new Date(result.dateStart), 'd MMM')}</span>
+                                                {result.dateStart && (
+                                                    <span className="mr-3">📅 {format(new Date(result.dateStart), 'd MMM')}</span>
+                                                )}
                                                 <span>🌙 {result.durationNights}n</span>
                                             </div>
                                         </div>
@@ -126,6 +131,6 @@ export function ResultsModal({ isOpen, onClose, results, isLoading, profileName 
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

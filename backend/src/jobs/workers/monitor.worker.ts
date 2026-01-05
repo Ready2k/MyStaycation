@@ -16,6 +16,8 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
     const { fingerprintId, providerId, searchParams } = job.data;
 
     console.log(`🔍 Processing monitor job for fingerprint ${fingerprintId}`);
+    console.log(`   Provider ID: ${providerId}`);
+    console.log(`   Search params:`, JSON.stringify(searchParams, null, 2));
 
     // Check if scraping is enabled
     if (process.env.SCRAPING_ENABLED === 'false') {
@@ -69,6 +71,9 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
         fetchRun.status = RunStatus.OK;
         fetchRun.httpStatus = 200;
 
+        // Save fetchRun now so it has an ID for observations
+        await fetchRunRepo.save(fetchRun);
+
         // Store price observations - only valid results
         let storedCount = 0;
         for (const result of results) {
@@ -90,7 +95,7 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
             const observation = observationRepo.create({
                 provider: { id: providerId },
                 fingerprint: { id: fingerprintId },
-                fetchRun,
+                fetchRun: { id: fetchRun.id }, // Use saved fetchRun ID
                 stayStartDate: new Date(result.stayStartDate),
                 stayNights: result.stayNights,
                 seriesKey,
@@ -114,8 +119,10 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
         }
 
         // Update fingerprint last scheduled time
-        fingerprint.lastScheduledAt = new Date();
-        await fingerprintRepo.save(fingerprint);
+        await fingerprintRepo.update(
+            { id: fingerprintId },
+            { lastScheduledAt: new Date() }
+        );
 
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -146,6 +153,11 @@ monitorWorker.on('completed', (job) => {
     console.log(`✅ Monitor job ${job.id} completed`);
 });
 
+monitorWorker.on('active', (job) => {
+    console.log(`🔄 Monitor job ${job.id} is now active`);
+});
+
 monitorWorker.on('failed', (job, err) => {
     console.error(`❌ Monitor job ${job?.id} failed:`, err);
 });
+

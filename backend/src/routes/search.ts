@@ -10,7 +10,7 @@ import { createProfileSchema } from './profiles';
 export async function searchRoutes(fastify: FastifyInstance) {
     const profileRepo = AppDataSource.getRepository(HolidayProfile);
 
-    // POST /search/:profileId/run - Trigger an immediate search
+    // POST /search/:profileId/run - Trigger an immediate search with fingerprint creation
     fastify.post<{ Params: { profileId: string } }>('/search/:profileId/run', {
         onRequest: [fastify.authenticate]
     }, async (request, reply) => {
@@ -26,14 +26,76 @@ export async function searchRoutes(fastify: FastifyInstance) {
                 return reply.code(404).send({ message: 'Profile not found' });
             }
 
-            // In a real app, we might queue this as a background job
-            // For MVP/Demo, we run it inline
-            const results = await searchService.searchForProfile(profile);
+            // Run preview search for immediate results to show user
+            const { previewService } = await import('../services/search/preview.service');
+            const previewResults = await previewService.executePreview({
+                mode: 'PROFILE_ID',
+                profileId: profile.id,
+                userId: user.id,
+                options: {
+                    includeDebug: false,
+                    includeMismatches: false,
+                }
+            });
+
+            // Also sync fingerprints and queue monitoring jobs for persistent data collection
+            try {
+                const { fingerprintService } = await import('../services/search/fingerprint.service');
+                await fingerprintService.syncProfileFingerprints(profile);
+
+                // Get the created fingerprints
+                const fingerprintRepo = AppDataSource.getRepository(SearchFingerprint);
+                const fingerprints = await fingerprintRepo.find({
+                    where: { profile: { id: profile.id }, enabled: true },
+                    relations: ['provider']
+                });
+
+                // Queue monitoring jobs
+                if (fingerprints.length > 0) {
+                    const { addMonitorJob } = await import('../jobs/queues');
+                    for (const fingerprint of fingerprints) {
+                        await addMonitorJob({
+                            fingerprintId: fingerprint.id,
+                            providerId: fingerprint.provider.id,
+                            searchParams: typeof fingerprint.canonicalJson === 'string'
+                                ? JSON.parse(fingerprint.canonicalJson)
+                                : fingerprint.canonicalJson,
+                        });
+                    }
+                    request.log.info(`Queued ${fingerprints.length} monitoring jobs for profile ${profileId}`);
+                }
+            } catch (err) {
+                request.log.error({ err }, 'Failed to queue monitoring jobs');
+                // Don't fail the request, user still gets preview results
+            }
+
+            // Return preview results in the same format as before
+            const flattenedResults: any[] = [];
+            previewResults.providers.forEach((provider: any) => {
+                const addResults = (items: any[]) => {
+                    items.forEach(item => {
+                        flattenedResults.push({
+                            providerKey: item.providerKey,
+                            location: item.location || item.parkId || 'Unknown Location',
+                            propertyName: item.propertyName || item.accommodationType || 'Accommodation',
+                            price: item.price,
+                            stayNights: item.stayNights,
+                            stayStartDate: item.stayStartDate,
+                            sourceUrl: item.sourceUrl,
+                            confidence: item.confidence,
+                            reasons: item.reasons
+                        });
+                    });
+                };
+
+                if (provider.results?.matched) addResults(provider.results.matched);
+                if (provider.results?.other) addResults(provider.results.other);
+            });
 
             return reply.send({
                 message: 'Search completed',
-                count: results.length,
-                results
+                count: flattenedResults.length,
+                results: flattenedResults
             });
         } catch (error) {
             request.log.error(error);
@@ -160,20 +222,38 @@ export async function searchRoutes(fastify: FastifyInstance) {
         const user = request.user as any;
         const { profileId } = request.query as any;
 
+        request.log.info(`GET /search/fingerprints for user ${user.id}, profile ${profileId}`);
+
         try {
             const fingerprintRepo = AppDataSource.getRepository('SearchFingerprint');
 
-            const query = fingerprintRepo
-                .createQueryBuilder('f')
-                .leftJoinAndSelect('f.profile', 'profile')
-                .leftJoinAndSelect('f.provider', 'provider')
-                .where('profile.user_id = :userId', { userId: user.id });
+            // Use find() for safer relation filtering
+            const whereClause: any = {
+                profile: {
+                    user: { id: user.id }
+                }
+            };
 
             if (profileId) {
-                query.andWhere('profile.id = :profileId', { profileId });
+                whereClause.profile.id = profileId;
             }
 
-            const fingerprints = await query.getMany();
+            const fingerprints = await fingerprintRepo.find({
+                where: whereClause,
+                relations: ['profile', 'provider']
+            });
+
+            request.log.info(`Found ${fingerprints.length} fingerprints for user ${user.id}`);
+
+            // Debug: Check if we found any if profileId was provided
+            if (profileId && fingerprints.length === 0) {
+                // Double check if profile exists at all for this user
+                const profileRepo = AppDataSource.getRepository(HolidayProfile);
+                const profile = await profileRepo.findOne({
+                    where: { id: profileId, user: { id: user.id } }
+                });
+                request.log.info(`Debug: Profile ${profileId} exists for user? ${!!profile}`);
+            }
 
             return reply.send({ fingerprints });
         } catch (error) {

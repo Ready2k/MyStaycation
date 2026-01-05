@@ -32,7 +32,7 @@ export async function insightsRoutes(fastify: FastifyInstance) {
             .createQueryBuilder('insight')
             .leftJoinAndSelect('insight.fingerprint', 'fingerprint')
             .leftJoinAndSelect('fingerprint.profile', 'profile')
-            .where('profile.userId = :userId', { userId })
+            .where('profile.user = :userId', { userId })
             .orderBy('insight.createdAt', 'DESC')
             .limit(limit)
             .getMany();
@@ -66,10 +66,10 @@ export async function insightsRoutes(fastify: FastifyInstance) {
         // Verify fingerprint belongs to user
         const fingerprint = await fingerprintRepo.findOne({
             where: { id: fingerprintId },
-            relations: ['profile'],
+            relations: ['profile', 'profile.user'],
         });
 
-        if (!fingerprint || fingerprint.profile.user.id !== userId) {
+        if (!fingerprint || !fingerprint.profile.user || fingerprint.profile.user.id !== userId) {
             return reply.code(404).send({ error: 'Fingerprint not found' });
         }
 
@@ -137,7 +137,7 @@ export async function insightsRoutes(fastify: FastifyInstance) {
             .leftJoinAndSelect('alert.insight', 'insight')
             .leftJoinAndSelect('insight.fingerprint', 'fingerprint')
             .leftJoinAndSelect('fingerprint.profile', 'profile')
-            .where('alert.user_id = :userId', { userId });
+            .where('alert.user = :userId', { userId });
 
         if (unreadOnly) {
             queryBuilder.andWhere('alert.status != :status', { status: 'DISMISSED' });

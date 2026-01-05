@@ -77,12 +77,25 @@ export async function profileRoutes(fastify: FastifyInstance) {
 
             await profileRepo.save(profile);
 
-            // Sync fingerprints for the scheduler
+            // Sync fingerprints and queue initial monitoring
             try {
                 const { fingerprintService } = await import('../services/search/fingerprint.service');
-                await fingerprintService.syncProfileFingerprints(profile);
+                const fingerprints = await fingerprintService.syncProfileFingerprints(profile);
+
+                // Queue monitoring jobs for immediate execution
+                if (fingerprints.length > 0) {
+                    const { addMonitorJob } = await import('../jobs/queues');
+                    for (const fingerprint of fingerprints) {
+                        await addMonitorJob({
+                            fingerprintId: fingerprint.id,
+                            providerId: fingerprint.provider.id,
+                            searchParams: JSON.parse(fingerprint.canonicalJson),
+                        });
+                    }
+                    request.log.info(`Queued ${fingerprints.length} initial monitoring jobs for new profile: ${profile.id}`);
+                }
             } catch (err) {
-                request.log.error({ err }, 'Failed to sync fingerprints');
+                request.log.error({ err }, 'Failed to sync fingerprints or queue monitoring jobs');
                 // Don't fail the request, just log
             }
 

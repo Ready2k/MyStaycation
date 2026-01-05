@@ -30,6 +30,7 @@ export class CenterParcsAdapter extends BaseAdapter {
         }
 
         if (!this.browser) {
+            console.log('Starting Playwright browser...');
             const { chromium } = await import('playwright');
             this.browser = await chromium.launch({
                 headless: true,
@@ -40,6 +41,7 @@ export class CenterParcsAdapter extends BaseAdapter {
                     '--disable-blink-features=AutomationControlled',
                 ],
             });
+            console.log('Playwright browser started.');
         }
 
         const page = await this.browser.newPage({
@@ -51,25 +53,33 @@ export class CenterParcsAdapter extends BaseAdapter {
             }
         });
 
+        // Log page console messages
+        page.on('console', msg => console.log(`BROWSER CONSOLE: ${msg.text()}`));
+
         let interceptedData: any = null;
 
         try {
             // Intercept API calls
             page.on('response', async (response) => {
                 const responseUrl = response.url();
+                // Log all relevant JSON responses to see what we're getting
+                if (responseUrl.includes('centerparcs.co.uk') && responseUrl.includes('json')) {
+                    console.log(`Response: ${responseUrl} (${response.status()})`);
+                }
+
                 if (responseUrl.includes('/api/v1/accommodation.json')) {
                     try {
                         const json = await response.json();
-                        console.log(`🎯 CenterParcs: Intercepted API response for ${villageCode}`);
+                        console.log(`🎯 CenterParcs: Intercepted API response for ${villageCode} (Size: ${JSON.stringify(json).length})`);
                         interceptedData = json;
                     } catch (e) {
-                        // Ignore parsing errors
+                        console.error(`Error parsing JSON for ${responseUrl}:`, e);
                     }
                 }
             });
 
             console.log(`🌐 CenterParcs: Navigating to ${url}`);
-            await page.goto(url, { waitUntil: 'networkidle', timeout: 45000 });
+            await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 }); // Increased timeout
 
             // Wait a bit extra to ensure API calls finish
             await page.waitForTimeout(5000);

@@ -34,42 +34,25 @@ export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) 
 
     const searchMutation = useMutation({
         mutationFn: async (profileId: string) => {
-            const { data } = await api.post('/search/preview', {
-                mode: 'PROFILE_ID',
-                profileId: profileId,
-                options: {
-                    includeDebug: true,
-                    includeMismatches: false, // Set true to see failures too
-                }
-            });
-
-            // Map ProviderPreview[] to SearchResult[]
-            const flattenedResults: SearchResult[] = [];
-            data.providers.forEach((provider: any) => {
-                const addResults = (items: any[]) => {
-                    items.forEach(item => {
-                        flattenedResults.push({
-                            provider: item.providerKey,
-                            location: item.location || item.parkId || 'Unknown Location',
-                            accommodationName: item.propertyName || item.accommodationType || 'Accommodation',
-                            priceGbp: item.price.totalGbp,
-                            durationNights: item.stayNights,
-                            dateStart: item.stayStartDate,
-                            uRL: item.sourceUrl,
-                            confidence: item.confidence,
-                            reasons: item.reasons
-                        });
-                    });
-                };
-
-                if (provider.results?.matched) addResults(provider.results.matched);
-                if (provider.results?.other) addResults(provider.results.other);
-            });
-
-            return flattenedResults;
+            // Use the proper monitoring endpoint that creates fingerprints and saves data
+            const { data } = await api.post(`/search/${profileId}/run`);
+            return data.results || [];
         },
         onSuccess: (results) => {
-            setSearchResults(results);
+            // Map results to SearchResult format
+            const flattenedResults: SearchResult[] = results.map((item: any) => ({
+                provider: item.providerKey || 'Unknown',
+                location: item.location || item.parkId || 'Unknown Location',
+                accommodationName: item.propertyName || item.accommodationType || 'Accommodation',
+                priceGbp: item.price?.totalGbp || 0,
+                durationNights: item.stayNights || 0,
+                dateStart: item.stayStartDate || '',
+                uRL: item.sourceUrl || '',
+                confidence: item.confidence || 0,
+                reasons: item.reasons || []
+            }));
+
+            setSearchResults(flattenedResults);
             setModalOpen(true);
             setIsSearching(null);
         },

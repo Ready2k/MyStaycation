@@ -1,5 +1,5 @@
 ========================================
-Daily Health Check - 2026-01-05 08:00:01
+Daily Health Check - 2026-01-05 12:45:20
 ========================================
 
 ## Database Connection
@@ -8,26 +8,30 @@ Daily Health Check - 2026-01-05 08:00:01
 ## Fetch Runs (Last 24h)
  status | count | percentage 
 --------+-------+------------
-(0 rows)
+ ERROR  |     8 |      57.14
+ OK     |     6 |      42.86
+(2 rows)
 
 
 ## Parse Failures (Last 24h)
- provider | errorMessage | count 
-----------+--------------+-------
-(0 rows)
+   provider   |                                                      errorMessage                                                       | count 
+--------------+-------------------------------------------------------------------------------------------------------------------------+-------
+ Hoseasons    | Cannot perform update query because update values are not defined. Call "qb.set(...)" method to specify updated values. |     6
+ Center Parcs | Cannot perform update query because update values are not defined. Call "qb.set(...)" method to specify updated values. |     2
+(2 rows)
 
 
 ## Observations Created (Last 24h)
  total_observations | unique_series | unique_fingerprints 
 --------------------+---------------+---------------------
-                  0 |             0 |                   0
+                108 |             4 |                   4
 (1 row)
 
 
 ## Insights Created (Last 24h)
         type        | count 
 --------------------+-------
- PRICE_DROP_PERCENT |     1
+ PRICE_DROP_PERCENT |     3
 (1 row)
 
 
@@ -49,21 +53,21 @@ Daily Health Check - 2026-01-05 08:00:01
 ## Database Size
  database_size 
 ---------------
- 8844 kB
+ 9028 kB
 (1 row)
 
 
 ## Top 5 Largest Tables
-      table_name       | size  
------------------------+-------
- public.users          | 96 kB
- public.fetch_runs     | 88 kB
- public.providers      | 80 kB
- public.provider_parks | 80 kB
- public.alerts         | 64 kB
+        table_name         |  size  
+---------------------------+--------
+ public.price_observations | 144 kB
+ public.fetch_runs         | 104 kB
+ public.users              | 96 kB
+ public.providers          | 80 kB
+ public.provider_parks     | 80 kB
 (5 rows)
 
 
 ## Summary
-Report generated at: Mon Jan  5 08:00:02 GMT 2026
+Report generated at: Mon Jan  5 12:45:21 GMT 2026
 Report saved to: /reports/health-check-2026-01-05.txt

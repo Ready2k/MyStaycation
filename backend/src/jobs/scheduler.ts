@@ -69,7 +69,9 @@ export class Scheduler {
                 await addMonitorJob({
                     fingerprintId: fingerprint.id,
                     providerId: fingerprint.provider.id,
-                    searchParams: fingerprint.canonicalJson,
+                    searchParams: typeof fingerprint.canonicalJson === 'string'
+                        ? JSON.parse(fingerprint.canonicalJson)
+                        : fingerprint.canonicalJson,
                 });
                 scheduledCount++;
             }

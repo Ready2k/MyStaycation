@@ -11,6 +11,7 @@ import { profileRoutes } from './routes/profiles';
 import { searchRoutes } from './routes/search';
 import { insightsRoutes } from './routes/insights';
 import { alertRoutes } from './routes/alerts';
+import { usersRoutes } from './routes/users';
 import { authenticate } from './middleware/auth';
 
 dotenv.config();
@@ -94,6 +95,7 @@ async function start() {
         await fastify.register(searchRoutes);
         await fastify.register(insightsRoutes);
         await fastify.register(alertRoutes);
+        await fastify.register(usersRoutes);
 
         // Start server
         const port = parseInt(process.env.PORT || '4000');

@@ -17,6 +17,15 @@ export class User {
     @Column({ type: 'varchar', nullable: true })
     name?: string;
 
+    @Column({ type: 'varchar', nullable: true })
+    mobile?: string;
+
+    @Column({ type: 'varchar', default: 'en' })
+    language!: string;
+
+    @Column({ type: 'int', default: 48 })
+    defaultCheckFrequencyHours!: number;
+
     @Column({ type: 'boolean', default: false })
     emailVerified!: boolean;
 

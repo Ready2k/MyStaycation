@@ -1,0 +1,25 @@
+==================================
+Daily Report - 2026-01-05
+==================================
+
+## Fetch Runs (Last 24h)
+ status | count | percentage 
+--------+-------+------------
+(0 rows)
+
+
+## Observations Created (Last 24h)
+ total_observations | unique_series | unique_fingerprints 
+--------------------+---------------+---------------------
+                  0 |             0 |                   0
+(1 row)
+
+
+## Insights Created (Last 24h)
+        type        | count 
+--------------------+-------
+ PRICE_DROP_PERCENT |     1
+(1 row)
+
+
+Report generated at: Mon Jan  5 09:00:01 GMT 2026

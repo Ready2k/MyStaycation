@@ -36,7 +36,13 @@ export default function DashboardLayout({
                         <div className="flex items-center">
                             <span className="text-xl font-bold text-primary-600">Staycation Watcher</span>
                         </div>
-                        <div className="flex items-center">
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => router.push('/dashboard/settings')}
+                                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                            >
+                                Settings
+                            </button>
                             <button
                                 onClick={() => {
                                     localStorage.removeItem('token')
