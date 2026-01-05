@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { format } from 'date-fns';
@@ -20,6 +21,7 @@ interface Profile {
 }
 
 export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) {
+    const router = useRouter();
     const queryClient = useQueryClient();
     const [isSearching, setIsSearching] = useState<string | null>(null);
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -158,6 +160,12 @@ export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) 
                         <div className="flex justify-between items-center pt-4 border-t border-gray-100">
                             <div className="flex space-x-3">
                                 <button
+                                    onClick={() => router.push(`/dashboard/profile/${profile.id}`)}
+                                    className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                                >
+                                    View Chart
+                                </button>
+                                <button
                                     onClick={() => onEdit(profile)}
                                     className="text-gray-600 hover:text-gray-900 text-sm font-medium"
                                 >
@@ -177,7 +185,7 @@ export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) 
                                 onClick={() => handleSearch(profile.id, profile.name)}
                                 className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 shadow-sm"
                             >
-                                {isSearching === profile.id ? 'Checked...' : 'Check Now 🔎'}
+                                {isSearching === profile.id ? 'Checking...' : 'Check Now 🔎'}
                             </button>
                         </div>
                     </div>

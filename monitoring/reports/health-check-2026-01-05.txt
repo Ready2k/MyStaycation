@@ -1,5 +1,5 @@
 ========================================
-Daily Health Check - 2026-01-04 22:51:49
+Daily Health Check - 2026-01-05 08:00:01
 ========================================
 
 ## Database Connection
@@ -8,8 +8,7 @@ Daily Health Check - 2026-01-04 22:51:49
 ## Fetch Runs (Last 24h)
  status | count | percentage 
 --------+-------+------------
- OK     |    19 |     100.00
-(1 row)
+(0 rows)
 
 
 ## Parse Failures (Last 24h)
@@ -66,5 +65,5 @@ Daily Health Check - 2026-01-04 22:51:49
 
 
 ## Summary
-Report generated at: Sun Jan  4 22:51:50 GMT 2026
-Report saved to: /reports/health-check-2026-01-04.txt
+Report generated at: Mon Jan  5 08:00:02 GMT 2026
+Report saved to: /reports/health-check-2026-01-05.txt

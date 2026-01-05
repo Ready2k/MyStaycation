@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { AppDataSource } from '../config/database';
 import { HolidayProfile } from '../entities/HolidayProfile';
+import { SearchFingerprint } from '../entities/SearchFingerprint';
 import { searchService } from '../services/search/SearchService';
 import { previewService } from '../services/search/preview.service';
 import z from 'zod';
@@ -149,6 +150,35 @@ export async function searchRoutes(fastify: FastifyInstance) {
                     emailsSent: false
                 }
             });
+        }
+    });
+
+    // GET /search/fingerprints - Get fingerprints for a profile
+    fastify.get('/search/fingerprints', {
+        onRequest: [fastify.authenticate]
+    }, async (request, reply) => {
+        const user = request.user as any;
+        const { profileId } = request.query as any;
+
+        try {
+            const fingerprintRepo = AppDataSource.getRepository('SearchFingerprint');
+
+            const query = fingerprintRepo
+                .createQueryBuilder('f')
+                .leftJoinAndSelect('f.profile', 'profile')
+                .leftJoinAndSelect('f.provider', 'provider')
+                .where('profile.user_id = :userId', { userId: user.id });
+
+            if (profileId) {
+                query.andWhere('profile.id = :profileId', { profileId });
+            }
+
+            const fingerprints = await query.getMany();
+
+            return reply.send({ fingerprints });
+        } catch (error) {
+            request.log.error(error);
+            return reply.code(500).send({ message: 'Failed to fetch fingerprints' });
         }
     });
 

@@ -11,7 +11,7 @@ export const AppDataSource = new DataSource({
     username: process.env.POSTGRES_USER || 'staycation',
     password: process.env.POSTGRES_PASSWORD || 'staycation_dev',
     database: process.env.POSTGRES_DB || 'staycation_db',
-    synchronize: process.env.NODE_ENV === 'development',
+    synchronize: false, // Disabled to prevent concurrent modification conflicts
     logging: process.env.NODE_ENV === 'development',
     entities: ['src/entities/**/*.ts'],
     migrations: ['src/migrations/**/*.ts'],
