@@ -20,6 +20,7 @@ export class AuthService {
     }
 
     async createUser(email: string, password: string): Promise<User> {
+        email = email.toLowerCase();
         const existingUser = await userRepository.findOne({ where: { email } });
         if (existingUser) {
             throw new Error('User already exists');
@@ -57,7 +58,7 @@ export class AuthService {
     }
 
     async findByEmail(email: string): Promise<User | null> {
-        return userRepository.findOne({ where: { email } });
+        return userRepository.findOne({ where: { email: email.toLowerCase() } });
     }
 
     async findById(id: string): Promise<User | null> {
@@ -98,6 +99,21 @@ export class AuthService {
         user.passwordResetToken = undefined;
         user.passwordResetExpires = undefined;
 
+        return userRepository.save(user);
+    }
+
+    async changePassword(userId: string, oldPass: string, newPass: string): Promise<User> {
+        const user = await this.findById(userId);
+        if (!user) {
+            throw new Error('User not found');
+        }
+
+        const isValid = await this.comparePassword(oldPass, user.passwordHash);
+        if (!isValid) {
+            throw new Error('Incorrect current password');
+        }
+
+        user.passwordHash = await this.hashPassword(newPass);
         return userRepository.save(user);
     }
 }

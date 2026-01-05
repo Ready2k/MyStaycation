@@ -35,7 +35,7 @@ export class FetchRun {
     @JoinColumn({ name: 'provider_id' })
     provider!: Provider;
 
-    @ManyToOne(() => SearchFingerprint, { nullable: true })
+    @ManyToOne(() => SearchFingerprint, { nullable: true, onDelete: 'CASCADE' })
     @JoinColumn({ name: 'fingerprint_id' })
     fingerprint?: SearchFingerprint;
 

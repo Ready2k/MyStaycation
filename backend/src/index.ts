@@ -12,7 +12,11 @@ import { searchRoutes } from './routes/search';
 import { insightsRoutes } from './routes/insights';
 import { alertRoutes } from './routes/alerts';
 import { usersRoutes } from './routes/users';
-import { authenticate } from './middleware/auth';
+import { adminRoutes } from './routes/admin';
+import { authenticate, requireAdmin } from './middleware/auth';
+import { SystemLogger } from './services/SystemLogger';
+
+
 
 dotenv.config();
 
@@ -81,8 +85,36 @@ async function start() {
             timeWindow: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
         });
 
+        // System Startup Log
+        await SystemLogger.info('API Server Started', 'System', { port: process.env.PORT || 4000 });
+
+        // Global Error Handler
+        fastify.setErrorHandler(async (error, request, reply) => {
+            const { method, url } = request;
+
+            // Log to SystemLogger
+            await SystemLogger.error(
+                `API Error: ${error.message}`,
+                'API_Global',
+                {
+                    code: error.code,
+                    statusCode: error.statusCode,
+                    method,
+                    url,
+                    stack: error.stack
+                }
+            );
+
+            request.log.error(error);
+            reply.status(error.statusCode || 500).send({
+                error: 'Internal Server Error',
+                message: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        });
+
         // Decorate fastify with authenticate method
         fastify.decorate('authenticate', authenticate);
+        fastify.decorate('requireAdmin', requireAdmin);
 
         // Health check
         fastify.get('/health', async () => {
@@ -96,6 +128,7 @@ async function start() {
         await fastify.register(insightsRoutes);
         await fastify.register(alertRoutes);
         await fastify.register(usersRoutes);
+        await fastify.register(adminRoutes);
 
         // Start server
         const port = parseInt(process.env.PORT || '4000');

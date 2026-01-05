@@ -7,141 +7,45 @@ import { adapterRegistry } from '../../adapters/registry';
 import { MonitorJobData, addInsightJob } from '../queues';
 import { generateSeriesKey } from '../../utils/series-key';
 import { redisConnection } from '../../config/redis';
+import { SystemLogger } from '../../services/SystemLogger';
 
 const fingerprintRepo = AppDataSource.getRepository(SearchFingerprint);
-const observationRepo = AppDataSource.getRepository(PriceObservation);
-const fetchRunRepo = AppDataSource.getRepository(FetchRun);
+// ... existing code ...
 
-async function processMonitorJob(job: Job<MonitorJobData>) {
-    const { fingerprintId, providerId, searchParams } = job.data;
+// Execute search
+const results = await adapter.search(searchParams);
 
-    console.log(`🔍 Processing monitor job for fingerprint ${fingerprintId}`);
-    console.log(`   Provider ID: ${providerId}`);
-    console.log(`   Search params:`, JSON.stringify(searchParams, null, 2));
+// If no results, mark as parse failed (might be HTML structure change)
+if (results.length === 0) {
+    fetchRun.status = RunStatus.PARSE_FAILED;
+    fetchRun.errorMessage = 'No results parsed from provider response';
 
-    // Check if scraping is enabled
-    if (process.env.SCRAPING_ENABLED === 'false') {
-        console.log('⚠️  Scraping is disabled globally, skipping job');
-        return;
-    }
+    await SystemLogger.warn(
+        `No results parsed from ${fingerprint.provider.code}`,
+        'Worker_Monitor',
+        { fingerprintId, providerId, params: searchParams }
+    );
+    return;
+}
 
-    // Create fetch run record
-    const fetchRun = fetchRunRepo.create({
-        provider: { id: providerId },
-        fingerprint: { id: fingerprintId },
-        runType: RunType.SEARCH,
-        scheduledFor: new Date(),
-        startedAt: new Date(),
-        status: RunStatus.OK,
-    });
-
-    try {
-        // Get the fingerprint with provider info
-        const fingerprint = await fingerprintRepo.findOne({
-            where: { id: fingerprintId },
-            relations: ['provider', 'park'],
-        });
-
-        if (!fingerprint) {
-            throw new Error(`Fingerprint ${fingerprintId} not found`);
-        }
-
-        // Get the appropriate adapter
-        const adapter = adapterRegistry.getAdapter(fingerprint.provider.code);
-
-        // Check if adapter is enabled
-        if (!adapter.isEnabled()) {
-            fetchRun.status = RunStatus.BLOCKED;
-            fetchRun.errorMessage = 'Provider adapter is disabled via environment variables';
-            console.log(`⚠️  Adapter ${fingerprint.provider.code} is disabled, marking as BLOCKED`);
-            return;
-        }
-
-        // Execute search
-        const results = await adapter.search(searchParams);
-
-        // If no results, mark as parse failed (might be HTML structure change)
-        if (results.length === 0) {
-            fetchRun.status = RunStatus.PARSE_FAILED;
-            fetchRun.errorMessage = 'No results parsed from provider response';
-            console.warn(`⚠️  No results parsed for fingerprint ${fingerprintId}`);
-            return;
-        }
-
-        fetchRun.status = RunStatus.OK;
-        fetchRun.httpStatus = 200;
-
-        // Save fetchRun now so it has an ID for observations
-        await fetchRunRepo.save(fetchRun);
-
-        // Store price observations - only valid results
-        let storedCount = 0;
-        for (const result of results) {
-            // Additional validation before storing
-            if (!result.stayStartDate || !result.stayNights || !result.priceTotalGbp) {
-                console.warn('Skipping invalid result:', result);
-                continue;
-            }
-
-            // Generate series key for like-for-like comparisons
-            const seriesKey = generateSeriesKey({
-                providerId,
-                stayStartDate: result.stayStartDate,
-                stayNights: result.stayNights,
-                parkId: fingerprint.park?.id,
-                accomTypeId: result.accomType ? undefined : undefined, // TODO: map accomType string to ID
-            });
-
-            const observation = observationRepo.create({
-                provider: { id: providerId },
-                fingerprint: { id: fingerprintId },
-                fetchRun: { id: fetchRun.id }, // Use saved fetchRun ID
-                stayStartDate: new Date(result.stayStartDate),
-                stayNights: result.stayNights,
-                seriesKey,
-                priceTotalGbp: result.priceTotalGbp,
-                pricePerNightGbp: result.pricePerNightGbp,
-                availability: result.availability as AvailabilityStatus,
-                sourceUrl: result.sourceUrl,
-                partySize: searchParams.party,
-            });
-
-            await observationRepo.save(observation);
-            storedCount++;
-        }
-
-        console.log(`✅ Stored ${storedCount} valid observations for fingerprint ${fingerprintId}`);
-
-        // Trigger insight generation if we stored new observations
-        if (storedCount > 0) {
-            await addInsightJob({ fingerprintId });
-            console.log(`🧠 Queued insight generation for fingerprint ${fingerprintId}`);
-        }
-
-        // Update fingerprint last scheduled time
-        await fingerprintRepo.update(
-            { id: fingerprintId },
-            { lastScheduledAt: new Date() }
-        );
+        // ... existing code ...
 
     } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`❌ Monitor job failed for fingerprint ${fingerprintId}:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`❌ Monitor job failed for fingerprint ${fingerprintId}:`, error);
 
-        // Determine failure type
-        if (errorMessage.includes('robots.txt')) {
-            fetchRun.status = RunStatus.BLOCKED;
-        } else if (errorMessage.includes('parse') || errorMessage.includes('selector')) {
-            fetchRun.status = RunStatus.PARSE_FAILED;
-        } else {
-            fetchRun.status = RunStatus.ERROR;
-        }
+    // Log critical failure to System Logs
+    await SystemLogger.error(
+        `Monitor Job Failed: ${errorMessage}`,
+        'Worker_Monitor',
+        { fingerprintId, providerId, stack: error instanceof Error ? error.stack : undefined }
+    );
 
-        fetchRun.errorMessage = errorMessage;
-    } finally {
-        fetchRun.finishedAt = new Date();
-        await fetchRunRepo.save(fetchRun);
-    }
+    // Determine failure type
+    // ... existing code ...
+} finally {
+    // ... existing code ...
+}
 }
 
 export const monitorWorker = new Worker('monitor', processMonitorJob, {
@@ -150,14 +54,18 @@ export const monitorWorker = new Worker('monitor', processMonitorJob, {
 });
 
 monitorWorker.on('completed', (job) => {
-    console.log(`✅ Monitor job ${job.id} completed`);
+    // Optional: Log success if verbose
 });
 
-monitorWorker.on('active', (job) => {
-    console.log(`🔄 Monitor job ${job.id} is now active`);
-});
-
-monitorWorker.on('failed', (job, err) => {
+monitorWorker.on('failed', async (job, err) => {
+    // Double log here in case it failed outside the process function
+    if (job) {
+        await SystemLogger.error(
+            `BullMQ Job Failed: ${err.message}`,
+            'Worker_Monitor_Queue',
+            { jobId: job.id, name: job.name }
+        );
+    }
     console.error(`❌ Monitor job ${job?.id} failed:`, err);
 });
 

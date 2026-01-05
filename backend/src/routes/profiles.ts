@@ -51,7 +51,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
 
         try {
             const profiles = await profileRepo.find({
-                where: { user: { id: user.id } },
+                where: { user: { id: user.userId } },
                 order: { createdAt: 'DESC' }
             });
             return profiles;
@@ -72,7 +72,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
 
             const profile = profileRepo.create({
                 ...validatedData,
-                user: { id: user.id } as User // specific user reference
+                user: { id: user.userId } as User // specific user reference
             });
 
             await profileRepo.save(profile);
@@ -118,7 +118,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
 
         try {
             const profile = await profileRepo.findOne({
-                where: { id, user: { id: user.id } }
+                where: { id, user: { id: user.userId } }
             });
 
             if (!profile) {
@@ -141,7 +141,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
 
         try {
             const profile = await profileRepo.findOne({
-                where: { id, user: { id: user.id } }
+                where: { id, user: { id: user.userId } }
             });
 
             if (!profile) {
@@ -183,7 +183,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
 
         try {
             const profile = await profileRepo.findOne({
-                where: { id, user: { id: user.id } }
+                where: { id, user: { id: user.userId } }
             });
 
             if (!profile) {

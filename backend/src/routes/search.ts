@@ -19,7 +19,7 @@ export async function searchRoutes(fastify: FastifyInstance) {
 
         try {
             const profile = await profileRepo.findOne({
-                where: { id: profileId, user: { id: user.id } }
+                where: { id: profileId, user: { id: user.userId } }
             });
 
             if (!profile) {
@@ -31,7 +31,7 @@ export async function searchRoutes(fastify: FastifyInstance) {
             const previewResults = await previewService.executePreview({
                 mode: 'PROFILE_ID',
                 profileId: profile.id,
-                userId: user.id,
+                userId: user.userId,
                 options: {
                     includeDebug: false,
                     includeMismatches: false,
@@ -148,7 +148,7 @@ export async function searchRoutes(fastify: FastifyInstance) {
                 profile: validated.profile as any,
                 providers: validated.providers,
                 options: validated.options,
-                userId: user.id
+                userId: user.userId
             });
 
             return reply.send(response);
@@ -222,7 +222,7 @@ export async function searchRoutes(fastify: FastifyInstance) {
         const user = request.user as any;
         const { profileId } = request.query as any;
 
-        request.log.info(`GET /search/fingerprints for user ${user.id}, profile ${profileId}`);
+        request.log.info(`GET /search/fingerprints for user ${user.userId}, profile ${profileId}`);
 
         try {
             const fingerprintRepo = AppDataSource.getRepository('SearchFingerprint');
@@ -230,7 +230,7 @@ export async function searchRoutes(fastify: FastifyInstance) {
             // Use find() for safer relation filtering
             const whereClause: any = {
                 profile: {
-                    user: { id: user.id }
+                    user: { id: user.userId }
                 }
             };
 
@@ -243,14 +243,14 @@ export async function searchRoutes(fastify: FastifyInstance) {
                 relations: ['profile', 'provider']
             });
 
-            request.log.info(`Found ${fingerprints.length} fingerprints for user ${user.id}`);
+            request.log.info(`Found ${fingerprints.length} fingerprints for user ${user.userId}`);
 
             // Debug: Check if we found any if profileId was provided
             if (profileId && fingerprints.length === 0) {
                 // Double check if profile exists at all for this user
                 const profileRepo = AppDataSource.getRepository(HolidayProfile);
                 const profile = await profileRepo.findOne({
-                    where: { id: profileId, user: { id: user.id } }
+                    where: { id: profileId, user: { id: user.userId } }
                 });
                 request.log.info(`Debug: Profile ${profileId} exists for user? ${!!profile}`);
             }

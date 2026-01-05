@@ -7,6 +7,7 @@ import { alertWorker } from './workers/alert.worker';
 import { dealWorker } from './workers/deal.worker';
 import { redisConnection } from '../config/redis';
 import { scheduler } from './scheduler';
+import { SystemLogger } from '../services/SystemLogger';
 
 dotenv.config();
 
@@ -16,6 +17,7 @@ async function startWorker() {
 
         // Initialize database
         await initializeDatabase();
+        await SystemLogger.info('Worker Process Started', 'Worker', { pid: process.pid });
 
         console.log('✅ Worker started and listening for jobs');
         console.log(`   - Monitor worker: ${monitorWorker.name}`);

@@ -45,6 +45,13 @@ export default function SettingsPage() {
         language: 'en',
         defaultCheckFrequencyHours: 48,
     });
+    const [passwordData, setPasswordData] = useState({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+    });
+
+    // ... (useEffect remains same) ...
 
     // Auto-hide toast after 3 seconds
     useEffect(() => {
@@ -101,6 +108,37 @@ export default function SettingsPage() {
             });
         },
     });
+
+    const passwordMutation = useMutation({
+        mutationFn: async (data: typeof passwordData) => {
+            await api.post('/auth/change-password', {
+                currentPassword: data.currentPassword,
+                newPassword: data.newPassword
+            });
+        },
+        onSuccess: () => {
+            setToast({ message: 'Password updated successfully!', type: 'success' });
+            setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        },
+        onError: (error: any) => {
+            setToast({
+                message: error.response?.data?.error || 'Failed to update password',
+                type: 'error'
+            });
+        }
+    });
+
+    const handlePasswordUpdate = () => {
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+            setToast({ message: 'New passwords do not match', type: 'error' });
+            return;
+        }
+        if (passwordData.newPassword.length < 8) {
+            setToast({ message: 'Password must be at least 8 characters', type: 'error' });
+            return;
+        }
+        passwordMutation.mutate(passwordData);
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -237,6 +275,59 @@ export default function SettingsPage() {
                         <p className="mt-1 text-xs text-gray-500">
                             Full translation coming soon
                         </p>
+                    </div>
+                </div>
+
+                {/* Password Security */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                    <h2 className="text-lg font-semibold mb-4">Password Security</h2>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Current Password
+                            </label>
+                            <input
+                                type="password"
+                                autoComplete="current-password"
+                                className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                value={passwordData.currentPassword}
+                                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                New Password
+                            </label>
+                            <input
+                                type="password"
+                                autoComplete="new-password"
+                                className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                value={passwordData.newPassword}
+                                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Confirm New Password
+                            </label>
+                            <input
+                                type="password"
+                                autoComplete="new-password"
+                                className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                value={passwordData.confirmPassword}
+                                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                            />
+                        </div>
+                        <div className="pt-2">
+                            <button
+                                type="button"
+                                disabled={passwordMutation.isPending || !passwordData.currentPassword || !passwordData.newPassword}
+                                onClick={handlePasswordUpdate}
+                                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 font-medium text-sm"
+                            >
+                                {passwordMutation.isPending ? 'Updating Password...' : 'Update Password'}
+                            </button>
+                        </div>
                     </div>
                 </div>
 

@@ -2,11 +2,18 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { HolidayProfile } from './HolidayProfile';
 import { Alert } from './Alert';
 
+export enum UserRole {
+    USER = 'USER',
+    ADMIN = 'ADMIN'
+}
+
+
 @Entity('users')
 @Index(['email'], { unique: true })
 export class User {
     @PrimaryGeneratedColumn('uuid')
     id!: string;
+
 
     @Column({ type: 'varchar', unique: true })
     email!: string;
@@ -61,4 +68,7 @@ export class User {
 
     @OneToMany(() => Alert, alert => alert.user)
     alerts!: Alert[];
+
+    @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
+    role!: UserRole;
 }

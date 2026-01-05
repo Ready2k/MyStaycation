@@ -165,4 +165,25 @@ export async function authRoutes(fastify: FastifyInstance) {
             digestMode: user.digestMode,
         });
     });
+
+
+    // Change Password (protected)
+    fastify.post('/auth/change-password', {
+        preHandler: [authenticate],
+    }, async (request, reply) => {
+        try {
+            const schema = z.object({
+                currentPassword: z.string(),
+                newPassword: z.string().min(8)
+            });
+            const { currentPassword, newPassword } = schema.parse(request.body);
+            const userId = (request.user as any).userId;
+
+            await authService.changePassword(userId, currentPassword, newPassword);
+
+            reply.send({ message: 'Password updated successfully' });
+        } catch (error: any) {
+            reply.status(400).send({ error: error.message });
+        }
+    });
 }

@@ -1,31 +1,49 @@
-'use client'
+'use client';
 
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useRouter, usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import api from '@/services/api';
+import Link from 'next/link';
+
+interface User {
+    id: string;
+    role: 'USER' | 'ADMIN';
+}
 
 export default function DashboardLayout({
     children,
 }: {
-    children: React.ReactNode
+    children: React.ReactNode;
 }) {
-    const router = useRouter()
-    const [isLoading, setIsLoading] = useState(true)
+    const router = useRouter();
+    const pathname = usePathname();
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const token = localStorage.getItem('token')
+        const token = localStorage.getItem('token');
         if (!token) {
-            router.push('/auth/login')
+            router.push('/auth/login');
         } else {
-            setIsLoading(false)
+            setIsLoading(false);
         }
-    }, [router])
+    }, [router]);
+
+    const { data: user } = useQuery({
+        queryKey: ['user', 'me'],
+        queryFn: async () => {
+            const { data } = await api.get<{ user: User }>('/users/me');
+            return data.user;
+        },
+        retry: false,
+    });
 
     if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
             </div>
-        )
+        );
     }
 
     return (
@@ -33,8 +51,26 @@ export default function DashboardLayout({
             <nav className="bg-white shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
-                        <div className="flex items-center">
-                            <span className="text-xl font-bold text-primary-600">Staycation Watcher</span>
+                        <div className="flex items-center gap-8">
+                            <span className="text-xl font-bold text-primary-600 cursor-pointer" onClick={() => router.push('/dashboard')}>STAYCATION WATCHER</span>
+
+                            <div className="hidden md:flex items-center gap-4">
+                                <Link
+                                    href="/dashboard"
+                                    className={`px-3 py-2 rounded-md text-sm font-medium ${pathname === '/dashboard' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:text-gray-900'}`}
+                                >
+                                    Dashboard
+                                </Link>
+
+                                {user?.role === 'ADMIN' && (
+                                    <Link
+                                        href="/dashboard/admin"
+                                        className={`px-3 py-2 rounded-md text-sm font-medium ${pathname?.startsWith('/dashboard/admin') ? 'bg-amber-50 text-amber-700' : 'text-gray-600 hover:text-gray-900'}`}
+                                    >
+                                        Admin
+                                    </Link>
+                                )}
+                            </div>
                         </div>
                         <div className="flex items-center gap-2">
                             <button
@@ -45,8 +81,8 @@ export default function DashboardLayout({
                             </button>
                             <button
                                 onClick={() => {
-                                    localStorage.removeItem('token')
-                                    router.push('/auth/login')
+                                    localStorage.removeItem('token');
+                                    router.push('/auth/login');
                                 }}
                                 className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
                             >
@@ -60,5 +96,6 @@ export default function DashboardLayout({
                 {children}
             </main>
         </div>
-    )
+    );
 }
+

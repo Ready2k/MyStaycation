@@ -32,7 +32,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
         try {
             const user = await userRepo.findOne({
                 where: { id: userId },
-                select: ['id', 'name', 'email', 'mobile', 'language', 'defaultCheckFrequencyHours', 'emailVerified', 'createdAt'],
+                select: ['id', 'name', 'email', 'mobile', 'language', 'defaultCheckFrequencyHours', 'emailVerified', 'createdAt', 'role'],
             });
 
             if (!user) {
@@ -72,7 +72,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
 
             // Update fields
             if (validated.name !== undefined) user.name = validated.name;
-            if (validated.mobile !== undefined) user.mobile = validated.mobile;
+            if (validated.mobile !== undefined) user.mobile = validated.mobile ?? undefined;
             if (validated.language !== undefined) user.language = validated.language;
 
             // Update default check frequency and propagate to all fingerprints
@@ -93,8 +93,8 @@ export async function usersRoutes(fastify: FastifyInstance) {
 
             await userRepo.save(user);
 
-            // Return updated user (exclude password)
-            const { password, ...userWithoutPassword } = user;
+            // Return updated user (exclude password hash)
+            const { passwordHash, ...userWithoutPassword } = user;
             return reply.send({ user: userWithoutPassword });
         } catch (error) {
             if (error instanceof z.ZodError) {

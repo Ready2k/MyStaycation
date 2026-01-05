@@ -1,5 +1,5 @@
 ========================================
-Daily Health Check - 2026-01-05 12:45:20
+Daily Health Check - 2026-01-05 14:00:29
 ========================================
 
 ## Database Connection
@@ -53,7 +53,7 @@ Daily Health Check - 2026-01-05 12:45:20
 ## Database Size
  database_size 
 ---------------
- 9028 kB
+ 9108 kB
 (1 row)
 
 
@@ -63,11 +63,11 @@ Daily Health Check - 2026-01-05 12:45:20
  public.price_observations | 144 kB
  public.fetch_runs         | 104 kB
  public.users              | 96 kB
- public.providers          | 80 kB
  public.provider_parks     | 80 kB
+ public.providers          | 80 kB
 (5 rows)
 
 
 ## Summary
-Report generated at: Mon Jan  5 12:45:21 GMT 2026
+Report generated at: Mon Jan  5 14:00:30 GMT 2026
 Report saved to: /reports/health-check-2026-01-05.txt
