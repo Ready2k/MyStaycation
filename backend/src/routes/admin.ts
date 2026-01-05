@@ -6,9 +6,12 @@ import { SearchFingerprint } from '../entities/SearchFingerprint';
 import { PriceObservation } from '../entities/PriceObservation';
 import { FetchRun } from '../entities/FetchRun';
 import { SystemLog } from '../entities/SystemLog';
+import { Provider } from '../entities/Provider';
+import { ProviderConfig } from '../entities/ProviderConfig';
 import { monitorQueue, insightQueue, alertQueue, dealQueue } from '../jobs/queues';
 import { authService } from '../services/auth.service';
 import crypto from 'crypto';
+import z from 'zod';
 
 const userRepo = AppDataSource.getRepository(User);
 const profileRepo = AppDataSource.getRepository(HolidayProfile);
@@ -16,6 +19,8 @@ const fingerprintRepo = AppDataSource.getRepository(SearchFingerprint);
 const observationRepo = AppDataSource.getRepository(PriceObservation);
 const fetchRunRepo = AppDataSource.getRepository(FetchRun);
 const logRepo = AppDataSource.getRepository(SystemLog);
+const providerRepo = AppDataSource.getRepository(Provider);
+const configRepo = AppDataSource.getRepository(ProviderConfig);
 
 export async function adminRoutes(fastify: FastifyInstance) {
     // Apply admin guard to all routes in this plugin
@@ -203,6 +208,138 @@ export async function adminRoutes(fastify: FastifyInstance) {
     // DELETE /admin/logs
     fastify.delete('/admin/logs', async (request, reply) => {
         await logRepo.clear();
+        return { success: true };
+    });
+
+    // --- PROVIDER CONFIGURATION ---
+
+    // GET /admin/providers - List all providers
+    fastify.get('/admin/providers', async (request, reply) => {
+        const providers = await providerRepo.find({ order: { code: 'ASC' } });
+        return { providers };
+    });
+
+    // GET /admin/providers/:code/config - Get all config for a provider
+    fastify.get('/admin/providers/:code/config', async (request, reply) => {
+        const { code } = request.params as any;
+
+        const provider = await providerRepo.findOne({ where: { code } });
+        if (!provider) return reply.code(404).send({ error: 'Provider not found' });
+
+        const configs = await configRepo.find({
+            where: { provider: { id: provider.id } },
+            order: { configType: 'ASC', key: 'ASC' }
+        });
+
+        return { configs };
+    });
+
+    // GET /admin/providers/:code/config/:type - Get specific config type
+    fastify.get('/admin/providers/:code/config/:type', async (request, reply) => {
+        const { code, type } = request.params as any;
+
+        const provider = await providerRepo.findOne({ where: { code } });
+        if (!provider) return reply.code(404).send({ error: 'Provider not found' });
+
+        const configs = await configRepo.find({
+            where: { provider: { id: provider.id }, configType: type },
+            order: { key: 'ASC' }
+        });
+
+        return { configs };
+    });
+
+    // POST /admin/providers/:code/config - Create new config entry
+    fastify.post('/admin/providers/:code/config', {
+        schema: {
+            body: {
+                type: 'object',
+                properties: {
+                    configType: { type: 'string' },
+                    key: { type: 'string' },
+                    value: { type: 'string' },
+                    enabled: { type: 'boolean' },
+                    metadata: { type: 'object' }
+                },
+                required: ['configType', 'key', 'value']
+            }
+        }
+    }, async (request, reply) => {
+        const { code } = request.params as any;
+        const { configType, key, value, enabled = true, metadata } = request.body as any;
+
+        const provider = await providerRepo.findOne({ where: { code } });
+        if (!provider) return reply.code(404).send({ error: 'Provider not found' });
+
+        // Check for duplicate
+        const existing = await configRepo.findOne({
+            where: { provider: { id: provider.id }, configType, key }
+        });
+
+        if (existing) {
+            return reply.code(409).send({ error: 'Config entry already exists' });
+        }
+
+        const config = configRepo.create({
+            provider,
+            configType,
+            key,
+            value,
+            enabled,
+            metadata
+        });
+
+        await configRepo.save(config);
+        return { success: true, config };
+    });
+
+    // PUT /admin/providers/:code/config/:id - Update config entry
+    fastify.put('/admin/providers/:code/config/:id', {
+        schema: {
+            body: {
+                type: 'object',
+                properties: {
+                    value: { type: 'string' },
+                    enabled: { type: 'boolean' },
+                    metadata: { type: 'object' }
+                }
+            }
+        }
+    }, async (request, reply) => {
+        const { code, id } = request.params as any;
+        const { value, enabled, metadata } = request.body as any;
+
+        const provider = await providerRepo.findOne({ where: { code } });
+        if (!provider) return reply.code(404).send({ error: 'Provider not found' });
+
+        const config = await configRepo.findOne({
+            where: { id, provider: { id: provider.id } }
+        });
+
+        if (!config) return reply.code(404).send({ error: 'Config not found' });
+
+        if (value !== undefined) config.value = value;
+        if (enabled !== undefined) config.enabled = enabled;
+        if (metadata !== undefined) config.metadata = metadata;
+
+        await configRepo.save(config);
+        return { success: true, config };
+    });
+
+    // DELETE /admin/providers/:code/config/:id - Delete config entry
+    fastify.delete('/admin/providers/:code/config/:id', async (request, reply) => {
+        const { code, id } = request.params as any;
+
+        const provider = await providerRepo.findOne({ where: { code } });
+        if (!provider) return reply.code(404).send({ error: 'Provider not found' });
+
+        const config = await configRepo.findOne({
+            where: { id, provider: { id: provider.id } }
+        });
+
+        if (!config) return reply.code(404).send({ error: 'Config not found' });
+
+        await configRepo.remove(config);
         return { success: true };
     });
 }

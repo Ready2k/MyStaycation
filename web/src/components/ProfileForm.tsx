@@ -128,6 +128,8 @@ export function ProfileForm({ initialData, onSuccess, onCancel }: ProfileFormPro
                 (payload as any).budgetCeilingGbp = parseFloat(payload.budgetCeilingGbp);
             }
 
+            console.log('Saving profile with payload:', payload);
+
             if (initialData?.id) {
                 const { data: res } = await api.put(`/profiles/${initialData.id}`, payload);
                 return res;
@@ -139,6 +141,11 @@ export function ProfileForm({ initialData, onSuccess, onCancel }: ProfileFormPro
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['profiles'] });
             onSuccess();
+        },
+        onError: (error: any) => {
+            console.error('Profile save error:', error);
+            console.error('Error response:', error.response?.data);
+            alert(`Failed to save watcher: ${error.response?.data?.message || error.message}`);
         },
     });
 

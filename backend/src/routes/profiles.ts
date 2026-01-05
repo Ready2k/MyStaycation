@@ -2,11 +2,13 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { AppDataSource } from '../config/database';
 import { HolidayProfile, FlexType, PeakTolerance, AccommodationType, AccommodationTier, StayPattern, SchoolHolidayMatch, AlertSensitivity } from '../entities/HolidayProfile';
 import { User } from '../entities/User';
+import { Provider } from '../entities/Provider';
 import z from 'zod';
 
 // Validation schemas
 export const createProfileSchema = z.object({
     name: z.string().min(1, "Name is required"),
+    providerCode: z.string().optional(), // NEW: Provider-specific watcher
     partySizeAdults: z.number().int().min(1).default(2),
     partySizeChildren: z.number().int().min(0).default(0),
     flexType: z.nativeEnum(FlexType).default(FlexType.RANGE),
@@ -15,7 +17,7 @@ export const createProfileSchema = z.object({
     durationNightsMin: z.number().int().min(1).default(3),
     durationNightsMax: z.number().int().min(1).default(7),
     peakTolerance: z.nativeEnum(PeakTolerance).default(PeakTolerance.MIXED),
-    budgetCeilingGbp: z.number().optional(),
+    budgetCeilingGbp: z.number().nullable().optional().transform(val => val === null ? undefined : val),
     enabled: z.boolean().default(true),
     pets: z.boolean().default(false),
     // New Fields
@@ -31,11 +33,17 @@ export const createProfileSchema = z.object({
     alertSensitivity: z.nativeEnum(AlertSensitivity).default(AlertSensitivity.INSTANT),
 
     // Metadata & Advanced Search
-    region: z.string().optional(),
+    region: z.string().nullable().optional().transform(val => val === null || val === '' ? undefined : val),
     maxResults: z.number().int().min(1).max(100).default(50),
     sortOrder: z.enum(['PRICE_ASC', 'PRICE_DESC', 'DATE_ASC']).default('PRICE_ASC'),
     enabledProviders: z.array(z.string()).default([]),
-    parkIds: z.array(z.string()).nullable().optional().transform(val => val || [])
+    parkIds: z.union([
+        z.array(z.string()),
+        z.string().transform(str => str ? str.split(',').map(s => s.trim()) : []),
+        z.null().transform(() => []),
+        z.undefined().transform(() => [])
+    ]).optional().default([]),
+    metadata: z.any().optional() // Provider-specific metadata (lodges, filters, etc.)
 });
 
 const updateProfileSchema = createProfileSchema.partial();
@@ -52,6 +60,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
         try {
             const profiles = await profileRepo.find({
                 where: { user: { id: user.userId } },
+                relations: ['provider'], // Load provider relation for edit routing
                 order: { createdAt: 'DESC' }
             });
             return profiles;
@@ -69,10 +78,22 @@ export async function profileRoutes(fastify: FastifyInstance) {
 
         try {
             const validatedData = createProfileSchema.parse(request.body);
+            const { providerCode, ...profileData } = validatedData;
+
+            // Lookup provider if providerCode is provided
+            let provider = null;
+            if (providerCode) {
+                const providerRepo = AppDataSource.getRepository(Provider);
+                provider = await providerRepo.findOne({ where: { code: providerCode } });
+                if (!provider) {
+                    return reply.code(400).send({ error: `Provider '${providerCode}' not found` });
+                }
+            }
 
             const profile = profileRepo.create({
-                ...validatedData,
-                user: { id: user.userId } as User // specific user reference
+                ...profileData,
+                user: { id: user.userId } as User, // specific user reference
+                provider: provider || undefined // Assign provider if found
             });
 
             await profileRepo.save(profile);
@@ -83,7 +104,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
                 const fingerprints = await fingerprintService.syncProfileFingerprints(profile);
 
                 // Queue monitoring jobs for immediate execution
-                if (fingerprints.length > 0) {
+                if (fingerprints && fingerprints.length > 0) {
                     const { addMonitorJob } = await import('../jobs/queues');
                     for (const fingerprint of fingerprints) {
                         await addMonitorJob({
@@ -93,6 +114,8 @@ export async function profileRoutes(fastify: FastifyInstance) {
                         });
                     }
                     request.log.info(`Queued ${fingerprints.length} initial monitoring jobs for new profile: ${profile.id}`);
+                } else {
+                    request.log.warn(`No fingerprints created for profile ${profile.id}`);
                 }
             } catch (err) {
                 request.log.error({ err }, 'Failed to sync fingerprints or queue monitoring jobs');

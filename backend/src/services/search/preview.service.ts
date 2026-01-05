@@ -131,7 +131,8 @@ export class PreviewService {
                 where: {
                     id: req.profileId,
                     user: { id: req.userId }
-                }
+                },
+                relations: ['provider'] // Load provider relation
             });
 
             if (!found) {
@@ -177,13 +178,14 @@ export class PreviewService {
             ? req.providers.map(p => p.trim().toUpperCase()) // NORMALIZE
             : allProviders;
 
-        // DEBUG: Log what we're working with
-        console.log(`DEBUG: profile.enabledProviders =`, profile.enabledProviders);
-        console.log(`DEBUG: typeof profile.enabledProviders =`, typeof profile.enabledProviders);
-        console.log(`DEBUG: providersToRun before filter =`, providersToRun);
-
-        // Filter by profile's enabled providers if specified
-        if (profile.enabledProviders) {
+        // PRIORITY: If profile has a specific provider assigned, ONLY search that provider
+        if ((profile as any).provider) {
+            const providerCode = (profile as any).provider.code || (profile as any).provider;
+            providersToRun = [providerCode.toUpperCase()];
+            console.log(`🎯 Provider-specific watcher: searching only ${providerCode}`);
+        }
+        // Otherwise, filter by profile's enabled providers if specified
+        else if (profile.enabledProviders) {
             // Handle both string and array types (database stores as text)
             let enabledArray: string[];
             if (typeof profile.enabledProviders === 'string') {
@@ -198,12 +200,9 @@ export class PreviewService {
                 enabledArray = [];
             }
 
-            console.log(`DEBUG: enabledArray =`, enabledArray);
-
             if (enabledArray.length > 0) {
                 // Normalize to uppercase for comparison
                 const normalizedEnabledProviders = enabledArray.map(ep => ep.trim().toUpperCase());
-                console.log(`DEBUG: normalizedEnabledProviders =`, normalizedEnabledProviders);
                 providersToRun = providersToRun.filter(p =>
                     normalizedEnabledProviders.includes(p)
                 );

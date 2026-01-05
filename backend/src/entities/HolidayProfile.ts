@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { User } from './User';
+import { Provider } from './Provider';
 import { SearchFingerprint } from './SearchFingerprint';
 
 export enum FlexType {
@@ -56,6 +57,11 @@ export class HolidayProfile {
     @ManyToOne(() => User, user => user.profiles, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'user_id' })
     user!: User;
+
+    // Optional: Specific provider for this watcher (null = multi-provider legacy)
+    @ManyToOne(() => Provider, { nullable: true })
+    @JoinColumn({ name: 'provider_id' })
+    provider?: Provider;
 
     @Column({ type: 'varchar' })
     name!: string;
@@ -148,6 +154,8 @@ export class HolidayProfile {
     @Column({ type: 'simple-array', nullable: true })
     parkUrls?: string[]; // Corresponding source URLs
 
+    @Column({ type: 'jsonb', nullable: true })
+    metadata?: any; // Provider-specific metadata (e.g., lodges, filters for Center Parcs)
 
     @CreateDateColumn()
     createdAt!: Date;

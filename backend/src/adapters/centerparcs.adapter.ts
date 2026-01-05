@@ -12,7 +12,7 @@ export class CenterParcsAdapter extends BaseAdapter {
         'sherwood': 'SF',
         'longleat': 'LF',
         'elveden': 'EF',
-        'woburn': 'WB',
+        'woburn': 'WO',  // Corrected from 'WB'
         'longford': 'EI'
     };
 
@@ -101,15 +101,23 @@ export class CenterParcsAdapter extends BaseAdapter {
     async search(params: SearchParams): Promise<PriceResult[]> {
         const results: PriceResult[] = [];
 
-        // Use manual iteration over villages
+        // Determine which villages to search
         let villagesToSearch: string[] = [];
-        if (params.region) {
+
+        // Priority 1: Use params.parks if specified (from profile parkIds)
+        if (params.parks && params.parks.length > 0) {
+            villagesToSearch = params.parks;
+            console.log(`🎯 Searching specific Center Parcs villages: ${villagesToSearch.join(', ')}`);
+        }
+        // Priority 2: Use region if specified
+        else if (params.region) {
             const code = this.getVillageCode(params.region);
             if (code) villagesToSearch.push(code);
         }
-
-        if (villagesToSearch.length === 0) {
-            villagesToSearch = ['WF', 'SF', 'LF', 'EF', 'WB'];
+        // Priority 3: Default to all villages
+        else {
+            villagesToSearch = ['WF', 'SF', 'LF', 'EF', 'WO']; // WO = Woburn (corrected from WB)
+            console.log(`🔍 No specific villages selected, searching all Center Parcs`);
         }
 
         for (const villageCode of villagesToSearch) {
@@ -252,7 +260,7 @@ export class CenterParcsAdapter extends BaseAdapter {
     }
 
     private buildVillageUrl(villageCode: string, params: SearchParams): string {
-        // format: /breaks-we-offer/search.html/2/{VILLAGE}/{DD-MM-YYYY}/{NIGHTS}/-/-/{LODGES}/{ADULTS}/{CHILDREN}/{INFANTS}/{DOGS}/{ACCESSIBLE}/{FLEX?}
+        // Format: /breaks-we-offer/search.html/2/{VILLAGE}/{DD-MM-YYYY}/{NIGHTS}/-/-/{LODGES}/{ADULTS}/{CHILDREN_6-17}/{TODDLERS_2-5}/{INFANTS_<2}/{DOGS}/{ACCESSIBLE}/{FLEX}
 
         const date = new Date(params.dateWindow.start);
         const day = String(date.getDate()).padStart(2, '0');
@@ -261,17 +269,37 @@ export class CenterParcsAdapter extends BaseAdapter {
         const dateStr = `${day}-${month}-${year}`;
 
         const nights = params.nights.min || 4;
-        const lodges = 1;
-        const adults = params.party.adults || 2;
-        const children = params.party.children || 0;
-        const infants = 0;
-        // Note: Dog logic per URL provided by user seems to put dogs at index 8? 
-        // /2/SF/11-05-2026/4/-/-/1/2/0/0/0/0/N
-        // 1=lodges, 2=adults, 0=children, 0=infants, 0=dogs?
-        const dogs = params.pets ? 1 : 0;
+
+        // Check if metadata contains lodge information
+        const metadata = (params as any).metadata;
+        let lodges = 1;
+        let adults = params.party.adults || 2;
+        let children = 0; // 6-17 years
+        let toddlers = 0; // 2-5 years
+        let infants = 0;  // <2 years
+        let dogs = 0;
+
+        if (metadata?.lodges && Array.isArray(metadata.lodges) && metadata.lodges.length > 0) {
+            // Use multi-lodge data from metadata
+            lodges = metadata.lodges.length;
+
+            // Sum up all party members across all lodges
+            adults = metadata.lodges.reduce((sum: number, lodge: any) => sum + (lodge.adults || 0), 0);
+            children = metadata.lodges.reduce((sum: number, lodge: any) => sum + (lodge.children || 0), 0);
+            toddlers = metadata.lodges.reduce((sum: number, lodge: any) => sum + (lodge.toddlers || 0), 0);
+            infants = metadata.lodges.reduce((sum: number, lodge: any) => sum + (lodge.infants || 0), 0);
+            dogs = metadata.lodges.reduce((sum: number, lodge: any) => sum + (lodge.dogs || 0), 0);
+
+            console.log(`🏠 Multi-lodge search: ${lodges} lodges, ${adults} adults, ${children} children, ${toddlers} toddlers, ${infants} infants, ${dogs} dogs`);
+        } else {
+            // Fallback to simple party counts
+            children = params.party.children || 0;
+            dogs = params.pets ? 1 : 0;
+        }
+
         const accessible = 0;
         const flex = 'N';
 
-        return `https://www.centerparcs.co.uk/breaks-we-offer/search.html/2/${villageCode}/${dateStr}/${nights}/-/-/${lodges}/${adults}/${children}/${infants}/${dogs}/${accessible}/${flex}`;
+        return `https://www.centerparcs.co.uk/breaks-we-offer/search.html/2/${villageCode}/${dateStr}/${nights}/-/-/${lodges}/${adults}/${children}/${toddlers}/${infants}/${dogs}/${accessible}/${flex}`;
     }
 }

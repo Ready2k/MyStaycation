@@ -1,5 +1,5 @@
 ========================================
-Daily Health Check - 2026-01-05 14:00:29
+Daily Health Check - 2026-01-05 19:56:38
 ========================================
 
 ## Database Connection
@@ -8,38 +8,35 @@ Daily Health Check - 2026-01-05 14:00:29
 ## Fetch Runs (Last 24h)
  status | count | percentage 
 --------+-------+------------
- ERROR  |     8 |      57.14
- OK     |     6 |      42.86
+ OK     |     3 |      60.00
+ ERROR  |     2 |      40.00
 (2 rows)
 
 
 ## Parse Failures (Last 24h)
    provider   |                                                      errorMessage                                                       | count 
 --------------+-------------------------------------------------------------------------------------------------------------------------+-------
- Hoseasons    | Cannot perform update query because update values are not defined. Call "qb.set(...)" method to specify updated values. |     6
  Center Parcs | Cannot perform update query because update values are not defined. Call "qb.set(...)" method to specify updated values. |     2
-(2 rows)
+(1 row)
 
 
 ## Observations Created (Last 24h)
  total_observations | unique_series | unique_fingerprints 
 --------------------+---------------+---------------------
-                108 |             4 |                   4
+                 72 |             1 |                   1
 (1 row)
 
 
 ## Insights Created (Last 24h)
-        type        | count 
---------------------+-------
- PRICE_DROP_PERCENT |     3
-(1 row)
+ type | count 
+------+-------
+(0 rows)
 
 
 ## Alerts Sent (Last 24h)
-  status   | count 
------------+-------
- DISMISSED |     1
-(1 row)
+ status | count 
+--------+-------
+(0 rows)
 
 
 ## Series Key Integrity
@@ -69,5 +66,5 @@ Daily Health Check - 2026-01-05 14:00:29
 
 
 ## Summary
-Report generated at: Mon Jan  5 14:00:30 GMT 2026
+Report generated at: Mon Jan  5 19:56:39 GMT 2026
 Report saved to: /reports/health-check-2026-01-05.txt
