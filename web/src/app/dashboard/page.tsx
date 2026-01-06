@@ -6,8 +6,13 @@ import { ProfileForm } from '@/components/ProfileForm';
 import { AlertTicker } from '@/components/AlertTicker';
 import { ProviderSelection } from '@/components/ProviderSelection';
 import { CenterParcsForm } from '@/components/CenterParcsForm';
+import { HavenForm } from '@/components/HavenForm';
+import { HoseasonsForm } from '@/components/HoseasonsForm';
+import { ButlinsForm } from '@/components/ButlinsForm';
+import { ParkdeanForm } from '@/components/ParkdeanForm';
+import { AwayResortsForm } from '@/components/AwayResortsForm';
 
-type WizardStep = 'list' | 'select-provider' | 'centerparcs' | 'edit';
+type WizardStep = 'list' | 'select-provider' | 'centerparcs' | 'haven' | 'hoseasons' | 'butlins' | 'parkdean' | 'awayresorts' | 'edit';
 
 export default function DashboardPage() {
     const [step, setStep] = useState<WizardStep>('list');
@@ -17,13 +22,15 @@ export default function DashboardPage() {
     const handleProviderSelect = (providerCode: string) => {
         setSelectedProvider(providerCode);
         // Route to provider-specific form
-        if (providerCode === 'centerparcs') {
-            setStep('centerparcs');
-        } else {
-            // For now, fall back to old form for other providers
-            alert(`${providerCode} form coming soon! Using legacy form for now.`);
-            setStep('edit'); // Will use old ProfileForm
-        }
+        const stepMap: Record<string, WizardStep> = {
+            'centerparcs': 'centerparcs',
+            'haven': 'haven',
+            'hoseasons': 'hoseasons',
+            'butlins': 'butlins',
+            'parkdean': 'parkdean',
+            'awayresorts': 'awayresorts',
+        };
+        setStep(stepMap[providerCode] || 'edit');
     };
 
     const handleWatcherCreated = () => {
@@ -59,12 +66,16 @@ export default function DashboardPage() {
                     onEdit={(profile) => {
                         setEditingProfile(profile);
                         // Route to provider-specific form based on profile.provider
-                        if (profile.provider?.code === 'centerparcs') {
-                            setStep('centerparcs');
-                        } else {
-                            // Legacy watchers or other providers use old form
-                            setStep('edit');
-                        }
+                        const providerCode = profile.provider?.code;
+                        const stepMap: Record<string, WizardStep> = {
+                            'centerparcs': 'centerparcs',
+                            'haven': 'haven',
+                            'hoseasons': 'hoseasons',
+                            'butlins': 'butlins',
+                            'parkdean': 'parkdean',
+                            'awayresorts': 'awayresorts',
+                        };
+                        setStep(stepMap[providerCode] || 'edit');
                     }}
                 />
             )}
@@ -77,9 +88,49 @@ export default function DashboardPage() {
                 />
             )}
 
-            {/* Center Parcs Form */}
+            {/* Provider-Specific Forms */}
             {step === 'centerparcs' && (
                 <CenterParcsForm
+                    initialData={editingProfile}
+                    onSuccess={handleWatcherCreated}
+                    onBack={() => setStep(editingProfile ? 'list' : 'select-provider')}
+                />
+            )}
+
+            {step === 'haven' && (
+                <HavenForm
+                    initialData={editingProfile}
+                    onSuccess={handleWatcherCreated}
+                    onBack={() => setStep(editingProfile ? 'list' : 'select-provider')}
+                />
+            )}
+
+            {step === 'hoseasons' && (
+                <HoseasonsForm
+                    initialData={editingProfile}
+                    onSuccess={handleWatcherCreated}
+                    onBack={() => setStep(editingProfile ? 'list' : 'select-provider')}
+                />
+            )}
+
+            {step === 'butlins' && (
+                <ButlinsForm
+                    initialData={editingProfile}
+                    onSuccess={handleWatcherCreated}
+                    onBack={() => setStep(editingProfile ? 'list' : 'select-provider')}
+                />
+            )}
+
+            {step === 'parkdean' && (
+                <ParkdeanForm
+                    initialData={editingProfile}
+                    onSuccess={handleWatcherCreated}
+                    onBack={() => setStep(editingProfile ? 'list' : 'select-provider')}
+                />
+            )}
+
+            {step === 'awayresorts' && (
+                <AwayResortsForm
                     initialData={editingProfile}
                     onSuccess={handleWatcherCreated}
                     onBack={() => setStep(editingProfile ? 'list' : 'select-provider')}
