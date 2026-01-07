@@ -53,9 +53,9 @@ export class FingerprintService {
             if (fingerprint) fingerprints.push(fingerprint);
         }
 
-        // 4. Disable fingerprints for providers no longer in the list
-        const activeProviderIds = providers.map(p => p.id);
-        await this.disableOrphanedFingerprints(profile.id, activeProviderIds);
+        // 4. Disable fingerprints for this profile that are NOT in the active "just generated" list
+        const activeIds = fingerprints.map(f => f.id);
+        await this.disableStaleFingerprints(profile.id, activeIds);
 
         return fingerprints;
     }
@@ -140,21 +140,22 @@ export class FingerprintService {
         );
     }
 
-    private async disableOrphanedFingerprints(profileId: string, activeProviderIds: string[]): Promise<void> {
-        // Disable fingerprints for this profile where provider NOT in active list
-        // TypeORM doesn't support NOT IN easily in update, so specific query or iteration
-        const orphans = await this.fingerprintRepo.createQueryBuilder('f')
-            .where('f.profile_id = :profileId', { profileId })
-            .andWhere('f.provider_id NOT IN (:...pIds)', { pIds: activeProviderIds })
-            .andWhere('f.enabled = :enabled', { enabled: true })
-            .getMany();
+    private async disableStaleFingerprints(profileId: string, activeIds: string[]): Promise<void> {
+        if (activeIds.length === 0) {
+            await this.disableAllForProfile(profileId);
+            return;
+        }
 
-        if (orphans.length > 0) {
-            for (const orphan of orphans) {
-                orphan.enabled = false;
-                await this.fingerprintRepo.save(orphan);
-            }
-            console.log(`   Disabled ${orphans.length} orphaned fingerprints`);
+        const result = await this.fingerprintRepo.createQueryBuilder()
+            .update(SearchFingerprint)
+            .set({ enabled: false })
+            .where("profile = :profileId", { profileId })
+            .andWhere("enabled = :enabled", { enabled: true })
+            .andWhere("id NOT IN (:...ids)", { ids: activeIds })
+            .execute();
+
+        if (result.affected && result.affected > 0) {
+            console.log(`   Disabled ${result.affected} stale fingerprints (parameter mismatch)`);
         }
     }
 }

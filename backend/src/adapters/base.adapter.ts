@@ -43,6 +43,7 @@ export interface PriceResult {
     propertyName?: string;
     location?: string;
     parkId?: string; // Critical for SeriesKey generation
+    metadata?: Record<string, any>; // Provider-specific extra data
 }
 
 export interface DealResult {

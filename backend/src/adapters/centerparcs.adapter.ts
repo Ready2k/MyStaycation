@@ -282,7 +282,7 @@ export class CenterParcsAdapter extends BaseAdapter {
                     accomType: lodgeName,
                     propertyName: lodgeName,
                     sourceUrl,
-                    matchConfidence: MatchConfidence.EXACT,
+                    matchConfidence: MatchConfidence.STRONG,
                     matchDetails: isLowestPrice ? 'Lowest price' : 'API data',
                     parkId: villageCode,
                     location: villageCode,
