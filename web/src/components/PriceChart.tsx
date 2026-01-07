@@ -14,6 +14,7 @@ interface SeriesData {
     seriesKey: string;
     stayStartDate: string;
     stayNights: number;
+    accomName?: string;
     data: DataPoint[];
 }
 
@@ -61,6 +62,11 @@ export function PriceChart({ series, isLoading }: PriceChartProps) {
         );
     }
 
+    const getSeriesLabel = (s: SeriesData) => {
+        const datePart = `${format(new Date(s.stayStartDate), 'MMM d')} (${s.stayNights}n)`;
+        return s.accomName ? `${s.accomName} • ${datePart}` : datePart;
+    };
+
     // Flatten all data points for the chart
     const chartData: any[] = [];
     const dateMap = new Map<string, any>();
@@ -73,7 +79,7 @@ export function PriceChart({ series, isLoading }: PriceChartProps) {
             if (!dateMap.has(dateKey)) {
                 dateMap.set(dateKey, { date: dateKey });
             }
-            const label = `${format(new Date(s.stayStartDate), 'MMM d')} (${s.stayNights}n)`;
+            const label = getSeriesLabel(s);
             dateMap.get(dateKey)[label] = point.price;
         });
     });
@@ -110,8 +116,8 @@ export function PriceChart({ series, isLoading }: PriceChartProps) {
                             key={days}
                             onClick={() => setDateRange(days)}
                             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${dateRange === days
-                                    ? 'bg-primary-600 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                ? 'bg-primary-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
                         >
                             {days}d
@@ -150,7 +156,7 @@ export function PriceChart({ series, isLoading }: PriceChartProps) {
                         onClick={(e) => {
                             // Find series by label
                             const clickedSeries = series.find(s => {
-                                const label = `${format(new Date(s.stayStartDate), 'MMM d')} (${s.stayNights}n)`;
+                                const label = getSeriesLabel(s);
                                 return label === e.value;
                             });
                             if (clickedSeries) {
@@ -160,7 +166,7 @@ export function PriceChart({ series, isLoading }: PriceChartProps) {
                     />
                     {series.map((s, index) => {
                         if (!visibleSeries.has(s.seriesKey)) return null;
-                        const label = `${format(new Date(s.stayStartDate), 'MMM d')} (${s.stayNights}n)`;
+                        const label = getSeriesLabel(s);
                         return (
                             <Line
                                 key={s.seriesKey}
@@ -186,8 +192,8 @@ export function PriceChart({ series, isLoading }: PriceChartProps) {
                             key={s.seriesKey}
                             onClick={() => toggleSeries(s.seriesKey)}
                             className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${visibleSeries.has(s.seriesKey)
-                                    ? 'bg-white border-2 text-gray-900'
-                                    : 'bg-gray-100 border-2 border-transparent text-gray-500 opacity-50'
+                                ? 'bg-white border-2 text-gray-900'
+                                : 'bg-gray-100 border-2 border-transparent text-gray-500 opacity-50'
                                 }`}
                             style={{
                                 borderColor: visibleSeries.has(s.seriesKey) ? COLORS[index % COLORS.length] : 'transparent',
@@ -198,7 +204,7 @@ export function PriceChart({ series, isLoading }: PriceChartProps) {
                                 style={{ backgroundColor: COLORS[index % COLORS.length] }}
                             />
                             <span>
-                                {format(new Date(s.stayStartDate), 'MMM d, yyyy')} • {s.stayNights} nights
+                                {getSeriesLabel(s)}
                             </span>
                             <span className="text-xs text-gray-500">
                                 ({s.data.length} checks)

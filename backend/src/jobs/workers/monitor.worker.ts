@@ -2,6 +2,7 @@ import { Worker, Job } from 'bullmq';
 import { AppDataSource } from '../../config/database';
 import { SearchFingerprint } from '../../entities/SearchFingerprint';
 import { PriceObservation, AvailabilityStatus } from '../../entities/PriceObservation';
+import { ProviderAccomType } from '../../entities/ProviderAccomType';
 import { FetchRun, RunType, RunStatus, ProviderStatus } from '../../entities/FetchRun';
 import { adapterRegistry } from '../../adapters/registry';
 import { MonitorJobData, addInsightJob } from '../queues';
@@ -12,6 +13,7 @@ import { SystemLogger } from '../../services/SystemLogger';
 const fingerprintRepo = AppDataSource.getRepository(SearchFingerprint);
 const observationRepo = AppDataSource.getRepository(PriceObservation);
 const fetchRunRepo = AppDataSource.getRepository(FetchRun);
+const accomTypeRepo = AppDataSource.getRepository(ProviderAccomType);
 
 async function processMonitorJob(job: Job<MonitorJobData>) {
     const { fingerprintId, providerId, searchParams } = job.data;
@@ -80,13 +82,45 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
         let storedCount = 0;
         for (const result of results) {
             try {
+                let accomTypeEntity: ProviderAccomType | null = null;
+
+                if (result.accomType) {
+                    // Try to find existing accom type by name and provider
+                    accomTypeEntity = await accomTypeRepo.findOne({
+                        where: {
+                            provider: { id: fingerprint.provider.id },
+                            name: result.accomType
+                        }
+                    });
+
+                    // If not found, create it
+                    if (!accomTypeEntity) {
+                        try {
+                            accomTypeEntity = accomTypeRepo.create({
+                                provider: fingerprint.provider,
+                                name: result.accomType,
+                                providerAccomCode: result.accomType // Use name as code fallback for now
+                            });
+                            await accomTypeRepo.save(accomTypeEntity);
+                        } catch (e) {
+                            // Handle race condition where another worker might have created it
+                            accomTypeEntity = await accomTypeRepo.findOne({
+                                where: {
+                                    provider: { id: fingerprint.provider.id },
+                                    name: result.accomType
+                                }
+                            });
+                        }
+                    }
+                }
+
                 // Generate series key
                 const seriesKey = generateSeriesKey({
                     providerId: fingerprint.provider.id,
                     stayStartDate: result.stayStartDate,
                     stayNights: result.stayNights,
                     parkId: result.parkId,
-                    accomTypeId: result.accomType,
+                    accomTypeId: accomTypeEntity?.id || result.accomType, // Prefer ID if available
                 });
 
                 // Create observation
@@ -105,6 +139,7 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
                     pricePerNightGbp: result.pricePerNightGbp || result.priceTotalGbp / result.stayNights,
                     availability: (result.availability as AvailabilityStatus) || AvailabilityStatus.AVAILABLE,
                     sourceUrl: result.sourceUrl,
+                    accomType: accomTypeEntity || undefined,
                 });
 
                 await observationRepo.insert(observation);

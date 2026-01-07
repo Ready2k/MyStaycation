@@ -80,6 +80,7 @@ export async function insightsRoutes(fastify: FastifyInstance) {
         // Fetch observations grouped by series key
         const observations = await observationRepo
             .createQueryBuilder('obs')
+            .leftJoinAndSelect('obs.accomType', 'accomType')
             .where('obs.fingerprint_id = :fingerprintId', { fingerprintId })
             .andWhere('obs.observedAt >= :cutoffDate', { cutoffDate })
             .orderBy('obs.seriesKey', 'ASC')
@@ -95,6 +96,7 @@ export async function insightsRoutes(fastify: FastifyInstance) {
                     seriesKey: obs.seriesKey,
                     stayStartDate: obs.stayStartDate,
                     stayNights: obs.stayNights,
+                    accomName: obs.accomType?.name || undefined,
                     data: [],
                 });
             }
