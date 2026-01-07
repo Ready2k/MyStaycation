@@ -164,10 +164,17 @@ export class HoseasonsAdapter extends BaseAdapter {
 
             // Navigate to the page
             console.log('🌐 Navigating to search page...');
-            await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+            // Use 'domcontentloaded' instead of 'networkidle' to avoid timeout
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-            // Wait a bit more for any delayed API calls
-            await page.waitForTimeout(3000);
+            // Wait for the API response with polling
+            console.log('⏳ Waiting for API response...');
+            const maxWaitTime = 20000; // 20 seconds
+            const startTime = Date.now();
+
+            while (!searchResultsData && (Date.now() - startTime) < maxWaitTime) {
+                await page.waitForTimeout(500);
+            }
 
             // If we intercepted API data, return it as JSON string
             if (searchResultsData) {

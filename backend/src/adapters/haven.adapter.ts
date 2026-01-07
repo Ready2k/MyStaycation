@@ -157,6 +157,19 @@ export class HavenAdapter extends BaseAdapter {
                 const rawUrl = $el.find('a').first().attr('href');
                 const sourceUrl = this.normalizeUrl(rawUrl);
 
+                // Extract parkId from URL or location
+                let parkId: string | undefined;
+                if (rawUrl) {
+                    // Try to extract park code from URL (e.g., /parks/devon-cliffs/...)
+                    const parkMatch = rawUrl.match(/\/parks\/([^\/]+)/i);
+                    if (parkMatch) parkId = parkMatch[1];
+                }
+                // Fallback to location text if available
+                if (!parkId) {
+                    const locationText = $el.find('.location, .park-name').first().text().trim();
+                    if (locationText) parkId = locationText.toLowerCase().replace(/\s+/g, '-');
+                }
+
                 // [NEW] CLASSIFY RESULT
                 const candidateRes = {
                     stayStartDate,
@@ -187,6 +200,7 @@ export class HavenAdapter extends BaseAdapter {
                     availability: availability as 'AVAILABLE' | 'SOLD_OUT',
                     accomType,
                     sourceUrl,
+                    parkId, // CRITICAL: Required for seriesKey generation
                     matchConfidence: matchResult.confidence,
                     matchDetails: matchResult.description,
                     bedrooms,

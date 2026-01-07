@@ -382,12 +382,14 @@ export class PreviewService {
                 confidence = strictMatch.confidence;
 
                 if (confidence !== MatchConfidence.STRONG && confidence !== MatchConfidence.WEAK) {
-                    console.log(`DEBUG: REJECTED ${candidate.propertyName}: Confidence ${confidence}. Desc: ${strictMatch.description}`);
+                    console.log(`DEBUG: REJECTED ${candidate.propertyName || 'unnamed'} (£${candidate.priceTotalGbp}): Confidence ${confidence}. Desc: ${strictMatch.description}`);
                     if (confidence === MatchConfidence.MISMATCH) {
                         reasons.failed.push({ code: 'MISMATCH', message: strictMatch.description });
                     } else if (confidence === MatchConfidence.UNKNOWN) {
                         // ...
                     }
+                } else {
+                    console.log(`DEBUG: ACCEPTED ${candidate.propertyName || 'unnamed'} (£${candidate.priceTotalGbp}): Confidence ${confidence}`);
                 }
             }
 
@@ -453,10 +455,12 @@ export class PreviewService {
             // Bucket
             if (confidence === MatchConfidence.STRONG || (options.allowWeakMatches && confidence === MatchConfidence.WEAK)) {
                 results.matched.push(previewResult);
+                console.log(`DEBUG: Added to matched: ${candidate.propertyName || 'unnamed'} (£${candidate.priceTotalGbp}) - confidence: ${confidence}`);
                 if (!summary.lowestMatchedPriceGbp || candidate.priceTotalGbp < summary.lowestMatchedPriceGbp) {
                     summary.lowestMatchedPriceGbp = candidate.priceTotalGbp;
                 }
             } else {
+                console.log(`DEBUG: NOT added to matched: ${candidate.propertyName || 'unnamed'} (£${candidate.priceTotalGbp}) - confidence: ${confidence}, allowWeakMatches: ${options.allowWeakMatches}`);
                 if (options.includeMismatches || options.includeDebug) {
                     results.other.push(previewResult);
                 }

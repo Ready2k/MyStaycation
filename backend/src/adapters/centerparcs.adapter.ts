@@ -1,5 +1,5 @@
 import { BaseAdapter, SearchParams, PriceResult, DealResult } from './base.adapter';
-import * as cheerio from 'cheerio';
+import { chromium, Browser } from 'playwright';
 import { MatchConfidence } from '../utils/result-matcher';
 
 export class CenterParcsAdapter extends BaseAdapter {
@@ -12,90 +12,12 @@ export class CenterParcsAdapter extends BaseAdapter {
         'sherwood': 'SF',
         'longleat': 'LF',
         'elveden': 'EF',
-        'woburn': 'WO',  // Corrected from 'WB'
+        'woburn': 'WO', // Corrected from WB
         'longford': 'EI'
     };
 
     constructor() {
         super('https://www.centerparcs.co.uk', 'centerparcs');
-    }
-
-    /**
-     * Custom Playwright fetch for Center Parcs with API interception
-     */
-    private async fetchCenterParcsWithBrowser(url: string, villageCode: string): Promise<any> {
-        const playwrightEnabled = process.env.PLAYWRIGHT_ENABLED !== 'false';
-        if (!playwrightEnabled) {
-            throw new Error('Playwright is disabled');
-        }
-
-        if (!this.browser) {
-            console.log('Starting Playwright browser...');
-            const { chromium } = await import('playwright');
-            this.browser = await chromium.launch({
-                headless: true,
-                executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-blink-features=AutomationControlled',
-                ],
-            });
-            console.log('Playwright browser started.');
-        }
-
-        const page = await this.browser.newPage({
-            userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            viewport: { width: 1920, height: 1080 },
-            extraHTTPHeaders: {
-                'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
-                'Accept': 'application/json, text/plain, */*',
-            }
-        });
-
-        // Log page console messages
-        page.on('console', msg => console.log(`BROWSER CONSOLE: ${msg.text()}`));
-
-        let interceptedData: any = null;
-
-        try {
-            // Intercept API calls
-            page.on('response', async (response) => {
-                const responseUrl = response.url();
-                // Log all relevant JSON responses to see what we're getting
-                if (responseUrl.includes('centerparcs.co.uk') && responseUrl.includes('json')) {
-                    console.log(`Response: ${responseUrl} (${response.status()})`);
-                }
-
-                if (responseUrl.includes('/api/v1/accommodation.json')) {
-                    try {
-                        const json = await response.json();
-                        console.log(`🎯 CenterParcs: Intercepted API response for ${villageCode} (Size: ${JSON.stringify(json).length})`);
-                        interceptedData = json;
-                    } catch (e) {
-                        console.error(`Error parsing JSON for ${responseUrl}:`, e);
-                    }
-                }
-            });
-
-            console.log(`🌐 CenterParcs: Navigating to ${url}`);
-            await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 }); // Increased timeout
-
-            // Wait a bit extra to ensure API calls finish
-            await page.waitForTimeout(5000);
-
-            return interceptedData;
-
-        } catch (error) {
-            console.error(`❌ CenterParcs Browser Error for ${villageCode}:`, error);
-            if (interceptedData) {
-                console.log(`⚠️ CenterParcs: Returning intercepted data despite error`);
-                return interceptedData;
-            }
-            return null;
-        } finally {
-            await page.close();
-        }
     }
 
     async search(params: SearchParams): Promise<PriceResult[]> {
@@ -114,18 +36,19 @@ export class CenterParcsAdapter extends BaseAdapter {
             const code = this.getVillageCode(params.region);
             if (code) villagesToSearch.push(code);
         }
-        // Priority 3: Default to all villages
+        // Priority 3: Default to all UK villages
         else {
-            villagesToSearch = ['WF', 'SF', 'LF', 'EF', 'WO']; // WO = Woburn (corrected from WB)
+            villagesToSearch = ['WF', 'SF', 'LF', 'EF', 'WO'];
             console.log(`🔍 No specific villages selected, searching all Center Parcs`);
         }
 
+        // Search villages sequentially
         for (const villageCode of villagesToSearch) {
             try {
                 const url = this.buildVillageUrl(villageCode, params);
                 console.log(`DEBUG: CenterParcs URL: ${url}`);
 
-                // Use custom fetcher to intercept JSON
+                // Use API interception to get accommodation data
                 const apiData = await this.fetchCenterParcsWithBrowser(url, villageCode);
 
                 if (!apiData) {
@@ -146,6 +69,110 @@ export class CenterParcsAdapter extends BaseAdapter {
         return results;
     }
 
+    /**
+     * Normalize date to YYYY-MM-DD format for comparison
+     */
+    private normalizeDate(dateStr: string): string {
+        if (!dateStr) return '';
+
+        // If already in YYYY-MM-DD format
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            return dateStr;
+        }
+
+        // If in DD-MM-YYYY format (Center Parcs API format)
+        if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+            const [day, month, year] = dateStr.split('-');
+            return `${year}-${month}-${day}`;
+        }
+
+        // Try parsing as Date object
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        return dateStr; // Return as-is if can't parse
+    }
+
+    /**
+     * Fetch Center Parcs page and intercept API data
+     */
+    private async fetchCenterParcsWithBrowser(url: string, villageCode: string): Promise<any> {
+        const playwrightEnabled = process.env.PLAYWRIGHT_ENABLED !== 'false';
+        if (!playwrightEnabled) {
+            throw new Error('Playwright is disabled');
+        }
+
+        if (!this.browser) {
+            const { chromium } = await import('playwright');
+            this.browser = await chromium.launch({
+                headless: true,
+                executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
+                args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            });
+        }
+
+        const page = await this.browser.newPage({
+            userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            viewport: { width: 1920, height: 1080 },
+        });
+
+        let interceptedData: any = null;
+
+        try {
+            // Intercept API response
+            page.on('response', async (response) => {
+                const responseUrl = response.url();
+                const method = response.request().method();
+
+                // Intercept the accommodation POST request
+                if (responseUrl.includes('/api/v1/accommodation.json') && method === 'POST') {
+                    try {
+                        const contentType = response.headers()['content-type'] || '';
+                        if (contentType.includes('application/json')) {
+                            interceptedData = await response.json();
+                            console.log(`✅ CenterParcs: Intercepted accommodation data (${JSON.stringify(interceptedData).length} bytes)`);
+                        }
+                    } catch (e) {
+                        console.error(`Error parsing accommodation JSON:`, e);
+                    }
+                }
+            });
+
+            console.log(`🌐 CenterParcs: Navigating to ${url}`);
+
+            // Use networkidle to trigger the API call, but handle timeout gracefully
+            try {
+                await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+            } catch (error: any) {
+                // Timeout is expected - the page never reaches true networkidle
+                // But the API data should have been intercepted before timeout
+                if (error.message?.includes('Timeout') && interceptedData) {
+                    console.log(`⚠️ CenterParcs: Timeout waiting for networkidle (expected), but data was intercepted`);
+                } else if (error.message?.includes('Timeout')) {
+                    console.warn(`⚠️ CenterParcs: Timeout and no data intercepted`);
+                } else {
+                    throw error;
+                }
+            }
+
+            return interceptedData;
+
+        } catch (error) {
+            console.error(`❌ CenterParcs Browser Error for ${villageCode}:`, error);
+            return interceptedData; // Return any data we managed to intercept
+        } finally {
+            await page.close();
+        }
+    }
+
+    /**
+     * Parse API results
+     */
     private parseApiResults(data: any, villageCode: string, params: SearchParams): PriceResult[] {
         const results: PriceResult[] = [];
         let items: any[] = [];
@@ -153,100 +180,174 @@ export class CenterParcsAdapter extends BaseAdapter {
         // Handle nested structure: data.data.accommodation.accommodationList
         if (data?.data?.accommodation?.accommodationList) {
             items = data.data.accommodation.accommodationList;
-        } else if (data?.accommodation) {
-            items = Array.isArray(data.accommodation) ? data.accommodation : [];
+        } else if (data?.accommodations) {
+            items = Array.isArray(data.accommodations) ? data.accommodations : [];
         }
 
         console.log(`DEBUG: Found ${items.length} items in JSON`);
 
-        if (items.length > 0) {
-            // DEBUG: Log first item to see structure
-            if (items[0].availabilities) console.log('DEBUG: Availabilities:', JSON.stringify(items[0].availabilities).substring(0, 500));
-        } else {
-            // Fallback: If structure is different or empty, log context
-            console.log('DEBUG: Unexpected or empty CP JSON structure:', JSON.stringify(data).substring(0, 500));
-        }
+        const searchDateStr = params.dateWindow.start; // Format: YYYY-MM-DD
+        const searchNights = params.nights.min;
 
-        items.forEach((item: any) => {
+        console.log(`DEBUG: Searching for date: ${searchDateStr}, nights: ${searchNights}`);
+
+        items.forEach((item: any, index: number) => {
             try {
-                // Item might wrap 'lodge' and 'price'
-                // Check if properties are on item or item.lodge
-                const lodge = item.lodge || item;
-
-                // Extract Price
-                // Look for price in availabilities
-                let price: number | undefined;
-
-                if (item.availabilities && Array.isArray(item.availabilities) && item.availabilities.length > 0) {
-                    // Check price in first availability
-                    // Structure might be availabilities[0].price.amount or similar
-                    const firstAvail = item.availabilities[0];
-                    // Handle both object {amount: 100} and number 100
-                    if (typeof firstAvail.price === 'number') {
-                        price = firstAvail.price;
-                    } else {
-                        price = firstAvail.price?.amount || firstAvail.displayPrice;
+                // Debug first item structure
+                if (index === 0) {
+                    console.log(`DEBUG: Item keys: ${Object.keys(item).join(', ')}`);
+                    if (item.availabilities?.[0]) {
+                        console.log(`DEBUG: First availability: arrivalDate=${item.availabilities[0].arrivalDate}, duration=${item.availabilities[0].duration}, price=${item.availabilities[0].price}`);
                     }
+                    console.log(`DEBUG: Total availabilities for first item: ${item.availabilities?.length || 0}`);
                 }
 
-                // Fallback to old locations
-                if (!price) {
-                    price = item.price?.amount || item.displayPrice;
+                // Get lodge information
+                // Debug raw name access
+                if (index === 0) {
+                    console.log(`DEBUG: item.lodge keys: ${item.lodge ? Object.keys(item.lodge).join(', ') : 'undefined'}`);
+                    console.log(`DEBUG: item.lodge.title value: '${item.lodge?.title}'`);
                 }
 
-                // Sometimes price is in a 'price' object on the item
-                if (!price && item.price && typeof item.price === 'object') {
-                    price = item.price.amount;
+                // Use title or shortTitle as the name (API uses 'title' not 'name')
+                const lodgeName = item.lodge?.title || item.lodge?.shortTitle || item.name || 'Lodge';
+                const lodgeBedrooms = item.lodge?.bedrooms || item.bedrooms || item.lodge?.numberOfBedrooms;
+
+                if (index === 0) {
+                    console.log(`DEBUG: Resolved lodgeName: '${lodgeName}'`);
                 }
 
-                if (!price) return;
-
-
-                // Extract Title
-                const propertyName = lodge.title || lodge.name || lodge.displayName;
-
-                // Extract Beds
-                let bedrooms: number | undefined;
-                if (lodge.bedrooms) bedrooms = lodge.bedrooms;
-
-                if (!bedrooms && propertyName) {
-                    // Fallback based on name (e.g. "3 Bedroom Woodland Lodge")
-                    const nameMatch = propertyName.match(/(\d+)\s*Bed/i);
-                    if (nameMatch) bedrooms = parseInt(nameMatch[1]);
+                // Center Parcs API returns multiple dates (week before/after) for price comparison
+                // We need to filter to the exact search date
+                if (!item.availabilities || !Array.isArray(item.availabilities) || item.availabilities.length === 0) {
+                    return;
                 }
+
+                // Filter to exact date match
+                const matchingAvailabilities = item.availabilities.filter((avail: any) => {
+                    const availDate = avail.arrivalDate; // Format: DD-MM-YYYY
+                    const availDuration = avail.duration;
+
+                    // Normalize both dates to YYYY-MM-DD for comparison
+                    const normalizedAvailDate = this.normalizeDate(availDate);
+                    const normalizedSearchDate = this.normalizeDate(searchDateStr);
+
+                    const dateMatch = normalizedAvailDate === normalizedSearchDate;
+                    const durationMatch = availDuration === searchNights;
+
+                    if (index === 0 && !dateMatch) {
+                        console.log(`DEBUG: Date mismatch for ${lodgeName}: availDate=${availDate} (${normalizedAvailDate}) != searchDate=${searchDateStr} (${normalizedSearchDate})`);
+                    }
+                    if (index === 0 && dateMatch && !durationMatch) {
+                        console.log(`DEBUG: Duration mismatch for ${lodgeName}: availDuration=${availDuration} != searchNights=${searchNights}`);
+                    }
+
+                    return dateMatch && durationMatch;
+                });
+
+                if (matchingAvailabilities.length === 0) {
+                    if (index === 0) {
+                        console.log(`DEBUG: No matching availabilities for ${lodgeName} - searched ${searchDateStr} for ${searchNights} nights but got availabilities for: ${item.availabilities.map((a: any) => `${a.arrivalDate} (${a.duration} nights)`).join(', ')}`);
+                    }
+                    return;
+                }
+
+                const availability = matchingAvailabilities[0];
+
+                // Extract price and metadata
+                let price: number | undefined;
+                if (typeof availability.price === 'number') {
+                    price = availability.price;
+                } else if (availability.displayPrice && typeof availability.displayPrice === 'number') {
+                    price = availability.displayPrice;
+                } else if (availability.price?.amount) {
+                    price = availability.price.amount;
+                }
+
+                if (!price || price <= 0) {
+                    return;
+                }
+
+                // Extract additional metadata
+                const isLowestPrice = availability.isLowestPrice === true;
+                const availableRooms = availability.availableRooms || availability.roomsLeftFormattedMessage;
+
+                // Debug for first item
+                if (index === 0) {
+                    console.log(`DEBUG: isLowestPrice: ${isLowestPrice}, availableRooms: ${availableRooms}`);
+                }
+
+                // Parse the actual arrival date from API (format: DD-MM-YYYY)
+                const arrivalDateStr = availability.arrivalDate;
+                const actualDate = this.normalizeDate(arrivalDateStr);
+                const actualNights = availability.duration;
+
+                // Build proper URL with the date from the API
+                // Format: /2/{location}/{date}/{duration}/-/-/{rooms}/{adults}/{children}/{toddlers}/{infants}/{dogs}/{adaptiveLodge}
+                const rooms = Math.ceil(params.party.adults / 2); // 1-2 adults = 1 room, 3-4 adults = 2 rooms, etc.
+                const sourceUrl = `https://www.centerparcs.co.uk/breaks-we-offer/search.html/2/${villageCode}/${arrivalDateStr}/${actualNights}/-/-/${rooms}/${params.party.adults}/${params.party.children}/0/0/0/N`;
+
+                if (index === 0) {
+                    console.log(`DEBUG: URL params - adults: ${params.party.adults}, children: ${params.party.children}, rooms: ${rooms}`);
+                    console.log(`DEBUG: Generated URL: ${sourceUrl}`);
+                }
+
+                const pricePerNightGbp = this.calculatePricePerNight(price, actualNights);
+
+                if (!pricePerNightGbp) return;
 
                 results.push({
-                    stayStartDate: params.dateWindow.start,
-                    stayNights: params.nights.min || 4,
-                    priceTotalGbp: typeof price === 'string' ? parseFloat(price) : price,
-                    pricePerNightGbp: (typeof price === 'string' ? parseFloat(price) : price) / (params.nights.min || 4),
+                    stayStartDate: actualDate, // YYYY-MM-DD format
+                    stayNights: actualNights,
+                    priceTotalGbp: price,
+                    pricePerNightGbp,
                     availability: 'AVAILABLE',
-                    propertyName: propertyName || `Lodge at ${villageCode}`,
-                    sourceUrl: 'https://www.centerparcs.co.uk',
-                    matchConfidence: MatchConfidence.STRONG,
+                    accomType: lodgeName,
+                    propertyName: lodgeName,
+                    sourceUrl,
+                    matchConfidence: MatchConfidence.EXACT,
+                    matchDetails: isLowestPrice ? 'Lowest price' : 'API data',
+                    parkId: villageCode,
                     location: villageCode,
-                    parkId: villageCode, // Critical for SeriesKey
-                    bedrooms: bedrooms,
-                    accomType: item.type || 'Lodge',
-                    petsAllowed: params.pets // Default to what we asked for, refined if API has data
+                    bedrooms: lodgeBedrooms,
+                    metadata: {
+                        isLowestPrice,
+                        availableRooms: availableRooms ? String(availableRooms) : undefined
+                    }
                 });
-            } catch (e) {
-                console.error('Error parsing CP item:', e);
+
+                console.log(`DEBUG: Added result #${results.length}: ${lodgeName} - £${price} (date: ${arrivalDateStr} -> ${actualDate}, nights: ${actualNights}, lowest: ${isLowestPrice})`);
+            } catch (error) {
+                console.error(`Error parsing accommodation:`, error);
             }
         });
 
         return results;
     }
 
-    // --- Abstract Implementation Stubs (Not used for Search) ---
+    // --- Abstract Implementation Stubs ---
 
-    protected buildSearchUrl(params: SearchParams): string { return ""; }
-    protected parseSearchResults(html: string, params: SearchParams): PriceResult[] { return []; }
-    async fetchOffers(): Promise<DealResult[]> { return []; }
-    protected parseOffers(html: string): DealResult[] { return []; }
-    protected buildOffersUrl(): string { return "https://www.centerparcs.co.uk/breaks-we-offer/last-minute-breaks.html"; }
+    protected buildSearchUrl(params: SearchParams): string {
+        return "";
+    }
 
-    // --- Implementation Details ---
+    protected parseSearchResults(html: string, params: SearchParams): PriceResult[] {
+        return [];
+    }
+
+    async fetchOffers(): Promise<DealResult[]> {
+        return [];
+    }
+
+    protected parseOffers(html: string): DealResult[] {
+        return [];
+    }
+
+    protected buildOffersUrl(): string {
+        return "https://www.centerparcs.co.uk/breaks-we-offer/last-minute-breaks.html";
+    }
+
+    // --- Helper Methods ---
 
     private getVillageCode(region: string): string | null {
         const normalized = region.toLowerCase().trim();
@@ -260,8 +361,6 @@ export class CenterParcsAdapter extends BaseAdapter {
     }
 
     private buildVillageUrl(villageCode: string, params: SearchParams): string {
-        // Format: /breaks-we-offer/search.html/2/{VILLAGE}/{DD-MM-YYYY}/{NIGHTS}/-/-/{LODGES}/{ADULTS}/{CHILDREN_6-17}/{TODDLERS_2-5}/{INFANTS_<2}/{DOGS}/{ACCESSIBLE}/{FLEX}
-
         const date = new Date(params.dateWindow.start);
         const day = String(date.getDate()).padStart(2, '0');
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -269,37 +368,16 @@ export class CenterParcsAdapter extends BaseAdapter {
         const dateStr = `${day}-${month}-${year}`;
 
         const nights = params.nights.min || 4;
-
-        // Check if metadata contains lodge information
-        const metadata = (params as any).metadata;
-        let lodges = 1;
-        let adults = params.party.adults || 2;
-        let children = 0; // 6-17 years
-        let toddlers = 0; // 2-5 years
-        let infants = 0;  // <2 years
-        let dogs = 0;
-
-        if (metadata?.lodges && Array.isArray(metadata.lodges) && metadata.lodges.length > 0) {
-            // Use multi-lodge data from metadata
-            lodges = metadata.lodges.length;
-
-            // Sum up all party members across all lodges
-            adults = metadata.lodges.reduce((sum: number, lodge: any) => sum + (lodge.adults || 0), 0);
-            children = metadata.lodges.reduce((sum: number, lodge: any) => sum + (lodge.children || 0), 0);
-            toddlers = metadata.lodges.reduce((sum: number, lodge: any) => sum + (lodge.toddlers || 0), 0);
-            infants = metadata.lodges.reduce((sum: number, lodge: any) => sum + (lodge.infants || 0), 0);
-            dogs = metadata.lodges.reduce((sum: number, lodge: any) => sum + (lodge.dogs || 0), 0);
-
-            console.log(`🏠 Multi-lodge search: ${lodges} lodges, ${adults} adults, ${children} children, ${toddlers} toddlers, ${infants} infants, ${dogs} dogs`);
-        } else {
-            // Fallback to simple party counts
-            children = params.party.children || 0;
-            dogs = params.pets ? 1 : 0;
-        }
-
+        const adults = params.party.adults || 2;
+        const children = params.party.children || 0;
+        const rooms = Math.ceil(adults / 2); // 1-2 adults = 1 room, 3-4 adults = 2 rooms
+        const infants = 0;
+        const toddlers = 0;
+        const dogs = params.pets ? 1 : 0;
         const accessible = 0;
         const flex = 'N';
 
-        return `https://www.centerparcs.co.uk/breaks-we-offer/search.html/2/${villageCode}/${dateStr}/${nights}/-/-/${lodges}/${adults}/${children}/${toddlers}/${infants}/${dogs}/${accessible}/${flex}`;
+        // Format: /2/{location}/{date}/{duration}/-/-/{rooms}/{adults}/{children}/{toddlers}/{infants}/{dogs}/{adaptiveLodge}
+        return `https://www.centerparcs.co.uk/breaks-we-offer/search.html/2/${villageCode}/${dateStr}/${nights}/-/-/${rooms}/${adults}/${children}/${toddlers}/${infants}/${dogs}/${flex}`;
     }
 }

@@ -19,7 +19,8 @@ export async function searchRoutes(fastify: FastifyInstance) {
 
         try {
             const profile = await profileRepo.findOne({
-                where: { id: profileId, user: { id: user.userId } }
+                where: { id: profileId, user: { id: user.userId } },
+                relations: ['provider'] // Load provider relation for fingerprint sync
             });
 
             if (!profile) {
@@ -91,6 +92,11 @@ export async function searchRoutes(fastify: FastifyInstance) {
                 if (provider.results?.matched) addResults(provider.results.matched);
                 if (provider.results?.other) addResults(provider.results.other);
             });
+
+            console.log(`DEBUG: Returning ${flattenedResults.length} results to frontend`);
+            if (flattenedResults.length > 0) {
+                console.log(`DEBUG: First result: ${JSON.stringify(flattenedResults[0])}`);
+            }
 
             return reply.send({
                 message: 'Search completed',

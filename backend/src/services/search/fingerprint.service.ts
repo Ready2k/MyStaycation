@@ -13,25 +13,27 @@ export class FingerprintService {
      * Generate or update fingerprints for a profile
      * This should be called whenever a profile is created or updated
      */
-    async syncProfileFingerprints(profile: HolidayProfile): Promise<void> {
+    async syncProfileFingerprints(profile: HolidayProfile): Promise<SearchFingerprint[]> {
         console.log(`🔒 Syncing fingerprints for profile ${profile.id} (${profile.name})`);
 
         // 1. Identify enabled providers
         let providerCodes: string[] = [];
-        if (profile.enabledProviders && profile.enabledProviders.length > 0) {
+
+        // Check if this is a provider-specific watcher (has profile.provider set)
+        if ((profile as any).provider) {
+            const providerCode = (profile as any).provider.code || (profile as any).provider;
+            providerCodes = [providerCode.toLowerCase()];
+            console.log(`   Provider-specific watcher for: ${providerCode}`);
+        }
+        // Otherwise check enabledProviders array
+        else if (profile.enabledProviders && profile.enabledProviders.length > 0) {
             providerCodes = profile.enabledProviders.map(p => p.toLowerCase());
-        } else {
-            // Default to all known adapters if none specified? Or none?
-            // Let's default to all enabled adapters for now if empty (or maybe empty means none)
-            // But usually UI sends explicitly. Let's assume empty means NONE to be safe,
-            // unless we want a default.
-            // Actually, let's treat explicit empty array as "None".
         }
 
         if (providerCodes.length === 0) {
             console.log('   No providers enabled for this profile. Disabling all fingerprints.');
             await this.disableAllForProfile(profile.id);
-            return;
+            return [];
         }
 
         // 2. Resolve Providers from DB
@@ -41,20 +43,24 @@ export class FingerprintService {
 
         if (providers.length === 0) {
             console.warn('   No matching provider entities found in DB for codes:', providerCodes);
-            return;
+            return [];
         }
 
         // 3. For each provider, generate canonical fingerprint
+        const fingerprints: SearchFingerprint[] = [];
         for (const provider of providers) {
-            await this.ensureFingerprint(profile, provider);
+            const fingerprint = await this.ensureFingerprint(profile, provider);
+            if (fingerprint) fingerprints.push(fingerprint);
         }
 
         // 4. Disable fingerprints for providers no longer in the list
         const activeProviderIds = providers.map(p => p.id);
         await this.disableOrphanedFingerprints(profile.id, activeProviderIds);
+
+        return fingerprints;
     }
 
-    private async ensureFingerprint(profile: HolidayProfile, provider: Provider): Promise<void> {
+    private async ensureFingerprint(profile: HolidayProfile, provider: Provider): Promise<SearchFingerprint | null> {
         // Generate canonical JSON based on profile settings & provider
         // This MUST match what the Adapter expects in SearchParams
         const searchParams = {
@@ -99,7 +105,8 @@ export class FingerprintService {
                 profile: { id: profile.id },
                 provider: { id: provider.id },
                 canonicalHash
-            }
+            },
+            relations: ['provider'] // Load provider relation
         });
 
         if (fingerprint) {
@@ -109,6 +116,7 @@ export class FingerprintService {
                 await this.fingerprintRepo.save(fingerprint);
                 console.log(`   Re-enabled existing fingerprint ${fingerprint.id.slice(0, 8)}`);
             }
+            return fingerprint;
         } else {
             // Create new
             fingerprint = this.fingerprintRepo.create({
@@ -121,6 +129,7 @@ export class FingerprintService {
             });
             await this.fingerprintRepo.save(fingerprint);
             console.log(`   Created new fingerprint ${fingerprint.id.slice(0, 8)} for ${provider.code}`);
+            return fingerprint;
         }
     }
 

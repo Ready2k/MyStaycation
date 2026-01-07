@@ -98,10 +98,20 @@ export async function profileRoutes(fastify: FastifyInstance) {
 
             await profileRepo.save(profile);
 
+            // Reload profile with provider relation for fingerprint sync
+            const savedProfile = await profileRepo.findOne({
+                where: { id: profile.id },
+                relations: ['provider']
+            });
+
+            if (!savedProfile) {
+                throw new Error('Failed to reload saved profile');
+            }
+
             // Sync fingerprints and queue initial monitoring
             try {
                 const { fingerprintService } = await import('../services/search/fingerprint.service');
-                const fingerprints = await fingerprintService.syncProfileFingerprints(profile);
+                const fingerprints = await fingerprintService.syncProfileFingerprints(savedProfile);
 
                 // Queue monitoring jobs for immediate execution
                 if (fingerprints && fingerprints.length > 0) {
@@ -113,16 +123,16 @@ export async function profileRoutes(fastify: FastifyInstance) {
                             searchParams: JSON.parse(fingerprint.canonicalJson),
                         });
                     }
-                    request.log.info(`Queued ${fingerprints.length} initial monitoring jobs for new profile: ${profile.id}`);
+                    request.log.info(`Queued ${fingerprints.length} initial monitoring jobs for new profile: ${savedProfile.id}`);
                 } else {
-                    request.log.warn(`No fingerprints created for profile ${profile.id}`);
+                    request.log.warn(`No fingerprints created for profile ${savedProfile.id}`);
                 }
             } catch (err) {
                 request.log.error({ err }, 'Failed to sync fingerprints or queue monitoring jobs');
                 // Don't fail the request, just log
             }
 
-            return reply.code(201).send(profile);
+            return reply.code(201).send(savedProfile);
         } catch (error) {
             if (error instanceof z.ZodError) {
                 return reply.code(400).send({ message: 'Validation Error', errors: error.errors });
@@ -164,7 +174,8 @@ export async function profileRoutes(fastify: FastifyInstance) {
 
         try {
             const profile = await profileRepo.findOne({
-                where: { id, user: { id: user.userId } }
+                where: { id, user: { id: user.userId } },
+                relations: ['provider'] // Load provider relation for fingerprint sync
             });
 
             if (!profile) {
@@ -178,15 +189,25 @@ export async function profileRoutes(fastify: FastifyInstance) {
 
             await profileRepo.save(profile);
 
+            // Reload profile with provider relation for fingerprint sync
+            const savedProfile = await profileRepo.findOne({
+                where: { id: profile.id },
+                relations: ['provider']
+            });
+
+            if (!savedProfile) {
+                throw new Error('Failed to reload saved profile');
+            }
+
             // Sync fingerprints for the scheduler
             try {
                 const { fingerprintService } = await import('../services/search/fingerprint.service');
-                await fingerprintService.syncProfileFingerprints(profile);
+                await fingerprintService.syncProfileFingerprints(savedProfile);
             } catch (err) {
                 request.log.error({ err }, 'Failed to sync fingerprints');
             }
 
-            return profile;
+            return savedProfile;
         } catch (error) {
             if (error instanceof z.ZodError) {
                 console.error('Validation Error:', JSON.stringify(error.errors, null, 2));

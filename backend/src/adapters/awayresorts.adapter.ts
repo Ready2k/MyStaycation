@@ -146,6 +146,19 @@ export class AwayResortsAdapter extends BaseAdapter {
                 } as any
             });
 
+            // Extract parkId from URL or params
+            const bookUrl = bookBtn.attr('href') || '';
+            let parkId: string | undefined;
+            // Try to extract from URL (e.g., /book/resort-name/...)
+            const parkMatch = bookUrl.match(/\/book\/([^\/]+)/i);
+            if (parkMatch) {
+                parkId = parkMatch[1];
+            }
+            // Fallback to region param if available
+            if (!parkId && params.region) {
+                parkId = params.region.toLowerCase().replace(/\s+/g, '-');
+            }
+
             results.push({
                 // provider: this.providerCode, // Removed as it's not in PriceResult interface
                 accomType: finalName,
@@ -154,6 +167,7 @@ export class AwayResortsAdapter extends BaseAdapter {
                 availability: 'AVAILABLE',
                 stayStartDate: params.dateWindow.start,
                 pricePerNightGbp: price / params.nights.min,
+                parkId, // CRITICAL: Required for seriesKey generation
                 matchConfidence: confidence,
                 matchDetails: description,
                 sourceUrl: this.baseUrl + bookBtn.attr('href')
