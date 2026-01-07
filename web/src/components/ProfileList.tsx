@@ -49,6 +49,7 @@ export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) 
                 dateStart: item.stayStartDate || '',
                 uRL: item.sourceUrl || '',
                 confidence: item.confidence || 0,
+                matchDetails: item.matchDetails,
                 reasons: item.reasons || []
             }));
 

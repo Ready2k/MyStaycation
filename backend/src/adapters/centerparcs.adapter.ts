@@ -46,7 +46,7 @@ export class CenterParcsAdapter extends BaseAdapter {
         for (const villageCode of villagesToSearch) {
             try {
                 const url = this.buildVillageUrl(villageCode, params);
-                console.log(`DEBUG: CenterParcs URL: ${url}`);
+
 
                 // Use API interception to get accommodation data
                 const apiData = await this.fetchCenterParcsWithBrowser(url, villageCode);
@@ -57,7 +57,7 @@ export class CenterParcsAdapter extends BaseAdapter {
                 }
 
                 const villageResults = this.parseApiResults(apiData, villageCode, params);
-                console.log(`DEBUG: CenterParcs ${villageCode}: Found ${villageResults.length} results`);
+
 
                 results.push(...villageResults);
 
@@ -184,38 +184,27 @@ export class CenterParcsAdapter extends BaseAdapter {
             items = Array.isArray(data.accommodations) ? data.accommodations : [];
         }
 
-        console.log(`DEBUG: Found ${items.length} items in JSON`);
+
 
         const searchDateStr = params.dateWindow.start; // Format: YYYY-MM-DD
         const searchNights = params.nights.min;
 
-        console.log(`DEBUG: Searching for date: ${searchDateStr}, nights: ${searchNights}`);
+
 
         items.forEach((item: any, index: number) => {
             try {
                 // Debug first item structure
-                if (index === 0) {
-                    console.log(`DEBUG: Item keys: ${Object.keys(item).join(', ')}`);
-                    if (item.availabilities?.[0]) {
-                        console.log(`DEBUG: First availability: arrivalDate=${item.availabilities[0].arrivalDate}, duration=${item.availabilities[0].duration}, price=${item.availabilities[0].price}`);
-                    }
-                    console.log(`DEBUG: Total availabilities for first item: ${item.availabilities?.length || 0}`);
-                }
+
 
                 // Get lodge information
                 // Debug raw name access
-                if (index === 0) {
-                    console.log(`DEBUG: item.lodge keys: ${item.lodge ? Object.keys(item.lodge).join(', ') : 'undefined'}`);
-                    console.log(`DEBUG: item.lodge.title value: '${item.lodge?.title}'`);
-                }
+
 
                 // Use title or shortTitle as the name (API uses 'title' not 'name')
                 const lodgeName = item.lodge?.title || item.lodge?.shortTitle || item.name || 'Lodge';
                 const lodgeBedrooms = item.lodge?.bedrooms || item.bedrooms || item.lodge?.numberOfBedrooms;
 
-                if (index === 0) {
-                    console.log(`DEBUG: Resolved lodgeName: '${lodgeName}'`);
-                }
+
 
                 // Center Parcs API returns multiple dates (week before/after) for price comparison
                 // We need to filter to the exact search date
@@ -235,20 +224,13 @@ export class CenterParcsAdapter extends BaseAdapter {
                     const dateMatch = normalizedAvailDate === normalizedSearchDate;
                     const durationMatch = availDuration === searchNights;
 
-                    if (index === 0 && !dateMatch) {
-                        console.log(`DEBUG: Date mismatch for ${lodgeName}: availDate=${availDate} (${normalizedAvailDate}) != searchDate=${searchDateStr} (${normalizedSearchDate})`);
-                    }
-                    if (index === 0 && dateMatch && !durationMatch) {
-                        console.log(`DEBUG: Duration mismatch for ${lodgeName}: availDuration=${availDuration} != searchNights=${searchNights}`);
-                    }
+
 
                     return dateMatch && durationMatch;
                 });
 
                 if (matchingAvailabilities.length === 0) {
-                    if (index === 0) {
-                        console.log(`DEBUG: No matching availabilities for ${lodgeName} - searched ${searchDateStr} for ${searchNights} nights but got availabilities for: ${item.availabilities.map((a: any) => `${a.arrivalDate} (${a.duration} nights)`).join(', ')}`);
-                    }
+
                     return;
                 }
 
@@ -273,9 +255,7 @@ export class CenterParcsAdapter extends BaseAdapter {
                 const availableRooms = availability.availableRooms || availability.roomsLeftFormattedMessage;
 
                 // Debug for first item
-                if (index === 0) {
-                    console.log(`DEBUG: isLowestPrice: ${isLowestPrice}, availableRooms: ${availableRooms}`);
-                }
+
 
                 // Parse the actual arrival date from API (format: DD-MM-YYYY)
                 const arrivalDateStr = availability.arrivalDate;
@@ -287,10 +267,7 @@ export class CenterParcsAdapter extends BaseAdapter {
                 const rooms = Math.ceil(params.party.adults / 2); // 1-2 adults = 1 room, 3-4 adults = 2 rooms, etc.
                 const sourceUrl = `https://www.centerparcs.co.uk/breaks-we-offer/search.html/2/${villageCode}/${arrivalDateStr}/${actualNights}/-/-/${rooms}/${params.party.adults}/${params.party.children}/0/0/0/N`;
 
-                if (index === 0) {
-                    console.log(`DEBUG: URL params - adults: ${params.party.adults}, children: ${params.party.children}, rooms: ${rooms}`);
-                    console.log(`DEBUG: Generated URL: ${sourceUrl}`);
-                }
+
 
                 const pricePerNightGbp = this.calculatePricePerNight(price, actualNights);
 
@@ -316,7 +293,7 @@ export class CenterParcsAdapter extends BaseAdapter {
                     }
                 });
 
-                console.log(`DEBUG: Added result #${results.length}: ${lodgeName} - £${price} (date: ${arrivalDateStr} -> ${actualDate}, nights: ${actualNights}, lowest: ${isLowestPrice})`);
+
             } catch (error) {
                 console.error(`Error parsing accommodation:`, error);
             }

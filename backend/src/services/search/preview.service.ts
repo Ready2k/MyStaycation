@@ -441,9 +441,9 @@ export class PreviewService {
                 },
                 seriesKey: seriesKey || 'null',
                 reasons,
-                matchDetails: confidence === MatchConfidence.MISMATCH
+                matchDetails: candidate.matchDetails || (confidence === MatchConfidence.MISMATCH
                     ? (reasons.failed[0]?.message || 'Mismatch')
-                    : (reasons.passed[0]?.message || 'Match')
+                    : (reasons.passed[0]?.message || 'Match'))
             };
 
             // Summary Stats

@@ -10,6 +10,7 @@ export interface SearchResult {
     dateStart: string;
     uRL: string;
     confidence: 'MATCH_STRONG' | 'MATCH_WEAK' | 'MATCH_UNKNOWN' | 'MISMATCH';
+    matchDetails?: string;
     reasons?: {
         passed: { code: string; message: string }[];
         failed: { code: string; message: string }[];
@@ -104,7 +105,14 @@ export function ResultsModal({ isOpen, onClose, results, isLoading, profileName 
 
                                     <div className="flex justify-between items-end mt-auto">
                                         <div>
-                                            <p className="text-lg font-bold text-gray-900">£{result.priceGbp}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-lg font-bold text-gray-900">£{result.priceGbp}</p>
+                                                {result.matchDetails === 'Lowest price' && (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-800">
+                                                        LOWEST PRICE
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="flex items-center text-xs text-gray-500 mt-1">
                                                 {result.dateStart && (
                                                     <span className="mr-3">📅 {format(new Date(result.dateStart), 'd MMM')}</span>

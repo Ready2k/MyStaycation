@@ -84,7 +84,8 @@ export async function searchRoutes(fastify: FastifyInstance) {
                             stayStartDate: item.stayStartDate,
                             sourceUrl: item.sourceUrl,
                             confidence: item.confidence,
-                            reasons: item.reasons
+                            reasons: item.reasons,
+                            matchDetails: item.matchDetails
                         });
                     });
                 };
@@ -93,10 +94,7 @@ export async function searchRoutes(fastify: FastifyInstance) {
                 if (provider.results?.other) addResults(provider.results.other);
             });
 
-            console.log(`DEBUG: Returning ${flattenedResults.length} results to frontend`);
-            if (flattenedResults.length > 0) {
-                console.log(`DEBUG: First result: ${JSON.stringify(flattenedResults[0])}`);
-            }
+
 
             return reply.send({
                 message: 'Search completed',
