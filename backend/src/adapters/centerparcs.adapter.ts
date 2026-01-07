@@ -121,50 +121,37 @@ export class CenterParcsAdapter extends BaseAdapter {
             viewport: { width: 1920, height: 1080 },
         });
 
-        let interceptedData: any = null;
-
         try {
-            // Intercept API response
-            page.on('response', async (response) => {
-                const responseUrl = response.url();
-                const method = response.request().method();
-
-                // Intercept the accommodation POST request
-                if (responseUrl.includes('/api/v1/accommodation.json') && method === 'POST') {
-                    try {
-                        const contentType = response.headers()['content-type'] || '';
-                        if (contentType.includes('application/json')) {
-                            interceptedData = await response.json();
-                            console.log(`✅ CenterParcs: Intercepted accommodation data (${JSON.stringify(interceptedData).length} bytes)`);
-                        }
-                    } catch (e) {
-                        console.error(`Error parsing accommodation JSON:`, e);
-                    }
-                }
-            });
-
             console.log(`🌐 CenterParcs: Navigating to ${url}`);
 
-            // Use networkidle to trigger the API call, but handle timeout gracefully
-            try {
-                await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
-            } catch (error: any) {
-                // Timeout is expected - the page never reaches true networkidle
-                // But the API data should have been intercepted before timeout
-                if (error.message?.includes('Timeout') && interceptedData) {
-                    console.log(`⚠️ CenterParcs: Timeout waiting for networkidle (expected), but data was intercepted`);
-                } else if (error.message?.includes('Timeout')) {
-                    console.warn(`⚠️ CenterParcs: Timeout and no data intercepted`);
-                } else {
-                    throw error;
-                }
-            }
+            // Setup interception promise BEFORE navigation
+            // We want the POST request to the accommodation endpoint
+            const responsePromise = page.waitForResponse(response =>
+                response.url().includes('/api/v1/accommodation.json') &&
+                response.request().method() === 'POST' &&
+                response.status() === 200
+                , { timeout: 60000 }); // 60s max wait for the API call
+
+            // Navigate but don't wait for networkidle (too slow/flaky)
+            // Just wait for DOM content loaded to ensure the scripts start running
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+            console.log('⏳ Waiting for accommodation API response...');
+
+            // Wait for the specific API response
+            const response = await responsePromise;
+
+            console.log(`✅ CenterParcs: Intercepted accommodation response from ${response.url()}`);
+
+            const interceptedData = await response.json();
+            console.log(`📦 Data size: ${JSON.stringify(interceptedData).length} bytes`);
 
             return interceptedData;
 
-        } catch (error) {
-            console.error(`❌ CenterParcs Browser Error for ${villageCode}:`, error);
-            return interceptedData; // Return any data we managed to intercept
+        } catch (error: any) {
+            console.error(`❌ CenterParcs Browser Error for ${villageCode}:`, error.message);
+            // If it's a timeout, we return null, confusing the parser less than partial data
+            return null;
         } finally {
             await page.close();
         }

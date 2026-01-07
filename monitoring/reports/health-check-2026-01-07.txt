@@ -1,5 +1,5 @@
 ========================================
-Daily Health Check - 2026-01-07 12:06:53
+Daily Health Check - 2026-01-07 13:21:22
 ========================================
 
 ## Database Connection
@@ -8,8 +8,9 @@ Daily Health Check - 2026-01-07 12:06:53
 ## Fetch Runs (Last 24h)
     status    | count | percentage 
 --------------+-------+------------
- PARSE_FAILED |     3 |     100.00
-(1 row)
+ OK           |     3 |      50.00
+ PARSE_FAILED |     3 |      50.00
+(2 rows)
 
 
 ## Parse Failures (Last 24h)
@@ -49,14 +50,14 @@ Daily Health Check - 2026-01-07 12:06:53
 ## Database Size
  database_size 
 ---------------
- 9140 kB
+ 9156 kB
 (1 row)
 
 
 ## Top 5 Largest Tables
         table_name         |  size  
 ---------------------------+--------
- public.price_observations | 144 kB
+ public.price_observations | 160 kB
  public.fetch_runs         | 104 kB
  public.system_logs        | 96 kB
  public.users              | 96 kB
@@ -65,5 +66,5 @@ Daily Health Check - 2026-01-07 12:06:53
 
 
 ## Summary
-Report generated at: Wed Jan  7 12:06:53 GMT 2026
+Report generated at: Wed Jan  7 13:21:22 GMT 2026
 Report saved to: /reports/health-check-2026-01-07.txt

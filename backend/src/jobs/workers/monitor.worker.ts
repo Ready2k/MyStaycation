@@ -29,6 +29,9 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
         providerStatus: ProviderStatus.OK,
     });
 
+    // Save the initial run record
+    await fetchRunRepo.save(fetchRun);
+
     try {
         // Load fingerprint with relations
         const fingerprint = await fingerprintRepo.findOne({
@@ -100,11 +103,11 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
                     },
                     priceTotalGbp: result.priceTotalGbp,
                     pricePerNightGbp: result.pricePerNightGbp || result.priceTotalGbp / result.stayNights,
-                    availability: result.availability || AvailabilityStatus.AVAILABLE,
+                    availability: (result.availability as AvailabilityStatus) || AvailabilityStatus.AVAILABLE,
                     sourceUrl: result.sourceUrl,
                 });
 
-                await observationRepo.save(observation);
+                await observationRepo.insert(observation);
                 storedCount++;
             } catch (err) {
                 console.error(`Failed to store observation:`, err);
