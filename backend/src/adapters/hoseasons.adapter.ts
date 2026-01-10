@@ -1,6 +1,7 @@
+/// <reference lib="dom" />
 import * as cheerio from 'cheerio';
 import { BaseAdapter, SearchParams, PriceResult, DealResult } from './base.adapter';
-import { ResultMatcher } from '../utils/result-matcher';
+import { ResultMatcher, MatchConfidence } from '../utils/result-matcher';
 import { AccommodationType } from '../entities/HolidayProfile';
 
 export class HoseasonsAdapter extends BaseAdapter {
@@ -33,71 +34,136 @@ export class HoseasonsAdapter extends BaseAdapter {
     }
 
     private async searchSingle(params: SearchParams, parkIdOverride?: string): Promise<PriceResult[]> {
-        const url = this.buildSearchApiUrl(params, parkIdOverride);
-        console.log('DEBUG: Hoseasons API URL:', url);
+        // [MODIFIED] Use Search Page URL instead of API URL to bypass WAF
+        const url = this.buildSearchUrl(params, parkIdOverride);
+        console.log('DEBUG: Hoseasons Search URL:', url);
 
         try {
-            const response = await fetch(url, {
-                headers: {
-                    'Accept': 'application/json',
-                    'x-awaze-locale': 'en-GB', // REQUIRED header
-                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-                }
-            });
-
-            if (!response.ok) {
-                console.error(`❌ Hoseasons API returned ${response.status}: ${response.statusText} for URL: ${url}`);
+            // [MODIFIED] Use Browser Fetch instead of direct API fetch
+            let rawResult: string;
+            try {
+                rawResult = await this.fetchHoseasonsWithBrowser(url);
+            } catch (e) {
+                console.error('Browser fetch failed:', e);
                 return [];
             }
 
-            const data: any = await response.json();
-            return this.parseApiResponse(data, params, parkIdOverride);
+            const parsed = JSON.parse(rawResult);
+            if (parsed.interceptedData) {
+                return this.parseApiResponse(parsed.interceptedData, params, parkIdOverride);
+            } else if (parsed.scrapedData) {
+                return this.parseScrapedResults(parsed.scrapedData, params);
+            }
+
+            return [];
         } catch (error) {
-            console.error('❌ Hoseasons API call failed:', error);
+            console.error('❌ Hoseasons search failed:', error);
             return [];
         }
     }
 
+    private parseScrapedResults(scrapedData: any[], params: SearchParams): PriceResult[] {
+        return scrapedData.map(item => {
+            // Parse price string "£123" -> 123
+            const priceVal = parseFloat(item.price.replace(/[£,]/g, ''));
+
+            // Map scanned fields to PriceResult interface
+            return {
+                stayStartDate: params.dateWindow.start,
+                stayNights: params.nights.min,
+                priceTotalGbp: priceVal,
+                pricePerNightGbp: this.calculatePricePerNight(priceVal, params.nights.min) || 0,
+                availability: 'AVAILABLE',
+                accomType: 'holiday-park',
+                sourceUrl: this.normalizeUrl(item.deepLink),
+                matchConfidence: MatchConfidence.STRONG, // Assumed if on page
+
+                // Real-world fields
+                propertyName: item.name,
+                location: item.region || params.region || 'Unknown',
+                bedrooms: Math.ceil((params.party.adults || 2) / 2),
+                petsAllowed: params.pets
+            };
+        });
+    }
+
     /**
-     * Build the Hoseasons search API URL
+     * Map common region names to Hoseasons-specific ones
      */
-    private buildSearchApiUrl(params: SearchParams, parkIdOverride?: string): string {
-        const apiUrl = new URL(`${this.baseUrl}/api/search/properties/list`);
+    /**
+     * Map region name to Hoseasons URL slug
+     * e.g. "Kielder Lakes" -> "northumberland"
+     */
+    private getRegionSlug(region: string): string {
+        if (!region) return '';
 
-        // Add search parameters
-        apiUrl.searchParams.append('adult', params.party.adults.toString());
-        apiUrl.searchParams.append('child', (params.party.children || 0).toString());
-        apiUrl.searchParams.append('infant', '0');
-        apiUrl.searchParams.append('pets', params.pets ? '1' : '0');
-        apiUrl.searchParams.append('range', '0'); // Exact dates
-        apiUrl.searchParams.append('nights', params.nights.min.toString());
-        apiUrl.searchParams.append('accommodationType', 'holiday-parks');
+        const lower = region.toLowerCase().trim();
 
-        // Priority: Specific Park ID > Region name
-        if (parkIdOverride) {
-            apiUrl.searchParams.append('placesId', parkIdOverride);
-        } else if (params.region) {
-            apiUrl.searchParams.append('regionName', params.region);
+        // Specific Mappings based on verification
+        if (lower.includes('kielder') || lower === 'northumberland') {
+            return 'northumberland';
         }
 
-        // Format date as DD-MM-YYYY
+        if (lower === 'kendal' || lower === 'lake district' || lower === 'lakes' || lower === 'cumbria') {
+            return 'cumbria';
+        }
+
+        if (lower === 'cornwall') {
+            return 'cornwall';
+        }
+
+        if (lower === 'devon') {
+            return 'devon';
+        }
+
+        if (lower === 'yorkshire') {
+            return 'yorkshire';
+        }
+
+        // Default: generic slugification
+        return lower.replace(/[^a-z0-9]+/g, '-');
+    }
+
+    /**
+     * Build the Hoseasons search URL using path-based routing
+     * e.g. https://www.hoseasons.co.uk/holiday-parks/cornwall?checks...
+     */
+    protected buildSearchUrl(params: SearchParams, parkIdOverride?: string): string {
+        const urlParams = new URLSearchParams();
+
+        urlParams.append('adult', params.party.adults.toString());
+        urlParams.append('child', (params.party.children || 0).toString());
+        urlParams.append('infant', '0');
+        urlParams.append('pets', params.pets ? '1' : '0');
+        urlParams.append('range', '0');
+        urlParams.append('nights', params.nights.min.toString());
+        urlParams.append('accommodationType', 'holiday-parks');
+
+        // Format date
         const dateObj = new Date(params.dateWindow.start);
         const day = String(dateObj.getDate()).padStart(2, '0');
         const month = String(dateObj.getMonth() + 1).padStart(2, '0');
         const year = dateObj.getFullYear();
-        apiUrl.searchParams.append('start', `${day}-${month}-${year}`);
+        urlParams.append('start', `${day}-${month}-${year}`);
 
-        apiUrl.searchParams.append('page', '1');
-        apiUrl.searchParams.append('sort', 'recommended');
-        apiUrl.searchParams.append('displayMode', 'LIST');
-        apiUrl.searchParams.append('index', 'search');
-        apiUrl.searchParams.append('accommodationTypes', '');
-        apiUrl.searchParams.append('features', '');
-        apiUrl.searchParams.append('siteFeatures', '');
-        apiUrl.searchParams.append('searchEngineVersion', 'v2');
-        apiUrl.searchParams.append('brand', 'hoseasons');
+        urlParams.append('page', '1');
+        urlParams.append('sort', 'recommended');
+        urlParams.append('displayMode', 'LIST');
 
-        return apiUrl.toString();
+        // Base URL construction
+        let basePath = '/search'; // Fallback
+
+        if (params.region) {
+            const slug = this.getRegionSlug(params.region);
+            if (slug) {
+                basePath = `/holiday-parks/${slug}`;
+            } else {
+                // Fallback if no region (rare)
+                // urlParams.append('regionName', ...); // Deprecated
+            }
+        }
+
+        return `${this.baseUrl}${basePath}?${urlParams.toString()}`;
     }
 
     /**
@@ -164,11 +230,42 @@ export class HoseasonsAdapter extends BaseAdapter {
 
             // Navigate to the page
             console.log('🌐 Navigating to search page...');
-            // Use 'domcontentloaded' instead of 'networkidle' to avoid timeout
-            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+            // Navigate and wait for initial load
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+            // [NEW] WAF Bypass & Cookie Handling
+            try {
+                console.log('⏳ Waiting for WAF challenge / Site load...');
+                // Wait for the real site to render (bypass WAF)
+                await page.waitForFunction(() => {
+                    const text = document.body.innerText;
+                    return text.includes('You control your data') || text.includes('Holiday Parks') || text.includes('Hoseasons');
+                }, { timeout: 30000 });
+                console.log('✅ Site loaded (WAF passed)');
+
+                // Handle Cookie Banner if present
+                console.log('🍪 Checking for cookie banner...');
+                try {
+                    // Look for the "ACCEPT ALL" button specifically
+                    // Using a broad selector to catch different variations
+                    const acceptBtn = page.getByRole('button', { name: 'ACCEPT ALL' });
+                    if (await acceptBtn.isVisible({ timeout: 5000 })) {
+                        await acceptBtn.click();
+                        console.log('✅ Clicked ACCEPT ALL cookies');
+                        // Small pause to let any fired events process
+                        await page.waitForTimeout(1000);
+                    }
+                } catch (e) {
+                    console.log('ℹ️  No clickable cookie banner found or already accepted');
+                }
+
+            } catch (e) {
+                console.warn('⚠️  Site load check failed or timed out:', e);
+            }
 
             // Wait for the API response with polling
-            console.log('⏳ Waiting for API response...');
+            console.log('⏳ Waiting for API response (interception)...');
             const maxWaitTime = 20000; // 20 seconds
             const startTime = Date.now();
 
@@ -182,10 +279,130 @@ export class HoseasonsAdapter extends BaseAdapter {
                 return JSON.stringify({ interceptedData: searchResultsData });
             }
 
-            // Fallback: return the HTML if no API call was intercepted
-            console.warn('⚠️  No API call intercepted, falling back to HTML');
-            const html = await page.content();
-            return html;
+            console.warn('⚠️  No API call intercepted, falling back to DOM Scraping');
+
+            // DOM Scraping Logic
+            let scrapedResults = await page.evaluate(() => {
+                const results = [];
+                // Strategy 1: Price-First (Works for Search Page)
+                const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+                let node;
+                const priceNodes = [];
+                while (node = walker.nextNode()) {
+                    if (node.textContent && node.textContent.includes('£') && /\d/.test(node.textContent)) {
+                        priceNodes.push(node.parentElement);
+                    }
+                }
+
+                const seenContainers = new Set();
+                const priceFirstResults = [];
+
+                for (const priceEl of priceNodes) {
+                    let container = priceEl;
+                    let depth = 0;
+                    while (container && container !== document.body && depth < 10) {
+                        if (seenContainers.has(container)) break;
+
+                        const text = (container as HTMLElement).innerText || '';
+                        // Basic heuristic: Card must have "nights" and "£" and some sleeping cap info
+                        if (text.includes('nights') && (text.includes('out of') || text.includes('Sleeps') || text.includes('Bedrooms'))) {
+                            seenContainers.add(container);
+
+                            const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+
+                            // Extract Price
+                            const priceMatches = text.match(/£([\d,]+)/g);
+                            let bestPrice = '0';
+                            let maxVal = 0;
+                            if (priceMatches) {
+                                for (const pm of priceMatches) {
+                                    const val = parseInt(pm.replace(/[£,]/g, ''), 10);
+                                    if (val > maxVal && val > 40) {
+                                        maxVal = val;
+                                        bestPrice = pm;
+                                    }
+                                }
+                            }
+
+                            // Extract Name
+                            let nameIndex = 0;
+                            if (lines[0].match(/^\d+\/\d+/)) nameIndex = 2; // 1/12 \n Location \n Name
+                            else if (lines[0].includes(',')) nameIndex = 1; // Location \n Name
+
+                            const name = lines[nameIndex] || lines[0];
+                            const location = nameIndex > 0 ? lines[nameIndex - 1] : '';
+
+                            if (maxVal > 0) {
+                                priceFirstResults.push({
+                                    name: name,
+                                    region: location,
+                                    price: bestPrice,
+                                    deepLink: container.querySelector('a')?.href || ''
+                                });
+                            }
+                            break;
+                        }
+                        container = container.parentElement;
+                        depth++;
+                    }
+                }
+
+                if (priceFirstResults.length > 0) return priceFirstResults;
+
+                // Strategy 2: Header-First (Works for Holiday Parks / Slug Pages)
+                const headers = Array.from(document.querySelectorAll('h3, .card-header, h2'));
+                const headerResults = [];
+
+                for (const header of headers) {
+                    // Walk up to find a container that has a price
+                    let container = header.parentElement;
+                    let depth = 0;
+                    let foundPrice = false;
+                    let bestPrice = '0';
+                    let maxVal = 0;
+                    let deepLink = '';
+
+                    while (container && container !== document.body && depth < 6) {
+                        const text = (container as HTMLElement).innerText || '';
+                        if (text.includes('£')) {
+                            // potential card
+                            const priceMatches = text.match(/£([\d,]+)/g);
+                            if (priceMatches) {
+                                for (const pm of priceMatches) {
+                                    const val = parseInt(pm.replace(/[£,]/g, ''), 10);
+                                    if (val > maxVal && val > 40) {
+                                        maxVal = val;
+                                        bestPrice = pm;
+                                        foundPrice = true;
+                                    }
+                                }
+                            }
+                            if (foundPrice) {
+                                // Look for link
+                                deepLink = container.querySelector('a')?.href || '';
+                                // Stop walking up if we found a valid card container
+                                break;
+                            }
+                        }
+                        container = container.parentElement;
+                        depth++;
+                    }
+
+                    if (foundPrice && (header as HTMLElement).innerText.length > 3) {
+                        headerResults.push({
+                            name: (header as HTMLElement).innerText.split('\n')[0], // simple clean
+                            region: 'Derived from Search', // Context is lost but region is known from params
+                            price: bestPrice,
+                            deepLink: deepLink
+                        });
+                    }
+                }
+
+                return headerResults;
+            });
+
+            console.log(`✅ Scraped ${scrapedResults.length} properties from DOM`);
+            return JSON.stringify({ scrapedData: scrapedResults });
 
         } finally {
             await page.close();
@@ -208,39 +425,24 @@ export class HoseasonsAdapter extends BaseAdapter {
         }
     }
 
+    // Old buildSearchUrl implementation removed/replaced above
+    /*
     protected buildSearchUrl(params: SearchParams): string {
-        // Hoseasons URL structure - parameter order matters!
-        const urlParams = new URLSearchParams();
-
-        // Core parameters in the exact order from working manual URL:
-        // adult, child, infant, pets, range, nights, accommodationType, regionName, start, page, sort, displayMode
-
-        urlParams.append('adult', params.party.adults.toString());
-        urlParams.append('child', (params.party.children || 0).toString());
-        urlParams.append('infant', '0');
-        urlParams.append('pets', params.pets ? '1' : '0');
-        urlParams.append('range', '0'); // Exact dates
-        urlParams.append('nights', params.nights.min.toString());
-        urlParams.append('accommodationType', 'holiday-parks');
-
-        // Region BEFORE date
-        if (params.region) {
-            urlParams.append('regionName', params.region);
-        }
-
-        // Format date as DD-MM-YYYY
-        const dateObj = new Date(params.dateWindow.start);
-        const day = String(dateObj.getDate()).padStart(2, '0');
-        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const year = dateObj.getFullYear();
-        urlParams.append('start', `${day}-${month}-${year}`);
-
-        urlParams.append('page', '1');
-        urlParams.append('sort', 'recommended');
-        urlParams.append('displayMode', 'LIST');
-
-        return `${this.baseUrl}/search?${urlParams.toString()}`;
+         ...
     }
+    */
+
+    /*
+    private buildSearchUrlWithOverride(params: SearchParams, parkIdOverride?: string): string {
+         ...
+    }
+    */
+
+    /*
+    protected buildSearchUrl(params: SearchParams, parkIdOverride?: string): string {
+        return this.buildSearchUrlWithOverride(params, parkIdOverride);
+    }
+    */
 
     protected buildOffersUrl(): string {
         return `${this.baseUrl}/special-offers`;
@@ -262,7 +464,6 @@ export class HoseasonsAdapter extends BaseAdapter {
         data.properties.forEach((property: any) => {
             if (parkIdFilter) {
                 // DEBUG: Identify which field matches the parkIdFilter (placesId)
-                console.log(`DEBUG: Park Check - Filter: ${parkIdFilter}, property: ${JSON.stringify(property)}`);
 
                 // Provisional Filtering Logic (commented out until field confirmed)
                 // if (String(property.placesId) !== String(parkIdFilter)) return; 
