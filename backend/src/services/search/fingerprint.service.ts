@@ -125,7 +125,7 @@ export class FingerprintService {
                 canonicalHash,
                 canonicalJson,
                 enabled: true,
-                checkFrequencyHours: 48 // Default, could be tuned via profile
+                checkFrequencyHours: profile.user?.defaultCheckFrequencyHours || 48
             });
             await this.fingerprintRepo.save(fingerprint);
             console.log(`   Created new fingerprint ${fingerprint.id.slice(0, 8)} for ${provider.code}`);

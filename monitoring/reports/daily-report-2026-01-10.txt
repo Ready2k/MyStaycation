@@ -1,0 +1,25 @@
+==================================
+Daily Report - 2026-01-10
+==================================
+
+## Fetch Runs (Last 24h)
+ status | count | percentage 
+--------+-------+------------
+ OK     |     4 |     100.00
+(1 row)
+
+
+## Observations Created (Last 24h)
+ total_observations | unique_series | unique_fingerprints 
+--------------------+---------------+---------------------
+                 80 |            39 |                   2
+(1 row)
+
+
+## Insights Created (Last 24h)
+ type | count 
+------+-------
+(0 rows)
+
+
+Report generated at: Sat Jan 10 09:00:01 GMT 2026

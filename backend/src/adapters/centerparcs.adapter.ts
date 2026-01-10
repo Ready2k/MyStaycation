@@ -130,7 +130,7 @@ export class CenterParcsAdapter extends BaseAdapter {
                 response.url().includes('/api/v1/accommodation.json') &&
                 response.request().method() === 'POST' &&
                 response.status() === 200
-                , { timeout: 60000 }); // 60s max wait for the API call
+                , { timeout: 60000 }).catch(e => null); // Catch rejection if page closes early
 
             // Navigate but don't wait for networkidle (too slow/flaky)
             // Just wait for DOM content loaded to ensure the scripts start running
@@ -140,6 +140,10 @@ export class CenterParcsAdapter extends BaseAdapter {
 
             // Wait for the specific API response
             const response = await responsePromise;
+
+            if (!response) {
+                throw new Error('Failed to intercept API response (timeout or navigation failed)');
+            }
 
             console.log(`✅ CenterParcs: Intercepted accommodation response from ${response.url()}`);
 

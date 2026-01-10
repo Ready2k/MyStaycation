@@ -101,7 +101,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
             // Reload profile with provider relation for fingerprint sync
             const savedProfile = await profileRepo.findOne({
                 where: { id: profile.id },
-                relations: ['provider']
+                relations: ['provider', 'user']
             });
 
             if (!savedProfile) {
@@ -120,7 +120,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
                         await addMonitorJob({
                             fingerprintId: fingerprint.id,
                             providerId: fingerprint.provider.id,
-                            searchParams: JSON.parse(fingerprint.canonicalJson),
+                            searchParams: fingerprint.canonicalJson,
                         });
                     }
                     request.log.info(`Queued ${fingerprints.length} initial monitoring jobs for new profile: ${savedProfile.id}`);
@@ -192,7 +192,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
             // Reload profile with provider relation for fingerprint sync
             const savedProfile = await profileRepo.findOne({
                 where: { id: profile.id },
-                relations: ['provider']
+                relations: ['provider', 'user']
             });
 
             if (!savedProfile) {
