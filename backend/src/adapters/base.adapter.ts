@@ -23,6 +23,7 @@ export interface SearchParams {
     pets: boolean;
     minBedrooms: number;
     region?: string;
+    metadata?: Record<string, any>; // Provider-specific extra data like propertyType
 }
 
 export interface PriceResult {

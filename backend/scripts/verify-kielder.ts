@@ -7,7 +7,7 @@ import path from 'path';
 
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
-const REGIONS = ['Cornwall', 'Northumberland', 'Kielder Lakes'];
+const REGIONS = ['Norfolk'];
 
 async function run() {
     console.log(`Verifying Hoseasons Adapter...`);
@@ -42,7 +42,13 @@ async function run() {
             if (results.length > 0) {
                 console.log(`✅ SUCCESS: Found ${results.length} results for "${region}".`);
                 console.log('Locations found (First 5):');
-                results.slice(0, 5).forEach(r => console.log(` - ${r.propertyName} (${r.location})`));
+                results.slice(0, 5).forEach(r => {
+                    console.log(` - Name: ${r.propertyName}`);
+                    console.log(`   Location: ${r.location}`);
+                    console.log(`   Price: £${r.priceTotalGbp}`);
+                    console.log(`   DeepLink: ${r.sourceUrl}`);
+                    console.log(`   Confidence: ${r.matchConfidence}`);
+                });
 
                 // Check relevance
                 const relevant = results.filter(r =>

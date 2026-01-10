@@ -43,11 +43,29 @@ export function HoseasonsForm({ initialData, onSuccess, onBack }: HoseasonsFormP
         }
     }, [initialData]);
 
+    // Auto-calculate End Date based on Start Date + Nights
+    useEffect(() => {
+        if (formData.dateStart && formData.nights > 0) {
+            const startDate = new Date(formData.dateStart);
+            if (!isNaN(startDate.getTime())) {
+                const endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + formData.nights);
+                const endDateStr = endDate.toISOString().split('T')[0];
+
+                // Only update if different to avoid potential loops (though dependency array handles this)
+                if (endDateStr !== formData.dateEnd) {
+                    setFormData(prev => ({ ...prev, dateEnd: endDateStr }));
+                }
+            }
+        }
+    }, [formData.dateStart, formData.nights]);
+
     const saveMutation = useMutation({
         mutationFn: async (data: typeof formData) => {
             const payload = {
                 name: data.name,
-                providerCode: 'hoseasons',
+                // providerCode: 'hoseasons', // triggers DB lookup which might fail if not seeded
+                enabledProviders: ['hoseasons'], // Direct adapter selection
                 region: data.region,
                 dateStart: data.dateStart,
                 dateEnd: data.dateEnd,
@@ -100,8 +118,14 @@ export function HoseasonsForm({ initialData, onSuccess, onBack }: HoseasonsFormP
                             <input type="date" required value={formData.dateStart} onChange={(e) => setFormData({ ...formData, dateStart: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-2">Check-out</label>
-                            <input type="date" required value={formData.dateEnd} onChange={(e) => setFormData({ ...formData, dateEnd: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
+                            <label className="block text-sm font-medium mb-2">Check-out (Auto-calculated)</label>
+                            <input
+                                type="date"
+                                readOnly
+                                value={formData.dateEnd}
+                                className="w-full px-3 py-2 border rounded-md bg-gray-100 text-gray-500 cursor-not-allowed"
+                                title="Calculated from Check-in date + Nights"
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-medium mb-2">Nights</label>

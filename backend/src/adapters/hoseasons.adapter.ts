@@ -49,6 +49,18 @@ export class HoseasonsAdapter extends BaseAdapter {
             }
 
             const parsed = JSON.parse(rawResult);
+
+            // [FIX] For Slug-based searches (e.g. /holiday-parks/devon), the Hoseasons page 
+            // fires an internal API call that is "poisoned" (ignores region filter).
+            // However, the DOM (scrapedData) correctly renders the filtered result.
+            // So for slug searches, we MUST prioritize scraped data if available.
+            const isSlugSearch = url.includes('/holiday-parks/');
+
+            if (isSlugSearch && parsed.scrapedData && parsed.scrapedData.length > 0) {
+                console.log('ℹ️  Slug search detected: Preferring DOM scraping over API interception to avoid region mismatch.');
+                return this.parseScrapedResults(parsed.scrapedData, params);
+            }
+
             if (parsed.interceptedData) {
                 return this.parseApiResponse(parsed.interceptedData, params, parkIdOverride);
             } else if (parsed.scrapedData) {
@@ -94,33 +106,31 @@ export class HoseasonsAdapter extends BaseAdapter {
      * Map region name to Hoseasons URL slug
      * e.g. "Kielder Lakes" -> "northumberland"
      */
-    private getRegionSlug(region: string): string {
-        if (!region) return '';
-
+    /**
+     * Map region name to Hoseasons 'placesId' or 'regionId'
+     * This is critical for the API to filter correctly.
+     */
+    private getRegionId(region: string): string | undefined {
+        if (!region) return undefined;
         const lower = region.toLowerCase().trim();
 
-        // Specific Mappings based on verification
-        if (lower.includes('kielder') || lower === 'northumberland') {
-            return 'northumberland';
-        }
+        const map: Record<string, string> = {
+            'devon': '39248',
+            'cornwall': '39246', // Assuming likely ID (can verify later if needed)
+            'northumberland': '40845', // Example from past knowledge/logs 
+            // Add others as discovered
+        };
 
-        if (lower === 'kendal' || lower === 'lake district' || lower === 'lakes' || lower === 'cumbria') {
-            return 'cumbria';
-        }
+        if (map[lower]) return map[lower];
 
-        if (lower === 'cornwall') {
-            return 'cornwall';
-        }
+        // Partial match fallback if needed?
+        return undefined;
+    }
 
-        if (lower === 'devon') {
-            return 'devon';
-        }
-
-        if (lower === 'yorkshire') {
-            return 'yorkshire';
-        }
-
-        // Default: generic slugification
+    private getRegionSlug(region: string): string {
+        if (!region) return '';
+        const lower = region.toLowerCase().trim();
+        if (lower === 'devon') return 'devon';
         return lower.replace(/[^a-z0-9]+/g, '-');
     }
 
@@ -129,41 +139,65 @@ export class HoseasonsAdapter extends BaseAdapter {
      * e.g. https://www.hoseasons.co.uk/holiday-parks/cornwall?checks...
      */
     protected buildSearchUrl(params: SearchParams, parkIdOverride?: string): string {
-        const urlParams = new URLSearchParams();
+        const queryParams = new URLSearchParams();
 
-        urlParams.append('adult', params.party.adults.toString());
-        urlParams.append('child', (params.party.children || 0).toString());
-        urlParams.append('infant', '0');
-        urlParams.append('pets', params.pets ? '1' : '0');
-        urlParams.append('range', '0');
-        urlParams.append('nights', params.nights.min.toString());
-        urlParams.append('accommodationType', 'holiday-parks');
+        // Determine accommodation type
+        let accommodationType = 'holiday-parks';
+        if (params.metadata?.propertyType && params.metadata.propertyType !== 'Any') {
+            accommodationType = params.metadata.propertyType.toLowerCase() + 's';
+        }
 
-        // Format date
-        const dateObj = new Date(params.dateWindow.start);
-        const day = String(dateObj.getDate()).padStart(2, '0');
-        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const year = dateObj.getFullYear();
-        urlParams.append('start', `${day}-${month}-${year}`);
+        // Base URL: Use /search endpoint if we have a specific ID (Cleaner for API)
+        // Or /holiday-parks/{slug} if we want the nice UI.
+        // User prefers API reliability.
+        let baseUrl = `${this.baseUrl}/search`;
 
-        urlParams.append('page', '1');
-        urlParams.append('sort', 'recommended');
-        urlParams.append('displayMode', 'LIST');
+        // Resolve Region Mapping
+        const regionId = this.getRegionId(params.region || '');
 
-        // Base URL construction
-        let basePath = '/search'; // Fallback
-
-        if (params.region) {
-            const slug = this.getRegionSlug(params.region);
-            if (slug) {
-                basePath = `/holiday-parks/${slug}`;
+        if (regionId) {
+            // If we have a verified ID, use it! This is the most reliable method.
+            queryParams.append('placesId', regionId);
+            queryParams.append('regionName', params.region || ''); // Keep for UI context
+        } else {
+            // Fallback to name/slug logic
+            const slug = this.getRegionSlug(params.region || '');
+            if (accommodationType === 'holiday-parks' && slug) {
+                baseUrl = `${this.baseUrl}/holiday-parks/${slug}`;
             } else {
-                // Fallback if no region (rare)
-                // urlParams.append('regionName', ...); // Deprecated
+                queryParams.append('regionName', params.region || '');
             }
         }
 
-        return `${this.baseUrl}${basePath}?${urlParams.toString()}`;
+        // Append Common Params
+        if (baseUrl.includes('/search')) {
+            queryParams.append('accommodationType', accommodationType);
+        }
+
+        if (params.party.adults) queryParams.append('adult', params.party.adults.toString());
+        if (params.party.children) queryParams.append('child', params.party.children.toString());
+        if (params.pets) queryParams.append('pets', params.pets ? '1' : '0');
+
+        // Date handling
+        if (params.dateWindow.start) {
+            const date = new Date(params.dateWindow.start);
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const year = date.getFullYear();
+            queryParams.append('start', `${day}-${month}-${year}`);
+        }
+
+        if (params.nights.min) {
+            queryParams.append('nights', params.nights.min.toString());
+        }
+
+        // Common defaults
+        queryParams.append('range', '0');
+        queryParams.append('page', '1');
+        queryParams.append('sort', 'recommended');
+        queryParams.append('displayMode', 'LIST');
+
+        return `${baseUrl}?${queryParams.toString()}`;
     }
 
     /**
@@ -227,6 +261,10 @@ export class HoseasonsAdapter extends BaseAdapter {
                     }
                 }
             });
+
+
+
+            page.on('console', msg => console.log('PAGE LOG:', msg.text()));
 
             // Navigate to the page
             console.log('🌐 Navigating to search page...');
@@ -332,12 +370,33 @@ export class HoseasonsAdapter extends BaseAdapter {
                             const name = lines[nameIndex] || lines[0];
                             const location = nameIndex > 0 ? lines[nameIndex - 1] : '';
 
+                            // Validation for Strategy 1
+                            if (name.includes('Holidays') || name.includes('Holiday Parks in') || name.includes('Lodges in')) {
+                                console.log('Skipping Strategy 1 (Generic Header):', name);
+                                continue;
+                            }
+                            const dLink = container.querySelector('a')?.href || '';
+                            if (!dLink || dLink.includes('search?')) {
+                                console.log('Skipping Strategy 1 (Invalid Link):', name, dLink);
+                                continue;
+                            }
+                            const isPropertyLink = dLink.includes('/holiday-parks/') ||
+                                dLink.includes('/lodges/') ||
+                                dLink.includes('/cottages/') ||
+                                dLink.includes('/boating/');
+
+                            if (!isPropertyLink) {
+                                console.log('Skipping Strategy 1 (Not Property Link):', name, dLink);
+                                continue;
+                            }
+
+
                             if (maxVal > 0) {
                                 priceFirstResults.push({
                                     name: name,
                                     region: location,
                                     price: bestPrice,
-                                    deepLink: container.querySelector('a')?.href || ''
+                                    deepLink: dLink
                                 });
                             }
                             break;
@@ -352,6 +411,7 @@ export class HoseasonsAdapter extends BaseAdapter {
                 // Strategy 2: Header-First (Works for Holiday Parks / Slug Pages)
                 const headers = Array.from(document.querySelectorAll('h3, .card-header, h2'));
                 const headerResults = [];
+
 
                 for (const header of headers) {
                     // Walk up to find a container that has a price
@@ -389,8 +449,32 @@ export class HoseasonsAdapter extends BaseAdapter {
                     }
 
                     if (foundPrice && (header as HTMLElement).innerText.length > 3) {
+                        const name = (header as HTMLElement).innerText.split('\n')[0]; // simple clean
+
+                        // Validation: Ignore generic headers like "Norfolk Holidays" or "Holiday Parks in ..."
+                        if (name.includes('Holidays') || name.includes('Holiday Parks in') || name.includes('Lodges in')) {
+                            console.log('Skipping Strategy 2 (Generic Header):', name);
+                            continue;
+                        }
+
+                        // Validation: Must have a valid deep link to a specific property/park
+                        // Typically /holiday-parks/CODE or /lodges/CODE or /cottages/CODE
+                        if (!deepLink || deepLink.includes('search?')) {
+                            console.log('Skipping Strategy 2 (Invalid Link):', name, deepLink);
+                            continue;
+                        }
+                        const isPropertyLink = deepLink.includes('/holiday-parks/') ||
+                            deepLink.includes('/lodges/') ||
+                            deepLink.includes('/cottages/') ||
+                            deepLink.includes('/boating/');
+
+                        if (!isPropertyLink) {
+                            console.log('Skipping Strategy 2 (Not Property Link):', name, deepLink);
+                            continue;
+                        }
+
                         headerResults.push({
-                            name: (header as HTMLElement).innerText.split('\n')[0], // simple clean
+                            name: name,
                             region: 'Derived from Search', // Context is lost but region is known from params
                             price: bestPrice,
                             deepLink: deepLink
@@ -398,7 +482,73 @@ export class HoseasonsAdapter extends BaseAdapter {
                     }
                 }
 
-                return headerResults;
+                if (headerResults.length > 0) return headerResults;
+
+                // Strategy 3: Article-Based (Robust for Slug Pages)
+                // The debug script showed cards are wrapped in <article> tags and contain '£' and 'nights'
+                const articles = Array.from(document.querySelectorAll('article'));
+                const articleResults = [];
+
+                for (const article of articles) {
+                    const text = (article as HTMLElement).innerText || '';
+                    if (!text.includes('£')) continue;
+
+                    // Extract Price
+                    const priceMatches = text.match(/£([\d,]+)/g);
+                    let bestPrice = '0';
+                    let maxVal = 0;
+                    if (priceMatches) {
+                        for (const pm of priceMatches) {
+                            const val = parseInt(pm.replace(/[£,]/g, ''), 10);
+                            // Avoid tiny numbers (deposits) but be flexible
+                            if (val > maxVal && val > 40) {
+                                maxVal = val;
+                                bestPrice = pm;
+                            }
+                        }
+                    }
+
+                    if (maxVal === 0) continue;
+
+                    // Extract Link
+                    const dLink = article.querySelector('a')?.href || '';
+                    // Must be a property link
+                    if (!dLink || dLink.includes('search?') || (!dLink.includes('/holiday-parks/') && !dLink.includes('/lodges/') && !dLink.includes('/cottages/'))) {
+                        continue;
+                    }
+
+                    // Extract Name
+                    // Usually the first line or near it.
+                    // Debug text: "Bideford, Nr Clovelly, Devon | | Bideford Bay | ..."
+                    // The Name is Bideford Bay. The location is Bideford...
+                    // Let's try to split by newline and find the most "name-like" string or use the link text?
+                    // Often the link wraps the image/title.
+                    // Let's grab the text of the first H3 or H2 inside, otherwise first line.
+                    let name = '';
+                    const titleEl = article.querySelector('h2, h3, h4');
+                    if (titleEl) {
+                        name = (titleEl as HTMLElement).innerText.trim();
+                    } else {
+                        const lines = text.split('\n').map(l => l.trim()).filter(l => l && l.length > 3);
+                        // Heuristic: 2nd line if 1st line is Location (contains comma)
+                        if (lines[0].includes(',') && lines[1]) {
+                            name = lines[1];
+                        } else {
+                            name = lines[0];
+                        }
+                    }
+
+                    if (!name) continue;
+
+                    articleResults.push({
+                        name: name,
+                        region: 'Derived from Search',
+                        price: bestPrice,
+                        deepLink: dLink
+                    });
+                }
+
+                return articleResults;
             });
 
             console.log(`✅ Scraped ${scrapedResults.length} properties from DOM`);
