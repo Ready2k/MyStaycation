@@ -3,6 +3,7 @@ import * as cheerio from 'cheerio';
 import { BaseAdapter, SearchParams, PriceResult, DealResult } from './base.adapter';
 import { ResultMatcher, MatchConfidence } from '../utils/result-matcher';
 import { AccommodationType } from '../entities/HolidayProfile';
+import type { Page } from 'playwright';
 
 export class HoseasonsAdapter extends BaseAdapter {
     constructor() {
@@ -34,15 +35,14 @@ export class HoseasonsAdapter extends BaseAdapter {
     }
 
     private async searchSingle(params: SearchParams, parkIdOverride?: string): Promise<PriceResult[]> {
-        // [MODIFIED] Use Search Page URL instead of API URL to bypass WAF
-        const url = this.buildSearchUrl(params, parkIdOverride);
-        console.log('DEBUG: Hoseasons Search URL:', url);
+        // [MODIFIED] URL construction is now handled inside fetchHoseasonsWithBrowser
+        // to support async dynamic ID resolution.
 
         try {
             // [MODIFIED] Use Browser Fetch instead of direct API fetch
             let rawResult: string;
             try {
-                rawResult = await this.fetchHoseasonsWithBrowser(url);
+                rawResult = await this.fetchHoseasonsWithBrowser(params, parkIdOverride);
             } catch (e) {
                 console.error('Browser fetch failed:', e);
                 return [];
@@ -54,17 +54,19 @@ export class HoseasonsAdapter extends BaseAdapter {
             // fires an internal API call that is "poisoned" (ignores region filter).
             // However, the DOM (scrapedData) correctly renders the filtered result.
             // So for slug searches, we MUST prioritize scraped data if available.
-            const isSlugSearch = url.includes('/holiday-parks/');
+            // Note: We don't have the URL here anymore to check .includes, but we can check if
+            // the result mentions it was a fallback.
 
-            if (isSlugSearch && parsed.scrapedData && parsed.scrapedData.length > 0) {
-                console.log('ℹ️  Slug search detected: Preferring DOM scraping over API interception to avoid region mismatch.');
+            if (parsed.scrapedData && parsed.scrapedData.length > 0) {
+                // Check if we fell back to scraping (flagged in result or implied)
+                // Or just trust scraping results if provided.
                 return this.parseScrapedResults(parsed.scrapedData, params);
             }
 
             if (parsed.interceptedData) {
+                // If we have intercepted data, it heavily implies the ID resolution worked 
+                // and we got valid API data.
                 return this.parseApiResponse(parsed.interceptedData, params, parkIdOverride);
-            } else if (parsed.scrapedData) {
-                return this.parseScrapedResults(parsed.scrapedData, params);
             }
 
             return [];
@@ -103,27 +105,106 @@ export class HoseasonsAdapter extends BaseAdapter {
      * Map common region names to Hoseasons-specific ones
      */
     /**
-     * Map region name to Hoseasons URL slug
-     * e.g. "Kielder Lakes" -> "northumberland"
-     */
-    /**
      * Map region name to Hoseasons 'placesId' or 'regionId'
-     * This is critical for the API to filter correctly.
+     * Uses a manual map for known oddities, then falls back to dynamic resolution.
      */
-    private getRegionId(region: string): string | undefined {
+    private regionIdCache = new Map<string, string>();
+
+    /**
+     * Map region name to Hoseasons 'placesId'
+     * Uses a manual map for known oddities, then falls back to dynamic resolution.
+     */
+    private async resolveRegionId(region: string, page: Page): Promise<string | undefined> {
         if (!region) return undefined;
         const lower = region.toLowerCase().trim();
 
+        // 1. Check Memory Cache
+        if (this.regionIdCache.has(lower)) {
+            console.log(`✅ ID Cache Hit for "${region}": ${this.regionIdCache.get(lower)}`);
+            return this.regionIdCache.get(lower);
+        }
+
+        // 2. Check Static Map (Fast Fallback & Known Oddities)
         const map: Record<string, string> = {
             'devon': '39248',
-            'cornwall': '39246', // Assuming likely ID (can verify later if needed)
-            'northumberland': '40845', // Example from past knowledge/logs 
-            // Add others as discovered
+            'cornwall': '39246',
+            'northumberland': '39023',
+            'kielder': '39023',
+            'kielder lakes': '39023',
+            'kielder water': '39023'
         };
 
-        if (map[lower]) return map[lower];
+        if (map[lower]) {
+            this.regionIdCache.set(lower, map[lower]);
+            return map[lower];
+        }
 
-        // Partial match fallback if needed?
+        // 3. Dynamic Resolution Probe
+        console.log(`🔎 Dynamically resolving ID for region: "${region}"...`);
+        const slug = this.getRegionSlug(region);
+
+        // Probing candidates: Standard first, then Lodges (which works for County Durham)
+        const candidates = [
+            `/holiday-parks/${slug}`,               // Standard (e.g. Devon)
+            `/lodges/england/${slug}`,              // Lodges (e.g. County Durham)
+            `/holiday-parks/england/${slug}`,       // Nested
+            `/cottages/${slug}`                     // Rare
+        ];
+
+        for (const path of candidates) {
+            const url = `${this.baseUrl}${path}`;
+            console.log(`   👉 Probing URL: ${path}`);
+            try {
+                // Use a lightweight goto to check validity
+                const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+
+                // [FIX] Wait for WAF/Interstitial to clear
+                try {
+                    await page.waitForFunction(() => {
+                        const text = document.body.innerText;
+                        return text.length > 500 && (text.includes('Hoseasons') || text.includes('Error 404'));
+                    }, { timeout: 10000 });
+                } catch {
+                    // If timeout, likely a real 404 or stuck. Check title now.
+                }
+
+                // Check for 404 title or redirect
+                const title = await page.title();
+                // console.log(`   Status: ${response?.status()}, Title: "${title}"`);
+
+                if (title.includes('404') || response?.status() === 404 || title.includes('Page Not Found')) {
+                    // console.log(`   ⛔️ 404 detected for ${path}`);
+                    continue;
+                }
+
+                // Extract ID from Page State
+                const id = await page.evaluate(() => {
+                    // Method A: Check __NEXT_DATA__
+                    try {
+                        const nextData = (window as any).__NEXT_DATA__;
+                        if (nextData?.props?.pageProps?.initialState?.placesId) return nextData.props.pageProps.initialState.placesId;
+                        // Sometimes it's deep in filters
+                        if (nextData?.props?.pageProps?.initialState?.searchCriteria?.placesId) return nextData.props.pageProps.initialState.searchCriteria.placesId;
+                    } catch { }
+
+                    // Method B: Regex on body (Fallback)
+                    const html = document.body.innerHTML;
+                    const match = html.match(/"placesId"\s*[:=]\s*["']?(\d+)["']?/);
+                    return match ? match[1] : null;
+                });
+
+                if (id) {
+                    console.log(`   🎉 FOUND ID: ${id} at ${path}`);
+                    this.regionIdCache.set(lower, id);
+                    return id;
+                }
+
+            } catch (e) {
+                console.warn(`   ⚠️ Probe failed for ${path}: ${e}`);
+            }
+        }
+
+        console.log(`❌ Failed to resolve ID for "${region}". using generic fallback.`);
         return undefined;
     }
 
@@ -138,29 +219,27 @@ export class HoseasonsAdapter extends BaseAdapter {
      * Build the Hoseasons search URL using path-based routing
      * e.g. https://www.hoseasons.co.uk/holiday-parks/cornwall?checks...
      */
-    protected buildSearchUrl(params: SearchParams, parkIdOverride?: string): string {
+    protected buildSearchUrl(params: SearchParams, regionId?: string, parkIdOverride?: string): string {
         const queryParams = new URLSearchParams();
 
         // Determine accommodation type
         let accommodationType = 'holiday-parks';
         if (params.metadata?.propertyType && params.metadata.propertyType !== 'Any') {
-            accommodationType = params.metadata.propertyType.toLowerCase() + 's';
+            const type = params.metadata.propertyType.toLowerCase();
+            accommodationType = type.endsWith('s') ? type : type + 's';
         }
 
-        // Base URL: Use /search endpoint if we have a specific ID (Cleaner for API)
-        // Or /holiday-parks/{slug} if we want the nice UI.
-        // User prefers API reliability.
         let baseUrl = `${this.baseUrl}/search`;
 
-        // Resolve Region Mapping
-        const regionId = this.getRegionId(params.region || '');
-
-        if (regionId) {
-            // If we have a verified ID, use it! This is the most reliable method.
+        if (parkIdOverride) {
+            queryParams.append('parkId', parkIdOverride);
+            // No region needed if parkId is specified
+        } else if (regionId) {
+            // Priority: Logic resolved ID
             queryParams.append('placesId', regionId);
-            queryParams.append('regionName', params.region || ''); // Keep for UI context
+            queryParams.append('regionName', params.region || '');
         } else {
-            // Fallback to name/slug logic
+            // Fallback to name/slug logic (Old Hybrid)
             const slug = this.getRegionSlug(params.region || '');
             if (accommodationType === 'holiday-parks' && slug) {
                 baseUrl = `${this.baseUrl}/holiday-parks/${slug}`;
@@ -203,7 +282,7 @@ export class HoseasonsAdapter extends BaseAdapter {
     /**
      * Custom Playwright fetch for Hoseasons with API interception
      */
-    private async fetchHoseasonsWithBrowser(url: string): Promise<string> {
+    private async fetchHoseasonsWithBrowser(params: SearchParams, parkIdOverride?: string): Promise<string> {
         const playwrightEnabled = process.env.PLAYWRIGHT_ENABLED !== 'false';
         if (!playwrightEnabled) {
             throw new Error('Playwright is disabled');
@@ -230,6 +309,17 @@ export class HoseasonsAdapter extends BaseAdapter {
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             }
         });
+
+        // [NEW] Helper to build URL (local closure to access `this`)
+        // Actually best to resolve ID here then call this.buildSearchUrl
+
+        let regionId: string | undefined;
+        if (!parkIdOverride && params.region) {
+            regionId = await this.resolveRegionId(params.region, page);
+        }
+
+        const url = this.buildSearchUrl(params, regionId, parkIdOverride);
+        console.log(`🔗 Navigating to: ${url}`);
 
         let searchResultsData: any = null;
 

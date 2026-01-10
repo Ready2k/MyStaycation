@@ -4,8 +4,8 @@ import { chromium } from 'playwright';
 async function run() {
     console.log('🚀 Inspecting Hoseasons State for Devon ID...');
     const browser = await chromium.launch({ headless: true });
-    // This page WORKS visually, so it must have the correct ID in its state
-    const url = 'https://www.hoseasons.co.uk/holiday-parks/devon';
+    // Testing hypothesis: User's URL path "/lodges/england/county-durham"
+    const url = 'https://www.hoseasons.co.uk/lodges/england/county-durham';
 
     try {
         const page = await browser.newPage();
@@ -69,7 +69,10 @@ async function run() {
 
         // Search for generic placesId pattern
         const placesIdMatches = [...html.matchAll(/"placesId"\s*[:=]\s*["']?(\d+)["']?/g)];
-        if (placesIdMatches.length > 0) {
+        if (placesIdMatches.length === 0) {
+            console.log('❌ No placesId found. Dumping HTML for inspection...');
+            require('node:fs').writeFileSync('county-durham.html', html);
+        } else {
             console.log('🎯 HTML placesIds:', [...new Set(placesIdMatches.map(m => m[1]))]);
         }
 
