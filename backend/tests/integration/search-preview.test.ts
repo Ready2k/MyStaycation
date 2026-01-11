@@ -78,6 +78,7 @@ describe('Search Preview Unit Test', () => {
     it('should run a preview in INLINE_PROFILE mode', async () => {
         const response = await service.executePreview({
             mode: 'INLINE_PROFILE',
+            userId: 'test-user-id',
             profile: {
                 dateStart: new Date('2026-06-01'),
                 dateEnd: new Date('2026-06-30'),
@@ -130,6 +131,7 @@ describe('Search Preview Unit Test', () => {
 
         const response = await service.executePreview({
             mode: 'INLINE_PROFILE',
+            userId: 'test-user-id',
             profile: {
                 dateStart: new Date('2026-06-01'),
                 dateEnd: new Date('2026-06-05'),
@@ -165,6 +167,7 @@ describe('Search Preview Unit Test', () => {
 
         const response = await service.executePreview({
             mode: 'INLINE_PROFILE',
+            userId: 'test-user-id',
             profile: { dateStart: new Date('2026-06-01') } as any,
             providers: ['haven'],
             options: { includeDebug: true }
@@ -196,6 +199,7 @@ describe('Search Preview Unit Test', () => {
 
         await service.executePreview({
             mode: 'INLINE_PROFILE',
+            userId: 'test-user-id',
             profile: { dateStart: '2026-06-01' } as any,
             providers: ['haven']
         });

@@ -23,9 +23,9 @@ export async function insightsRoutes(fastify: FastifyInstance) {
                 },
             },
         },
-    }, async (request, reply) => {
-        const userId = (request as any).user.userId;
-        const { limit = 10 } = request.query as any;
+    }, async (request, _reply) => {
+        const userId = (request.user as { userId: string }).userId;
+        const { limit = 10 } = request.query as Record<string, unknown>;
 
         // Get insights for user's fingerprints
         const insights = await insightRepo
@@ -59,9 +59,9 @@ export async function insightsRoutes(fastify: FastifyInstance) {
             },
         },
     }, async (request, reply) => {
-        const userId = (request as any).user.userId;
-        const { fingerprintId } = request.params as any;
-        const { days = 90 } = request.query as any;
+        const userId = (request.user as { userId: string }).userId;
+        const { fingerprintId } = request.params as { id?: string; fingerprintId?: string };
+        const { days = 90 } = request.query as Record<string, unknown>;
 
         // Verify fingerprint belongs to user and get profile data
         const fingerprint = await fingerprintRepo.findOne({
@@ -177,9 +177,9 @@ export async function insightsRoutes(fastify: FastifyInstance) {
                 },
             },
         },
-    }, async (request, reply) => {
-        const userId = (request as any).user.userId;
-        const { limit = 10, unreadOnly = false } = request.query as any;
+    }, async (request, _reply) => {
+        const userId = (request.user as { userId: string }).userId;
+        const { limit = 10, unreadOnly = false } = request.query as Record<string, unknown>;
 
         const queryBuilder = alertRepo
             .createQueryBuilder('alert')
@@ -210,8 +210,8 @@ export async function insightsRoutes(fastify: FastifyInstance) {
     fastify.patch('/alerts/:id/dismiss', {
         preHandler: [authenticate],
     }, async (request, reply) => {
-        const userId = (request as any).user.userId;
-        const { id } = request.params as any;
+        const userId = (request.user as { userId: string }).userId;
+        const { id } = request.params as { id?: string; fingerprintId?: string };
 
         const alert = await alertRepo.findOne({
             where: { id, user: { id: userId } },

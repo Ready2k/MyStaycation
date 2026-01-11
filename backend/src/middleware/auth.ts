@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AppDataSource } from '../config/database';
 import { User, UserRole } from '../entities/User';
+import { JWTPayload } from '../types/common.types';
 
 declare module 'fastify' {
     interface FastifyInstance {
@@ -20,7 +21,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
 export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
     try {
         await request.jwtVerify();
-        const userId = (request.user as any).userId;
+        const userId = (request.user as JWTPayload).userId;
 
         const userRepo = AppDataSource.getRepository(User);
         const user = await userRepo.findOne({ where: { id: userId } });
@@ -34,6 +35,6 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
 }
 
 export function getUserId(request: FastifyRequest): string {
-    const payload = request.user as { userId: string };
+    const payload = request.user as JWTPayload;
     return payload.userId;
 }

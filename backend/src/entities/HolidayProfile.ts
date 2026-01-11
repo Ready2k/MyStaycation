@@ -155,7 +155,7 @@ export class HolidayProfile {
     parkUrls?: string[]; // Corresponding source URLs
 
     @Column({ type: 'jsonb', nullable: true })
-    metadata?: any; // Provider-specific metadata (e.g., lodges, filters for Center Parcs)
+    metadata?: unknown; // Provider-specific metadata (e.g., lodges, filters for Center Parcs)
 
     @CreateDateColumn()
     createdAt!: Date;

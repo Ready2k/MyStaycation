@@ -3,7 +3,7 @@ import { ProviderAdapter, SearchSearchResult } from './types';
 export class MockProviderAdapter implements ProviderAdapter {
     providerName = 'MockStay';
 
-    async search(fingerprint: any): Promise<SearchSearchResult[]> {
+    async search(fingerprint: Record<string, unknown>): Promise<SearchSearchResult[]> {
         // Simulate network delay
         await new Promise(resolve => setTimeout(resolve, 800));
 

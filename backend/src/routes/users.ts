@@ -3,7 +3,6 @@ import { AppDataSource } from '../config/database';
 import { User } from '../entities/User';
 import { SearchFingerprint } from '../entities/SearchFingerprint';
 import { authenticate } from '../middleware/auth';
-import bcrypt from 'bcrypt';
 import z from 'zod';
 
 const userRepo = AppDataSource.getRepository(User);
@@ -27,7 +26,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
     fastify.get('/users/me', {
         preHandler: [authenticate],
     }, async (request, reply) => {
-        const userId = (request as any).user.userId;
+        const userId = (request.user as { userId: string }).userId;
 
         try {
             const user = await userRepo.findOne({
@@ -50,7 +49,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
     fastify.patch('/users/me', {
         preHandler: [authenticate],
     }, async (request, reply) => {
-        const userId = (request as any).user.userId;
+        const userId = (request.user as { userId: string }).userId;
 
         try {
             const validated = updateProfileSchema.parse(request.body);
@@ -94,6 +93,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
             await userRepo.save(user);
 
             // Return updated user (exclude password hash)
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { passwordHash, ...userWithoutPassword } = user;
             return reply.send({ user: userWithoutPassword });
         } catch (error) {
@@ -109,10 +109,11 @@ export async function usersRoutes(fastify: FastifyInstance) {
     fastify.delete('/users/me', {
         preHandler: [authenticate],
     }, async (request, reply) => {
-        const userId = (request as any).user.userId;
+        const userId = (request.user as { userId: string }).userId;
 
         try {
-            const validated = deleteAccountSchema.parse(request.body);
+            // Validate confirmation
+            deleteAccountSchema.parse(request.body);
 
             const user = await userRepo.findOne({ where: { id: userId } });
             if (!user) {

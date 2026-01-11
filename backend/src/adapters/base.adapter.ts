@@ -23,7 +23,7 @@ export interface SearchParams {
     pets: boolean;
     minBedrooms: number;
     region?: string;
-    metadata?: Record<string, any>; // Provider-specific extra data like propertyType
+    metadata?: Record<string, unknown>; // Provider-specific extra data like propertyType
 }
 
 export interface PriceResult {
@@ -44,7 +44,7 @@ export interface PriceResult {
     propertyName?: string;
     location?: string;
     parkId?: string; // Critical for SeriesKey generation
-    metadata?: Record<string, any>; // Provider-specific extra data
+    metadata?: Record<string, unknown>; // Provider-specific extra data
 }
 
 export interface DealResult {

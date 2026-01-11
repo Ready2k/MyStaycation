@@ -27,7 +27,7 @@ export class Insight {
     summary!: string;
 
     @Column({ type: 'jsonb' })
-    details!: Record<string, any>;
+    details!: Record<string, unknown>;
 
     @Column({ type: 'varchar', unique: true })
     dedupeKey!: string;

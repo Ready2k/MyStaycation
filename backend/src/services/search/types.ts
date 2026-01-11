@@ -11,5 +11,5 @@ export interface SearchSearchResult {
 
 export interface ProviderAdapter {
     providerName: string;
-    search(fingerprint: any): Promise<SearchSearchResult[]>;
+    search(fingerprint: Record<string, unknown>): Promise<SearchSearchResult[]>;
 }

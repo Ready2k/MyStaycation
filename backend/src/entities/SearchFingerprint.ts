@@ -32,7 +32,7 @@ export class SearchFingerprint {
     canonicalHash!: string;
 
     @Column({ type: 'jsonb' })
-    canonicalJson!: Record<string, any>;
+    canonicalJson!: Record<string, unknown>;
 
     @Column({ type: 'int', default: 48 })
     checkFrequencyHours!: number;

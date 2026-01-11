@@ -142,7 +142,7 @@ export class EmailService {
     async sendAlertEmail(email: string, alertData: {
         profileName: string;
         insightSummary: string;
-        details: any;
+        details: Record<string, unknown>;
     }): Promise<void> {
         await this.sendEmail({
             to: email,

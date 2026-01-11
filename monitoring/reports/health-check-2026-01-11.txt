@@ -1,5 +1,5 @@
 ========================================
-Daily Health Check - 2026-01-11 08:00:01
+Daily Health Check - 2026-01-11 17:34:50
 ========================================
 
 ## Database Connection
@@ -8,35 +8,37 @@ Daily Health Check - 2026-01-11 08:00:01
 ## Fetch Runs (Last 24h)
     status    | count | percentage 
 --------------+-------+------------
- OK           |    14 |      63.64
- PARSE_FAILED |     8 |      36.36
+ PARSE_FAILED |    16 |      57.14
+ OK           |    12 |      42.86
 (2 rows)
 
 
 ## Parse Failures (Last 24h)
  provider  |               errorMessage               | count 
 -----------+------------------------------------------+-------
- Hoseasons | No results parsed from provider response |     8
+ Hoseasons | No results parsed from provider response |    16
 (1 row)
 
 
 ## Observations Created (Last 24h)
  total_observations | unique_series | unique_fingerprints 
 --------------------+---------------+---------------------
-                217 |            99 |                   6
+                176 |            89 |                   5
 (1 row)
 
 
 ## Insights Created (Last 24h)
- type | count 
-------+-------
-(0 rows)
+       type       | count 
+------------------+-------
+ LOWEST_IN_X_DAYS |    37
+(1 row)
 
 
 ## Alerts Sent (Last 24h)
  status | count 
 --------+-------
-(0 rows)
+ SENT   |     2
+(1 row)
 
 
 ## Series Key Integrity
@@ -50,21 +52,21 @@ Daily Health Check - 2026-01-11 08:00:01
 ## Database Size
  database_size 
 ---------------
- 9724 kB
+ 9764 kB
 (1 row)
 
 
 ## Top 5 Largest Tables
         table_name         |  size  
 ---------------------------+--------
- public.price_observations | 432 kB
+ public.price_observations | 448 kB
  public.system_logs        | 120 kB
+ public.insights           | 112 kB
  public.fetch_runs         | 104 kB
- public.insights           | 96 kB
- public.users              | 96 kB
+ public.alerts             | 96 kB
 (5 rows)
 
 
 ## Summary
-Report generated at: Sun Jan 11 08:00:01 GMT 2026
+Report generated at: Sun Jan 11 17:34:50 GMT 2026
 Report saved to: /reports/health-check-2026-01-11.txt

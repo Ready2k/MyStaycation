@@ -1,5 +1,4 @@
 import { BaseAdapter, SearchParams, PriceResult, DealResult } from './base.adapter';
-import { chromium, Browser } from 'playwright';
 import { MatchConfidence } from '../utils/result-matcher';
 
 export class CenterParcsAdapter extends BaseAdapter {
@@ -130,7 +129,7 @@ export class CenterParcsAdapter extends BaseAdapter {
                 response.url().includes('/api/v1/accommodation.json') &&
                 response.request().method() === 'POST' &&
                 response.status() === 200
-                , { timeout: 60000 }).catch(e => null); // Catch rejection if page closes early
+                , { timeout: 60000 }).catch(_e => null); // Catch rejection if page closes early
 
             // Navigate but don't wait for networkidle (too slow/flaky)
             // Just wait for DOM content loaded to ensure the scripts start running
@@ -152,7 +151,7 @@ export class CenterParcsAdapter extends BaseAdapter {
 
             return interceptedData;
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(`❌ CenterParcs Browser Error for ${villageCode}:`, error.message);
             // If it's a timeout, we return null, confusing the parser less than partial data
             return null;
@@ -166,7 +165,7 @@ export class CenterParcsAdapter extends BaseAdapter {
      */
     private parseApiResults(data: any, villageCode: string, params: SearchParams): PriceResult[] {
         const results: PriceResult[] = [];
-        let items: any[] = [];
+        let items: unknown[] = [];
 
         // Handle nested structure: data.data.accommodation.accommodationList
         if (data?.data?.accommodation?.accommodationList) {
@@ -182,7 +181,7 @@ export class CenterParcsAdapter extends BaseAdapter {
 
 
 
-        items.forEach((item: any, index: number) => {
+        items.forEach((item: any, _index: number) => {
             try {
                 // Debug first item structure
 
@@ -295,11 +294,11 @@ export class CenterParcsAdapter extends BaseAdapter {
 
     // --- Abstract Implementation Stubs ---
 
-    protected buildSearchUrl(params: SearchParams): string {
+    protected buildSearchUrl(_params: SearchParams): string {
         return "";
     }
 
-    protected parseSearchResults(html: string, params: SearchParams): PriceResult[] {
+    protected parseSearchResults(_html: string, _params: SearchParams): PriceResult[] {
         return [];
     }
 
@@ -307,7 +306,7 @@ export class CenterParcsAdapter extends BaseAdapter {
         return [];
     }
 
-    protected parseOffers(html: string): DealResult[] {
+    protected parseOffers(_html: string): DealResult[] {
         return [];
     }
 
@@ -342,7 +341,6 @@ export class CenterParcsAdapter extends BaseAdapter {
         const infants = 0;
         const toddlers = 0;
         const dogs = params.pets ? 1 : 0;
-        const accessible = 0;
         const flex = 'N';
 
         // Format: /2/{location}/{date}/{duration}/-/-/{rooms}/{adults}/{children}/{toddlers}/{infants}/{dogs}/{adaptiveLodge}

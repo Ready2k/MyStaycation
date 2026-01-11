@@ -29,7 +29,7 @@ async function run() {
             let node;
             const priceNodes = [];
             while (node = walker.nextNode()) {
-                if (node.textContent.includes('£') && /\d/.test(node.textContent)) {
+                if (node.textContent?.includes('£') && node.textContent && /\d/.test(node.textContent)) {
                     priceNodes.push(node.parentElement);
                 }
             }

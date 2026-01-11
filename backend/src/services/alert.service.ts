@@ -16,7 +16,7 @@ export class AlertService {
     async createAlert(
         userId: string,
         insightId: string,
-        profileId?: string
+        _profileId?: string
     ): Promise<Alert | null> {
         const user = await userRepo.findOne({ where: { id: userId } });
         const insight = await insightRepo.findOne({

@@ -28,7 +28,7 @@ export class ProviderConfig {
     value!: string;
 
     @Column({ type: 'jsonb', nullable: true })
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
 
     @Column({ type: 'boolean', default: true })
     enabled!: boolean;

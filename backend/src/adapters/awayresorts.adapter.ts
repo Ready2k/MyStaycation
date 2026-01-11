@@ -150,7 +150,7 @@ export class AwayResortsAdapter extends BaseAdapter {
             const bookUrl = bookBtn.attr('href') || '';
             let parkId: string | undefined;
             // Try to extract from URL (e.g., /book/resort-name/...)
-            const parkMatch = bookUrl.match(/\/book\/([^\/]+)/i);
+            const parkMatch = bookUrl.match(/\/book\/([^/]+)/i);
             if (parkMatch) {
                 parkId = parkMatch[1];
             }

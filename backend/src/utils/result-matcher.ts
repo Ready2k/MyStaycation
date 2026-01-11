@@ -46,7 +46,7 @@ export class ResultMatcher {
      */
     static classify(result: CandidateResult, context: MatcherContext): MatchResult {
         const errors: string[] = [];
-        let weakReasons: string[] = [];
+        const weakReasons: string[] = [];
 
         // 1. DATES & NIGHTS (Strongest Constraint)
         // MUST match exactly. No fuzzy matching allowed for fingerprint fields.

@@ -200,7 +200,6 @@ export class ButlinsAdapter extends BaseAdapter {
             const title = $(el).find('h2, h3').first().text().trim();
             // const description = $(el).find('p').first().text().trim(); // DealResult doesn't have description, only title
 
-            const text = $(el).text();
             let discountType: DealResult['discountType'] = 'SALE_PRICE';
             let discountValue: number | undefined;
 

@@ -1,11 +1,10 @@
 
 import { AppDataSource } from '../../config/database';
-import { HolidayProfile, AccommodationType } from '../../entities/HolidayProfile';
+import { HolidayProfile } from '../../entities/HolidayProfile';
 import { FetchRun, RunType, RunStatus } from '../../entities/FetchRun';
 import { Provider } from '../../entities/Provider';
 import { adapterRegistry } from '../../adapters/registry';
-import { ResultMatcher, CandidateResult, MatchConfidence } from '../../utils/result-matcher';
-import { SearchFingerprint } from '../../entities/SearchFingerprint';
+import { ResultMatcher, MatchConfidence } from '../../utils/result-matcher';
 import { v4 as uuidv4 } from 'uuid';
 import { generateSeriesKey } from '../../utils/series-key';
 
@@ -93,22 +92,22 @@ export interface PreviewResult {
 export interface Reason {
     code: string;
     message: string;
-    details?: any;
+    details?: Record<string, unknown>;
 }
 
 export interface PreviewResponse {
     requestId: string;
     generatedAt: string;
     mode: PreviewMode;
-    profile: any;
+    profile: Record<string, unknown>;
     providers: ProviderPreview[];
-    overallSummary: any;
+    overallSummary: Record<string, unknown>;
     sideEffects: {
         observationsStored: boolean;
         alertsGenerated: boolean;
         emailsSent: boolean;
     };
-    warnings: any[];
+    warnings: unknown[];
 }
 
 export class PreviewService {
@@ -246,7 +245,7 @@ export class PreviewService {
 
     private async runSingleProvider(
         providerKey: string,
-        profile: any,
+        profile: Record<string, unknown>,
         requestId: string,
         options: PreviewOptions = {}
     ): Promise<ProviderPreview> {
@@ -316,14 +315,14 @@ export class PreviewService {
 
         // FETCH
         const t0 = Date.now();
-        let rawResults: any[] = [];
+        let rawResults: unknown[] = [];
         let usedPlaywright = false;
         try {
             console.log(`DEBUG: Calling adapter.search() for ${providerKey}`);
             rawResults = await adapter.search(adapterParams);
             console.log(`DEBUG: adapter.search() returned ${rawResults.length} results`);
             usedPlaywright = options.forcePlaywright || false;
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error(`Preview fetch failed for ${providerKey}`, e);
             status = 'FETCH_FAILED';
             if (e.message?.includes('robots')) status = 'BLOCKED_ROBOTS';
@@ -357,7 +356,7 @@ export class PreviewService {
             // Handle specific date (null end) by defaulting to start date
             const profEnd = adapterParams.dateWindow.end ? new Date(adapterParams.dateWindow.end) : new Date(profStart);
 
-            let inDateRange = resDate >= profStart && resDate <= profEnd;
+            const inDateRange = resDate >= profStart && resDate <= profEnd;
             if (!inDateRange) {
                 console.log(`DEBUG: REJECTED ${candidate.propertyName}: Date ${candidate.stayStartDate} outside window ${adapterParams.dateWindow.start}-${adapterParams.dateWindow.end}`);
                 confidence = MatchConfidence.MISMATCH;
@@ -499,10 +498,10 @@ export class PreviewService {
 
     private async logRun(
         providerKey: string,
-        profile: any,
+        profile: Record<string, unknown>,
         status: string,
         count: number,
-        summary: any,
+        summary: Record<string, unknown>,
         requestId: string
     ) {
         // Find Provider Entity
@@ -510,7 +509,7 @@ export class PreviewService {
         if (!provider) return;
 
         // Map status string to ProviderStatus enum
-        let providerStatus: any = 'OK';
+        let providerStatus: string = 'OK';
         if (status === 'FETCH_FAILED') providerStatus = 'FETCH_FAILED';
         else if (status === 'PARSE_FAILED') providerStatus = 'PARSE_FAILED';
         else if (status === 'BLOCKED_ROBOTS' || status === 'BLOCKED') providerStatus = 'BLOCKED';

@@ -34,15 +34,19 @@ async function run() {
             const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
             let node;
             while (node = walker.nextNode()) {
-                if (node.textContent.includes('£') && /\d/.test(node.textContent)) {
+                if (node.textContent?.includes('£') && node.textContent && /\d/.test(node.textContent)) {
                     const parent = node.parentElement;
+                    if (!parent) continue;
                     // Go up 3-4 levels to find a likely container
                     let container = parent;
                     let path = [];
                     for (let i = 0; i < 4; i++) {
                         if (container) {
                             path.push(`${container.tagName}.${container.className}`);
-                            container = container.parentElement;
+                            const nextContainer = container.parentElement;
+                            if (nextContainer) {
+                                container = nextContainer;
+                            }
                         }
                     }
 
@@ -51,7 +55,7 @@ async function run() {
                         parentTag: parent.tagName,
                         parentClass: parent.className,
                         path: path.join(' > '),
-                        fullTextStart: parent.innerText.substring(0, 50).replace(/\n/g, ' ')
+                        fullTextStart: (parent as HTMLElement).innerText?.substring(0, 50).replace(/\n/g, ' ') || ''
                     });
                 }
             }
@@ -69,7 +73,7 @@ async function run() {
             const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
             let node;
             while (node = walker.nextNode()) {
-                if (node.textContent.includes('£') && /\d/.test(node.textContent)) {
+                if (node.textContent?.includes('£') && node.textContent && /\d/.test(node.textContent)) {
                     // This is a price node
                     let container = node.parentElement;
                     while (container && container !== document.body) {

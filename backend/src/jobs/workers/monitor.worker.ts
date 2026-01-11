@@ -9,7 +9,6 @@ import { FetchRun, RunType, RunStatus, ProviderStatus } from '../../entities/Fet
 import { adapterRegistry } from '../../adapters/registry';
 import { MonitorJobData, addInsightJob } from '../queues';
 import { generateSeriesKey } from '../../utils/series-key';
-import { redisConnection } from '../../config/redis';
 import { SystemLogger } from '../../services/SystemLogger';
 
 const fingerprintRepo = AppDataSource.getRepository(SearchFingerprint);
@@ -140,7 +139,7 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
                             });
                             await parkRepo.save(parkEntity);
                             console.log(`✅  Created park: ${parkEntity.name}`);
-                        } catch (e: any) {
+                        } catch (e: unknown) {
                             // Handle race condition (unique constraint violation)
                             if (e.message.includes('unique') || e.code === '23505') {
                                 console.log(`⚠️ Park already created by another worker, refetching...`);

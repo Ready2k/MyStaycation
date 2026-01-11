@@ -22,7 +22,7 @@ export class SystemLog {
     source!: string; // e.g. 'API', 'WORKER', 'SCHEDULER'
 
     @Column({ type: 'jsonb', nullable: true })
-    details?: any;
+    details?: unknown;
 
     @Index()
     @CreateDateColumn()

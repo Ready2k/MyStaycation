@@ -1,8 +1,7 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { AppDataSource } from '../config/database';
 import { HolidayProfile } from '../entities/HolidayProfile';
 import { SearchFingerprint } from '../entities/SearchFingerprint';
-import { searchService } from '../services/search/SearchService';
 import { previewService } from '../services/search/preview.service';
 import z from 'zod';
 import { createProfileSchema } from './profiles';
@@ -71,9 +70,9 @@ export async function searchRoutes(fastify: FastifyInstance) {
             }
 
             // Return preview results in the same format as before
-            const flattenedResults: any[] = [];
-            previewResults.providers.forEach((provider: any) => {
-                const addResults = (items: any[]) => {
+            const flattenedResults: unknown[] = [];
+            previewResults.providers.forEach((provider: Record<string, unknown>) => {
+                const addResults = (items: unknown[]) => {
                     items.forEach(item => {
                         flattenedResults.push({
                             providerKey: item.providerKey,
@@ -224,7 +223,7 @@ export async function searchRoutes(fastify: FastifyInstance) {
         onRequest: [fastify.authenticate]
     }, async (request, reply) => {
         const user = request.user as any;
-        const { profileId } = request.query as any;
+        const { profileId } = request.query as Record<string, unknown>;
 
         request.log.info(`GET /search/fingerprints for user ${user.userId}, profile ${profileId}`);
 
@@ -232,7 +231,7 @@ export async function searchRoutes(fastify: FastifyInstance) {
             const fingerprintRepo = AppDataSource.getRepository('SearchFingerprint');
 
             // Use find() for safer relation filtering
-            const whereClause: any = {
+            const whereClause: Record<string, unknown> = {
                 profile: {
                     user: { id: user.userId }
                 }

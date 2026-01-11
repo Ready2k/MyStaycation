@@ -4,7 +4,7 @@ import { SystemLog, LogLevel } from '../entities/SystemLog';
 export class SystemLogger {
     private static repo = AppDataSource.getRepository(SystemLog);
 
-    static async log(level: LogLevel, message: string, source: string, details?: any) {
+    static async log(level: LogLevel, message: string, source: string, details?: Record<string, unknown>) {
         try {
             const logEntry = new SystemLog();
             logEntry.level = level;
@@ -20,15 +20,15 @@ export class SystemLogger {
         }
     }
 
-    static async info(message: string, source: string, details?: any) {
+    static async info(message: string, source: string, details?: Record<string, unknown>) {
         return this.log(LogLevel.INFO, message, source, details);
     }
 
-    static async warn(message: string, source: string, details?: any) {
+    static async warn(message: string, source: string, details?: Record<string, unknown>) {
         return this.log(LogLevel.WARN, message, source, details);
     }
 
-    static async error(message: string, source: string, details?: any) {
+    static async error(message: string, source: string, details?: Record<string, unknown>) {
         return this.log(LogLevel.ERROR, message, source, details);
     }
 }

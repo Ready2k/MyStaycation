@@ -64,7 +64,6 @@ export class HavenAdapter extends BaseAdapter {
         // https://www.haven.com/search-results/break-builder/accommodation?parkCode=PS&arrivalDate=2026-03-13&duration=3&adults=2&children=0&tots=0&dogs=0&accessibleVans=false&packageType=HAVEN%20HOLIDAY&accommodationSubType=beach_house
 
         const queryParams = new URLSearchParams();
-        const searchPath = '/search-results/break-builder/accommodation';
 
         queryParams.append('arrivalDate', params.dateWindow.start); // YYYY-MM-DD
         queryParams.append('duration', params.nights.min.toString());
@@ -161,7 +160,7 @@ export class HavenAdapter extends BaseAdapter {
                 let parkId: string | undefined;
                 if (rawUrl) {
                     // Try to extract park code from URL (e.g., /parks/devon-cliffs/...)
-                    const parkMatch = rawUrl.match(/\/parks\/([^\/]+)/i);
+                    const parkMatch = rawUrl.match(/\/parks\/([^/]+)/i);
                     if (parkMatch) parkId = parkMatch[1];
                 }
                 // Fallback to location text if available

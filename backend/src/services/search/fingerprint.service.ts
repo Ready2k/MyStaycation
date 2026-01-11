@@ -2,7 +2,6 @@ import { AppDataSource } from '../../config/database';
 import { SearchFingerprint } from '../../entities/SearchFingerprint';
 import { HolidayProfile } from '../../entities/HolidayProfile';
 import { Provider } from '../../entities/Provider';
-import { adapterRegistry } from '../../adapters/registry';
 import * as crypto from 'crypto';
 
 export class FingerprintService {

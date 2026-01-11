@@ -76,7 +76,7 @@ export class HoseasonsAdapter extends BaseAdapter {
         }
     }
 
-    private parseScrapedResults(scrapedData: any[], params: SearchParams): PriceResult[] {
+    private parseScrapedResults(scrapedData: unknown[], params: SearchParams): PriceResult[] {
         return scrapedData.map(item => {
             // Parse price string "£123" -> 123
             const priceVal = parseFloat(item.price.replace(/[£,]/g, ''));
@@ -185,7 +185,9 @@ export class HoseasonsAdapter extends BaseAdapter {
                         if (nextData?.props?.pageProps?.initialState?.placesId) return nextData.props.pageProps.initialState.placesId;
                         // Sometimes it's deep in filters
                         if (nextData?.props?.pageProps?.initialState?.searchCriteria?.placesId) return nextData.props.pageProps.initialState.searchCriteria.placesId;
-                    } catch { }
+                    } catch {
+                        // Ignore parse errors
+                    }
 
                     // Method B: Regex on body (Fallback)
                     const html = document.body.innerHTML;
@@ -410,13 +412,12 @@ export class HoseasonsAdapter extends BaseAdapter {
             console.warn('⚠️  No API call intercepted, falling back to DOM Scraping');
 
             // DOM Scraping Logic
-            let scrapedResults = await page.evaluate(() => {
-                const results = [];
+            const scrapedResults = await page.evaluate(() => {
                 // Strategy 1: Price-First (Works for Search Page)
                 const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
                 let node;
-                const priceNodes = [];
-                while (node = walker.nextNode()) {
+                const priceNodes: unknown[] = [];
+                while ((node = walker.nextNode())) {
                     if (node.textContent && node.textContent.includes('£') && /\d/.test(node.textContent)) {
                         priceNodes.push(node.parentElement);
                     }
@@ -816,7 +817,7 @@ export class HoseasonsAdapter extends BaseAdapter {
         return results;
     }
 
-    protected parseSearchResults(html: string, params: SearchParams): PriceResult[] {
+    protected parseSearchResults(_html: string, _params: SearchParams): PriceResult[] {
         // This method is no longer used - we call the API directly now
         console.warn('⚠️  parseSearchResults called but Hoseasons uses API directly');
         return [];

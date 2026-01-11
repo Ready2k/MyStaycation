@@ -27,7 +27,7 @@ async function run() {
         const params: SearchParams = {
             provider: 'hoseasons',
             party: { adults: 2, children: 0 },
-            dateWindow: { start: new Date('2026-09-01'), end: new Date('2026-09-08') }, // Use valid future dates
+            dateWindow: { start: '2026-09-01', end: '2026-09-08' }, // Use valid future dates
             nights: { min: 3, max: 7 },
             accommodation: AccommodationType.ANY,
             peakTolerance: 'mixed',

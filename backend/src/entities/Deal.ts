@@ -46,7 +46,7 @@ export class Deal {
     eligibilityTags!: string[];
 
     @Column({ type: 'jsonb', nullable: true })
-    restrictions?: Record<string, any>;
+    restrictions?: Record<string, unknown>;
 
     @Column({ type: 'timestamp', nullable: true })
     startsAt?: Date;

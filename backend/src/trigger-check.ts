@@ -1,7 +1,7 @@
 
 import 'reflect-metadata';
 import * as dotenv from 'dotenv';
-import { monitorQueue, generateMonitorJobId } from './jobs/queues';
+import { monitorQueue } from './jobs/queues';
 import { redisConnection } from './config/redis';
 import { AppDataSource } from './config/database';
 import { SearchFingerprint } from './entities/SearchFingerprint';

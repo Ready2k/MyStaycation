@@ -20,7 +20,7 @@ async function run() {
         pets: false,
         metadata: { propertyType: 'Lodges' },
         provider: 'hoseasons',
-        peakTolerance: 0,
+        peakTolerance: 'mixed',
         minBedrooms: 2
     };
 
