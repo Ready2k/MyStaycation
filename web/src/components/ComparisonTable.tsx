@@ -187,15 +187,12 @@ export function ComparisonTable({ series, visibleSeries }: ComparisonTableProps)
                                                 </span>
                                             )}
                                             <span className="text-sm font-medium text-gray-900">
-                                                {s.accomName || 'Unknown'}
+                                                {s.parkName || s.accomName || 'Unknown'}
                                             </span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-900">{s.parkName || '-'}</div>
-                                        {s.parkRegion && (
-                                            <div className="text-xs text-gray-500">{s.parkRegion}</div>
-                                        )}
+                                        <div className="text-sm text-gray-900">{s.parkRegion || '-'}</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                         {format(new Date(s.stayStartDate), 'MMM d, yyyy')}

@@ -106,6 +106,21 @@ export async function insightsRoutes(fastify: FastifyInstance) {
                     data: [],
                     prices: [], // For statistics calculation
                 });
+            } else {
+                // Update metadata if current values are undefined but this observation has data
+                const series = seriesMap.get(obs.seriesKey)!;
+                if (!series.accomName && obs.accomType?.name) {
+                    series.accomName = obs.accomType.name;
+                }
+                if (!series.accomTypeId && obs.accomType?.id) {
+                    series.accomTypeId = obs.accomType.id;
+                }
+                if (!series.parkName && obs.park?.name) {
+                    series.parkName = obs.park.name;
+                }
+                if (!series.parkRegion && obs.park?.region) {
+                    series.parkRegion = obs.park.region;
+                }
             }
 
             const price = parseFloat(obs.priceTotalGbp.toString());
