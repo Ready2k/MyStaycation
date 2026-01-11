@@ -60,7 +60,7 @@ export async function searchRoutes(fastify: FastifyInstance) {
                             searchParams: typeof fingerprint.canonicalJson === 'string'
                                 ? JSON.parse(fingerprint.canonicalJson)
                                 : fingerprint.canonicalJson,
-                        });
+                        }, true); // Force execution bypassing idempotency
                     }
                     request.log.info(`Queued ${fingerprints.length} monitoring jobs for profile ${profileId}`);
                 }
@@ -71,9 +71,9 @@ export async function searchRoutes(fastify: FastifyInstance) {
 
             // Return preview results in the same format as before
             const flattenedResults: unknown[] = [];
-            previewResults.providers.forEach((provider: Record<string, unknown>) => {
-                const addResults = (items: unknown[]) => {
-                    items.forEach(item => {
+            previewResults.providers.forEach((provider: any) => {
+                const addResults = (items: any[]) => {
+                    items.forEach((item: any) => {
                         flattenedResults.push({
                             providerKey: item.providerKey,
                             location: item.location || item.parkId || 'Unknown Location',
@@ -231,7 +231,7 @@ export async function searchRoutes(fastify: FastifyInstance) {
             const fingerprintRepo = AppDataSource.getRepository('SearchFingerprint');
 
             // Use find() for safer relation filtering
-            const whereClause: Record<string, unknown> = {
+            const whereClause: any = {
                 profile: {
                     user: { id: user.userId }
                 }
@@ -253,7 +253,7 @@ export async function searchRoutes(fastify: FastifyInstance) {
                 // Double check if profile exists at all for this user
                 const profileRepo = AppDataSource.getRepository(HolidayProfile);
                 const profile = await profileRepo.findOne({
-                    where: { id: profileId, user: { id: user.userId } }
+                    where: { id: profileId as string, user: { id: user.userId } }
                 });
                 request.log.info(`Debug: Profile ${profileId} exists for user? ${!!profile}`);
             }

@@ -77,6 +77,7 @@ export function HoseasonsForm({ initialData, onSuccess, onBack }: HoseasonsFormP
                 pets: data.pets > 0,
                 budgetCeilingGbp: data.budgetMax || undefined,
                 flexType: 'RANGE',
+                accommodationType: data.propertyType.toUpperCase(), // Sync with metadata
                 metadata: { propertyType: data.propertyType }
             };
 

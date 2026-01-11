@@ -80,6 +80,7 @@ export class FingerprintService {
             minBedrooms: profile.minBedrooms,
             peakTolerance: profile.peakTolerance,
             region: profile.region,
+            metadata: profile.metadata || {}, // Include metadata for provider-specific settings
             // Add park IDs if specific to this provider?
             // Currently profile.parkIds is a flat list. Dealing with multi-provider park IDs is complex.
             // For now, if provider is Hoseasons and we have park IDs, pass them?

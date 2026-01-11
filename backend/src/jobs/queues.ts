@@ -40,12 +40,17 @@ export function generateMonitorJobId(fingerprintId: string, windowStart: Date): 
 /**
  * Add monitoring job with idempotency
  */
-export async function addMonitorJob(data: MonitorJobData): Promise<void> {
-    const jobId = generateMonitorJobId(data.fingerprintId, new Date());
+export async function addMonitorJob(data: MonitorJobData, force: boolean = false): Promise<void> {
+    let jobId = generateMonitorJobId(data.fingerprintId, new Date());
+
+    // If forced, append timestamp to make ID unique and bypass deduplication
+    if (force) {
+        jobId += `-force-${Date.now()}`;
+    }
 
     await monitorQueue.add('monitor-search', data, {
         jobId, // BullMQ uses jobId for deduplication
-        attempts: 3, // CRITICAL: Without this, BullMQ defaults to 0 and skips processing!
+        attempts: 3,
         removeOnComplete: 100,
         removeOnFail: 100,
     });

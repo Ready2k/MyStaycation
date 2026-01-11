@@ -305,7 +305,8 @@ export class PreviewService {
             region: profile.region,
             accommodation: profile.accommodationType,
             minBedrooms: profile.minBedrooms,
-            peakTolerance: profile.peakTolerance || 'MIXED'
+            peakTolerance: profile.peakTolerance || 'MIXED',
+            metadata: profile.metadata // Pass metadata for provider-specific logic (e.g. Boats)
         };
 
         // COMPLIANCE: Check robots.txt

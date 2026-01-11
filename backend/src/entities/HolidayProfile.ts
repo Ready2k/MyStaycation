@@ -21,7 +21,8 @@ export enum AccommodationType {
     CARAVAN = 'CARAVAN',
     APARTMENT = 'APARTMENT',
     COTTAGE = 'COTTAGE',
-    HOTEL = 'HOTEL'
+    HOTEL = 'HOTEL',
+    BOAT = 'BOAT'
 }
 
 export enum AccommodationTier {

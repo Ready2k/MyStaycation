@@ -77,7 +77,7 @@ export class HoseasonsAdapter extends BaseAdapter {
     }
 
     private parseScrapedResults(scrapedData: unknown[], params: SearchParams): PriceResult[] {
-        return scrapedData.map(item => {
+        return scrapedData.map((item: any) => {
             // Parse price string "£123" -> 123
             const priceVal = parseFloat(item.price.replace(/[£,]/g, ''));
 
@@ -88,7 +88,10 @@ export class HoseasonsAdapter extends BaseAdapter {
                 priceTotalGbp: priceVal,
                 pricePerNightGbp: this.calculatePricePerNight(priceVal, params.nights.min) || 0,
                 availability: 'AVAILABLE',
-                accomType: 'holiday-park',
+                // Derive accomType from URL
+                accomType: item.deepLink && (item.deepLink.includes('/boat-holidays/') || item.deepLink.includes('/boating/'))
+                    ? 'boat'
+                    : (item.deepLink && item.deepLink.includes('/lodges/') ? 'lodge' : 'holiday-park'),
                 sourceUrl: this.normalizeUrl(item.deepLink),
                 matchConfidence: MatchConfidence.STRONG, // Assumed if on page
 
@@ -96,7 +99,9 @@ export class HoseasonsAdapter extends BaseAdapter {
                 propertyName: item.name,
                 location: item.region || params.region || 'Unknown',
                 bedrooms: Math.ceil((params.party.adults || 2) / 2),
-                petsAllowed: params.pets
+                petsAllowed: params.pets,
+                // Extract parkId from URL (last path segment) - CRITICAL for PreviewService
+                parkId: item.deepLink ? item.deepLink.split('?')[0].split('/').filter(Boolean).pop() || 'unknown' : 'unknown'
             };
         });
     }
@@ -131,7 +136,8 @@ export class HoseasonsAdapter extends BaseAdapter {
             'northumberland': '39023',
             'kielder': '39023',
             'kielder lakes': '39023',
-            'kielder water': '39023'
+            'kielder water': '39023',
+            'norfolk broads': '21645'
         };
 
         if (map[lower]) {
@@ -148,7 +154,8 @@ export class HoseasonsAdapter extends BaseAdapter {
             `/holiday-parks/${slug}`,               // Standard (e.g. Devon)
             `/lodges/england/${slug}`,              // Lodges (e.g. County Durham)
             `/holiday-parks/england/${slug}`,       // Nested
-            `/cottages/${slug}`                     // Rare
+            `/cottages/${slug}`,                    // Rare
+            `/boat-holidays/${slug}`                // Boats
         ];
 
         for (const path of candidates) {
@@ -226,9 +233,16 @@ export class HoseasonsAdapter extends BaseAdapter {
 
         // Determine accommodation type
         let accommodationType = 'holiday-parks';
-        if (params.metadata?.propertyType && params.metadata.propertyType !== 'Any') {
-            const type = params.metadata.propertyType.toLowerCase();
-            accommodationType = type.endsWith('s') ? type : type + 's';
+        const propertyType = (params.metadata as any)?.propertyType;
+
+        if (propertyType && propertyType !== 'Any') {
+            const type = (propertyType as string).toLowerCase();
+            // Special case: Boats use 'boat-holidays' not 'boats'
+            if (type === 'boat') {
+                accommodationType = 'boat-holidays';
+            } else {
+                accommodationType = type.endsWith('s') ? type : type + 's';
+            }
         }
 
         let baseUrl = `${this.baseUrl}/search`;
@@ -238,13 +252,27 @@ export class HoseasonsAdapter extends BaseAdapter {
             // No region needed if parkId is specified
         } else if (regionId) {
             // Priority: Logic resolved ID
-            queryParams.append('placesId', regionId);
+            // Boats use 'region' parameter, others use 'placesId'
+            if (accommodationType === 'boat-holidays') {
+                queryParams.append('region', regionId);
+                // Boats prefer path-based URL + ID param
+                const slug = this.getRegionSlug(params.region || '');
+                if (slug) {
+                    baseUrl = `${this.baseUrl}/boat-holidays/united-kingdom/${slug}`;
+                }
+            } else {
+                queryParams.append('placesId', regionId);
+                // Standard parks can also use slug if available, but /search is safer/standard for API
+            }
             queryParams.append('regionName', params.region || '');
         } else {
             // Fallback to name/slug logic (Old Hybrid)
             const slug = this.getRegionSlug(params.region || '');
             if (accommodationType === 'holiday-parks' && slug) {
                 baseUrl = `${this.baseUrl}/holiday-parks/${slug}`;
+            } else if (accommodationType === 'boat-holidays' && slug) {
+                // Boats use /boat-holidays/united-kingdom/{region}
+                baseUrl = `${this.baseUrl}/boat-holidays/united-kingdom/${slug}`;
             } else {
                 queryParams.append('regionName', params.region || '');
             }
@@ -416,10 +444,10 @@ export class HoseasonsAdapter extends BaseAdapter {
                 // Strategy 1: Price-First (Works for Search Page)
                 const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
                 let node;
-                const priceNodes: unknown[] = [];
+                const priceNodes: Node[] = [];
                 while ((node = walker.nextNode())) {
                     if (node.textContent && node.textContent.includes('£') && /\d/.test(node.textContent)) {
-                        priceNodes.push(node.parentElement);
+                        if (node.parentElement) priceNodes.push(node.parentElement);
                     }
                 }
 
@@ -427,7 +455,7 @@ export class HoseasonsAdapter extends BaseAdapter {
                 const priceFirstResults = [];
 
                 for (const priceEl of priceNodes) {
-                    let container = priceEl;
+                    let container: Element | null = priceEl as Element;
                     let depth = 0;
                     while (container && container !== document.body && depth < 10) {
                         if (seenContainers.has(container)) break;
@@ -466,7 +494,7 @@ export class HoseasonsAdapter extends BaseAdapter {
                                 console.log('Skipping Strategy 1 (Generic Header):', name);
                                 continue;
                             }
-                            const dLink = container.querySelector('a')?.href || '';
+                            const dLink = (container as Element).querySelector('a')?.href || '';
                             if (!dLink || dLink.includes('search?')) {
                                 console.log('Skipping Strategy 1 (Invalid Link):', name, dLink);
                                 continue;
@@ -474,6 +502,7 @@ export class HoseasonsAdapter extends BaseAdapter {
                             const isPropertyLink = dLink.includes('/holiday-parks/') ||
                                 dLink.includes('/lodges/') ||
                                 dLink.includes('/cottages/') ||
+                                dLink.includes('/boat-holidays/') ||
                                 dLink.includes('/boating/');
 
                             if (!isPropertyLink) {
@@ -492,7 +521,7 @@ export class HoseasonsAdapter extends BaseAdapter {
                             }
                             break;
                         }
-                        container = container.parentElement;
+                        container = (container as Element).parentElement;
                         depth++;
                     }
                 }
@@ -548,6 +577,13 @@ export class HoseasonsAdapter extends BaseAdapter {
                             continue;
                         }
 
+                        // Validation: Ignore price labels captured as names
+                        // Regex checks for "Was", "Now", "From" at start, or pure price strings
+                        if (/^(was|now|from)\s/i.test(name) || name.includes('£') || /^£/.test(name)) {
+                            console.log('Skipping Strategy 2 (Price Label):', name);
+                            continue;
+                        }
+
                         // Validation: Must have a valid deep link to a specific property/park
                         // Typically /holiday-parks/CODE or /lodges/CODE or /cottages/CODE
                         if (!deepLink || deepLink.includes('search?')) {
@@ -557,6 +593,7 @@ export class HoseasonsAdapter extends BaseAdapter {
                         const isPropertyLink = deepLink.includes('/holiday-parks/') ||
                             deepLink.includes('/lodges/') ||
                             deepLink.includes('/cottages/') ||
+                            deepLink.includes('/boat-holidays/') ||
                             deepLink.includes('/boating/');
 
                         if (!isPropertyLink) {
@@ -566,7 +603,7 @@ export class HoseasonsAdapter extends BaseAdapter {
 
                         headerResults.push({
                             name: name,
-                            region: 'Derived from Search', // Context is lost but region is known from params
+                            region: '', // Return empty to allow fallback to params.region
                             price: bestPrice,
                             deepLink: deepLink
                         });
@@ -604,7 +641,7 @@ export class HoseasonsAdapter extends BaseAdapter {
                     // Extract Link
                     const dLink = article.querySelector('a')?.href || '';
                     // Must be a property link
-                    if (!dLink || dLink.includes('search?') || (!dLink.includes('/holiday-parks/') && !dLink.includes('/lodges/') && !dLink.includes('/cottages/'))) {
+                    if (!dLink || dLink.includes('search?') || (!dLink.includes('/holiday-parks/') && !dLink.includes('/lodges/') && !dLink.includes('/cottages/') && !dLink.includes('/boat-holidays/'))) {
                         continue;
                     }
 

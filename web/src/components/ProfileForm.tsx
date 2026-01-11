@@ -23,7 +23,7 @@ interface ProfileFormData {
     peakTolerance: 'OFFPEAK_ONLY' | 'MIXED' | 'PEAK_OK';
 
     // Accommodation
-    accommodationType: 'ANY' | 'LODGE' | 'CARAVAN' | 'APARTMENT' | 'COTTAGE' | 'HOTEL';
+    accommodationType: 'ANY' | 'LODGE' | 'CARAVAN' | 'APARTMENT' | 'COTTAGE' | 'HOTEL' | 'BOAT';
     tier: 'STANDARD' | 'PREMIUM' | 'LUXURY';
     minBedrooms: number;
 
@@ -435,6 +435,7 @@ export function ProfileForm({ initialData, onSuccess, onCancel }: ProfileFormPro
                                     <option value="APARTMENT">Apartment</option>
                                     <option value="COTTAGE">Cottage</option>
                                     <option value="HOTEL">Hotel</option>
+                                    <option value="BOAT">Boat</option>
                                 </select>
                             </div>
                             <div>
