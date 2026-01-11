@@ -3,6 +3,7 @@ import { Provider } from './Provider';
 import { SearchFingerprint } from './SearchFingerprint';
 import { FetchRun } from './FetchRun';
 import { ProviderAccomType } from './ProviderAccomType';
+import { ProviderPark } from './ProviderPark';
 
 export enum AvailabilityStatus {
     AVAILABLE = 'AVAILABLE',
@@ -32,6 +33,11 @@ export class PriceObservation {
     @ManyToOne(() => ProviderAccomType, { nullable: true })
     @JoinColumn({ name: 'accom_type_id' })
     accomType?: ProviderAccomType;
+
+    @ManyToOne(() => ProviderPark, { nullable: true })
+    @JoinColumn({ name: 'park_id' })
+    park?: ProviderPark;
+
 
     @Column({ type: 'date' })
     stayStartDate!: Date;

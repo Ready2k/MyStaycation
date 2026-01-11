@@ -1,8 +1,10 @@
 import { Worker, Job } from 'bullmq';
+import IORedis from 'ioredis';
 import { AppDataSource } from '../../config/database';
 import { SearchFingerprint } from '../../entities/SearchFingerprint';
 import { PriceObservation, AvailabilityStatus } from '../../entities/PriceObservation';
 import { ProviderAccomType } from '../../entities/ProviderAccomType';
+import { ProviderPark } from '../../entities/ProviderPark';
 import { FetchRun, RunType, RunStatus, ProviderStatus } from '../../entities/FetchRun';
 import { adapterRegistry } from '../../adapters/registry';
 import { MonitorJobData, addInsightJob } from '../queues';
@@ -14,6 +16,7 @@ const fingerprintRepo = AppDataSource.getRepository(SearchFingerprint);
 const observationRepo = AppDataSource.getRepository(PriceObservation);
 const fetchRunRepo = AppDataSource.getRepository(FetchRun);
 const accomTypeRepo = AppDataSource.getRepository(ProviderAccomType);
+const parkRepo = AppDataSource.getRepository(ProviderPark);
 
 async function processMonitorJob(job: Job<MonitorJobData>) {
     const { fingerprintId, providerId, searchParams } = job.data;
@@ -114,6 +117,52 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
                     }
                 }
 
+                // Look up park if parkId provided
+                let parkEntity: ProviderPark | null = null;
+                if (result.parkId) {
+                    // console.log(`🏞️  Looking up park with parkId: ${result.parkId} for provider: ${fingerprint.provider.id}`);
+                    parkEntity = await parkRepo.findOne({
+                        where: {
+                            provider: { id: fingerprint.provider.id },
+                            providerParkCode: result.parkId
+                        }
+                    });
+
+                    // Auto-Create Logic: If park not found but we have details, create it
+                    if (!parkEntity && result.propertyName) {
+                        console.log(`✨ Park not found, creating new park: ${result.propertyName} (${result.parkId})`);
+                        try {
+                            parkEntity = parkRepo.create({
+                                provider: fingerprint.provider,
+                                providerParkCode: result.parkId,
+                                name: result.propertyName,
+                                region: result.location
+                            });
+                            await parkRepo.save(parkEntity);
+                            console.log(`✅  Created park: ${parkEntity.name}`);
+                        } catch (e: any) {
+                            // Handle race condition (unique constraint violation)
+                            if (e.message.includes('unique') || e.code === '23505') {
+                                console.log(`⚠️ Park already created by another worker, refetching...`);
+                                parkEntity = await parkRepo.findOne({
+                                    where: {
+                                        provider: { id: fingerprint.provider.id },
+                                        providerParkCode: result.parkId
+                                    }
+                                });
+                            } else {
+                                console.error(`❌ Failed to create park:`, e);
+                            }
+                        }
+                    } else if (parkEntity) {
+                        // console.log(`✅ Found existing park: ${parkEntity.name}`);
+                    } else {
+                        console.log(`⚠️  Park ID ${result.parkId} found but no name provided in result, cannot create.`);
+                    }
+                } else {
+                    // console.log(`⚠️  No parkId in result for series`);
+                }
+
                 // Generate series key
                 const seriesKey = generateSeriesKey({
                     providerId: fingerprint.provider.id,
@@ -140,6 +189,7 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
                     availability: (result.availability as AvailabilityStatus) || AvailabilityStatus.AVAILABLE,
                     sourceUrl: result.sourceUrl,
                     accomType: accomTypeEntity || undefined,
+                    park: parkEntity || undefined,
                 });
 
                 await observationRepo.insert(observation);
@@ -198,8 +248,18 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
 }
 
 export const monitorWorker = new Worker('monitor', processMonitorJob, {
-    connection: redisConnection,
+    connection: new IORedis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+        password: process.env.REDIS_PASSWORD || undefined,
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false
+    }),
     concurrency: parseInt(process.env.PROVIDER_MAX_CONCURRENT || '2'),
+});
+
+monitorWorker.on('error', (err) => {
+    console.error('❌ Monitor Worker Connection Error:', err);
 });
 
 monitorWorker.on('completed', (job) => {

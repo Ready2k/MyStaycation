@@ -63,10 +63,10 @@ export async function insightsRoutes(fastify: FastifyInstance) {
         const { fingerprintId } = request.params as any;
         const { days = 90 } = request.query as any;
 
-        // Verify fingerprint belongs to user
+        // Verify fingerprint belongs to user and get profile data
         const fingerprint = await fingerprintRepo.findOne({
             where: { id: fingerprintId },
-            relations: ['profile', 'profile.user'],
+            relations: ['profile', 'profile.user', 'park'],
         });
 
         if (!fingerprint || !fingerprint.profile.user || fingerprint.profile.user.id !== userId) {
@@ -77,17 +77,20 @@ export async function insightsRoutes(fastify: FastifyInstance) {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - days);
 
-        // Fetch observations grouped by series key
+        // Fetch observations with park and accomType metadata
         const observations = await observationRepo
             .createQueryBuilder('obs')
             .leftJoinAndSelect('obs.accomType', 'accomType')
+            .leftJoinAndSelect('obs.park', 'observationPark')
+            .leftJoinAndSelect('obs.fingerprint', 'fingerprint')
+            .leftJoinAndSelect('fingerprint.park', 'park')
             .where('obs.fingerprint_id = :fingerprintId', { fingerprintId })
             .andWhere('obs.observedAt >= :cutoffDate', { cutoffDate })
             .orderBy('obs.seriesKey', 'ASC')
             .addOrderBy('obs.observedAt', 'ASC')
             .getMany();
 
-        // Group by series key
+        // Group by series key and calculate statistics
         const seriesMap = new Map<string, any>();
 
         for (const obs of observations) {
@@ -97,24 +100,68 @@ export async function insightsRoutes(fastify: FastifyInstance) {
                     stayStartDate: obs.stayStartDate,
                     stayNights: obs.stayNights,
                     accomName: obs.accomType?.name || undefined,
+                    accomTypeId: obs.accomType?.id || undefined,
+                    parkName: obs.park?.name || undefined,
+                    parkRegion: obs.park?.region || undefined,
                     data: [],
+                    prices: [], // For statistics calculation
                 });
             }
 
+            const price = parseFloat(obs.priceTotalGbp.toString());
             seriesMap.get(obs.seriesKey)!.data.push({
                 date: obs.observedAt,
-                price: parseFloat(obs.priceTotalGbp.toString()),
+                price,
+                pricePerNight: parseFloat(obs.pricePerNightGbp.toString()),
                 availability: obs.availability,
+                sourceUrl: obs.sourceUrl || undefined,
             });
+            seriesMap.get(obs.seriesKey)!.prices.push(price);
         }
 
-        const series = Array.from(seriesMap.values());
+        // Calculate statistics for each series
+        const series = Array.from(seriesMap.values()).map(s => {
+            const prices = s.prices;
+            const minPrice = Math.min(...prices);
+            const maxPrice = Math.max(...prices);
+            const avgPrice = prices.reduce((sum: number, p: number) => sum + p, 0) / prices.length;
+
+            // Calculate price trend (% change from first to latest observation)
+            const firstPrice = prices[0];
+            const lastPrice = prices[prices.length - 1];
+            const priceChangePercent = ((lastPrice - firstPrice) / firstPrice) * 100;
+
+            // Remove temporary prices array
+            delete s.prices;
+
+            return {
+                ...s,
+                statistics: {
+                    minPrice: Math.round(minPrice * 100) / 100,
+                    maxPrice: Math.round(maxPrice * 100) / 100,
+                    avgPrice: Math.round(avgPrice * 100) / 100,
+                    currentPrice: lastPrice,
+                    priceChangePercent: Math.round(priceChangePercent * 100) / 100,
+                    dataPoints: prices.length,
+                },
+            };
+        });
+
+        // Get facilities from the profile
+        const facilities = fingerprint.profile.requiredFacilities || [];
 
         return {
             fingerprintId,
             days,
             series,
             totalObservations: observations.length,
+            metadata: {
+                profileName: fingerprint.profile.name,
+                region: fingerprint.profile.region || undefined,
+                facilities,
+                pets: fingerprint.profile.pets,
+                accommodationType: fingerprint.profile.accommodationType,
+            },
         };
     });
 

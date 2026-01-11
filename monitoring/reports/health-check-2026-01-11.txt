@@ -1,5 +1,5 @@
 ========================================
-Daily Health Check - 2026-01-10 23:28:31
+Daily Health Check - 2026-01-11 08:00:01
 ========================================
 
 ## Database Connection
@@ -8,22 +8,22 @@ Daily Health Check - 2026-01-10 23:28:31
 ## Fetch Runs (Last 24h)
     status    | count | percentage 
 --------------+-------+------------
- OK           |    11 |      84.62
- PARSE_FAILED |     2 |      15.38
+ OK           |    14 |      63.64
+ PARSE_FAILED |     8 |      36.36
 (2 rows)
 
 
 ## Parse Failures (Last 24h)
  provider  |               errorMessage               | count 
 -----------+------------------------------------------+-------
- Hoseasons | No results parsed from provider response |     2
+ Hoseasons | No results parsed from provider response |     8
 (1 row)
 
 
 ## Observations Created (Last 24h)
  total_observations | unique_series | unique_fingerprints 
 --------------------+---------------+---------------------
-                166 |            87 |                   6
+                217 |            99 |                   6
 (1 row)
 
 
@@ -50,21 +50,21 @@ Daily Health Check - 2026-01-10 23:28:31
 ## Database Size
  database_size 
 ---------------
- 9460 kB
+ 9724 kB
 (1 row)
 
 
 ## Top 5 Largest Tables
         table_name         |  size  
 ---------------------------+--------
- public.price_observations | 408 kB
+ public.price_observations | 432 kB
+ public.system_logs        | 120 kB
  public.fetch_runs         | 104 kB
- public.system_logs        | 104 kB
+ public.insights           | 96 kB
  public.users              | 96 kB
- public.provider_parks     | 80 kB
 (5 rows)
 
 
 ## Summary
-Report generated at: Sat Jan 10 23:28:31 GMT 2026
-Report saved to: /reports/health-check-2026-01-10.txt
+Report generated at: Sun Jan 11 08:00:01 GMT 2026
+Report saved to: /reports/health-check-2026-01-11.txt

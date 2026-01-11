@@ -66,7 +66,7 @@ export default function DashboardPage() {
                     onEdit={(profile) => {
                         setEditingProfile(profile);
                         // Route to provider-specific form based on profile.provider
-                        const providerCode = profile.provider?.code;
+                        const providerCode = profile.provider?.code || '';
                         const stepMap: Record<string, WizardStep> = {
                             'centerparcs': 'centerparcs',
                             'haven': 'haven',

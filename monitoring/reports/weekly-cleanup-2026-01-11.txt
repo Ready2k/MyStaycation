@@ -1,0 +1,14 @@
+Weekly Cleanup Report - Sun Jan 11 03:00:02 GMT 2026
+================================
+
+Deleted Records:
+- Fetch Runs: 2
+- Insights: 2
+- Alerts: 2
+
+Database Size After Cleanup:
+ database_size 
+---------------
+ 9716 kB
+(1 row)
+

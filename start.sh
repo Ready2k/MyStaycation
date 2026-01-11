@@ -1,9 +1,17 @@
 #!/bin/bash
 
 # Development mode (default)
-# Usage: ./start.sh
+# Usage: ./start.sh [--rebuild]
+#   --rebuild: Force rebuild of Docker containers (use after code changes)
 
 set -e
+
+# Parse arguments
+REBUILD_FLAG=""
+if [[ "$1" == "--rebuild" ]]; then
+    REBUILD_FLAG="--build"
+    echo "🔨 Rebuild mode enabled - containers will be rebuilt"
+fi
 
 echo "🚀 Starting UK Staycation Watcher in DEVELOPMENT mode..."
 
@@ -45,7 +53,7 @@ fi
 
 # Start Docker containers in dev mode (no nginx)
 echo "🐳 Starting Docker containers (dev profile)..."
-docker-compose --profile dev up -d
+docker-compose --profile dev up -d $REBUILD_FLAG
 
 # Wait for services to be healthy
 echo "⏳ Waiting for services to be ready..."

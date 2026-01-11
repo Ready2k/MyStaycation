@@ -18,6 +18,11 @@ interface Profile {
     budgetCeilingGbp?: number;
     enabled: boolean;
     pets: boolean;
+    provider?: {
+        code: string;
+        name: string;
+    };
+    region?: string;
 }
 
 export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) {
