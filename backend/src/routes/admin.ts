@@ -194,10 +194,10 @@ export async function adminRoutes(fastify: FastifyInstance) {
     fastify.get('/admin/logs', async (request, _reply) => {
         const { limit = 50, level } = request.query as Record<string, unknown>;
 
-        const query = logRepo.createQueryBuilder('log').orderBy('log.createdAt', 'DESC').take(limit);
+        const query = logRepo.createQueryBuilder('log').orderBy('log.createdAt', 'DESC').take(limit as number);
 
         if (level) {
-            query.where('log.level = :level', { level });
+            query.where('log.level = :level', { level: level as string });
         }
 
         const logs = await query.getMany();
@@ -220,7 +220,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
     // GET /admin/providers/:code/config - Get all config for a provider
     fastify.get('/admin/providers/:code/config', async (request, reply) => {
-        const { code } = request.params as { id: string };
+        const { code } = request.params as { code: string };
 
         const provider = await providerRepo.findOne({ where: { code } });
         if (!provider) return reply.code(404).send({ error: 'Provider not found' });
@@ -235,13 +235,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
     // GET /admin/providers/:code/config/:type - Get specific config type
     fastify.get('/admin/providers/:code/config/:type', async (request, reply) => {
-        const { code, type } = request.params as { id: string };
+        const { code, type } = request.params as { code: string; type: string };
 
         const provider = await providerRepo.findOne({ where: { code } });
         if (!provider) return reply.code(404).send({ error: 'Provider not found' });
 
         const configs = await configRepo.find({
-            where: { provider: { id: provider.id }, configType: type },
+            where: { provider: { id: provider.id }, configType: type as any },
             order: { key: 'ASC' }
         });
 
@@ -264,7 +264,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
             }
         }
     }, async (request, reply) => {
-        const { code } = request.params as { id: string };
+        const { code } = request.params as { code: string };
         const { configType, key, value, enabled = true, metadata } = request.body as any;
 
         const provider = await providerRepo.findOne({ where: { code } });
@@ -305,7 +305,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
             }
         }
     }, async (request, reply) => {
-        const { code, id } = request.params as { id: string };
+        const { code, id } = request.params as { code: string; id: string };
         const { value, enabled, metadata } = request.body as any;
 
         const provider = await providerRepo.findOne({ where: { code } });
@@ -327,7 +327,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
     // DELETE /admin/providers/:code/config/:id - Delete config entry
     fastify.delete('/admin/providers/:code/config/:id', async (request, reply) => {
-        const { code, id } = request.params as { id: string };
+        const { code, id } = request.params as { code: string; id: string };
 
         const provider = await providerRepo.findOne({ where: { code } });
         if (!provider) return reply.code(404).send({ error: 'Provider not found' });

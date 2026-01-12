@@ -1,8 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     output: 'standalone',
-    env: {
-        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
+    // Remove hardcoded env to avoid build-time baking confusion for dynamic proxy
+    async rewrites() {
+        return [
+            {
+                source: '/api/proxy/:path*',
+                destination: `${process.env.API_URL || 'http://api:4000'}/:path*`,
+            },
+        ]
     },
 }
 

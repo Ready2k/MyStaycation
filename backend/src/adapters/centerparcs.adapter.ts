@@ -152,7 +152,7 @@ export class CenterParcsAdapter extends BaseAdapter {
             return interceptedData;
 
         } catch (error: unknown) {
-            console.error(`❌ CenterParcs Browser Error for ${villageCode}:`, error.message);
+            console.error(`❌ CenterParcs Browser Error for ${villageCode}:`, (error as any).message);
             // If it's a timeout, we return null, confusing the parser less than partial data
             return null;
         } finally {

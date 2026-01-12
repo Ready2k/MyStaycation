@@ -1,5 +1,5 @@
 ========================================
-Daily Health Check - 2026-01-11 22:19:11
+Daily Health Check - 2026-01-12 08:00:01
 ========================================
 
 ## Database Connection
@@ -21,22 +21,23 @@ Daily Health Check - 2026-01-11 22:19:11
 ## Observations Created (Last 24h)
  total_observations | unique_series | unique_fingerprints 
 --------------------+---------------+---------------------
-                408 |            93 |                   6
+                408 |            97 |                   6
 (1 row)
 
 
 ## Insights Created (Last 24h)
        type       | count 
 ------------------+-------
- LOWEST_IN_X_DAYS |    27
+ LOWEST_IN_X_DAYS |    35
 (1 row)
 
 
 ## Alerts Sent (Last 24h)
  status | count 
 --------+-------
- SENT   |     1
-(1 row)
+ SENT   |     2
+ FAILED |     1
+(2 rows)
 
 
 ## Series Key Integrity
@@ -50,21 +51,21 @@ Daily Health Check - 2026-01-11 22:19:11
 ## Database Size
  database_size 
 ---------------
- 9996 kB
+ 10060 kB
 (1 row)
 
 
 ## Top 5 Largest Tables
         table_name         |  size  
 ---------------------------+--------
- public.price_observations | 640 kB
+ public.price_observations | 664 kB
+ public.insights           | 128 kB
  public.system_logs        | 128 kB
- public.insights           | 112 kB
  public.fetch_runs         | 104 kB
- public.users              | 96 kB
+ public.alerts             | 96 kB
 (5 rows)
 
 
 ## Summary
-Report generated at: Sun Jan 11 22:19:12 GMT 2026
-Report saved to: /reports/health-check-2026-01-11.txt
+Report generated at: Mon Jan 12 08:00:01 GMT 2026
+Report saved to: /reports/health-check-2026-01-12.txt

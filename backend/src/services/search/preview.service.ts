@@ -1,12 +1,13 @@
 
 import { AppDataSource } from '../../config/database';
-import { HolidayProfile } from '../../entities/HolidayProfile';
-import { FetchRun, RunType, RunStatus } from '../../entities/FetchRun';
+import { HolidayProfile, PeakTolerance } from '../../entities/HolidayProfile';
+import { FetchRun, RunType, RunStatus, ProviderStatus } from '../../entities/FetchRun';
 import { Provider } from '../../entities/Provider';
 import { adapterRegistry } from '../../adapters/registry';
 import { ResultMatcher, MatchConfidence } from '../../utils/result-matcher';
 import { v4 as uuidv4 } from 'uuid';
 import { generateSeriesKey } from '../../utils/series-key';
+import { SearchParams, PriceResult } from '../../adapters/base.adapter';
 
 // Types from spec
 export type PreviewMode = 'PROFILE_ID' | 'INLINE_PROFILE';
@@ -245,7 +246,7 @@ export class PreviewService {
 
     private async runSingleProvider(
         providerKey: string,
-        profile: Record<string, unknown>,
+        profile: Partial<HolidayProfile>,
         requestId: string,
         options: PreviewOptions = {}
     ): Promise<ProviderPreview> {
@@ -295,18 +296,18 @@ export class PreviewService {
         const adapterParams = {
             provider: providerKey,
             dateWindow: {
-                start: profile.dateStart instanceof Date ? profile.dateStart.toISOString().split('T')[0] : profile.dateStart,
-                end: profile.dateEnd instanceof Date ? profile.dateEnd.toISOString().split('T')[0] : profile.dateEnd
+                start: profile.dateStart instanceof Date ? profile.dateStart.toISOString().split('T')[0] : (profile.dateStart as unknown as string),
+                end: profile.dateEnd instanceof Date ? profile.dateEnd.toISOString().split('T')[0] : (profile.dateEnd as unknown as string)
             },
-            nights: { min: profile.durationNightsMin, max: profile.durationNightsMax },
-            party: { adults: profile.partySizeAdults, children: profile.partySizeChildren },
-            pets: profile.pets,
+            nights: { min: profile.durationNightsMin!, max: profile.durationNightsMax! },
+            party: { adults: profile.partySizeAdults!, children: profile.partySizeChildren! },
+            pets: profile.pets!,
             parks: profile.parkIds,
             region: profile.region,
-            accommodation: profile.accommodationType,
-            minBedrooms: profile.minBedrooms,
-            peakTolerance: profile.peakTolerance || 'MIXED',
-            metadata: profile.metadata // Pass metadata for provider-specific logic (e.g. Boats)
+            accommodation: profile.accommodationType as any,
+            minBedrooms: profile.minBedrooms!,
+            peakTolerance: (profile.peakTolerance === PeakTolerance.OFFPEAK_ONLY ? 'offpeak' : (profile.peakTolerance === PeakTolerance.PEAK_OK ? 'peak' : 'mixed')) as 'offpeak' | 'mixed' | 'peak',
+            metadata: profile.metadata as Record<string, unknown> // Pass metadata for provider-specific logic (e.g. Boats)
         };
 
         // COMPLIANCE: Check robots.txt
@@ -316,7 +317,7 @@ export class PreviewService {
 
         // FETCH
         const t0 = Date.now();
-        let rawResults: unknown[] = [];
+        let rawResults: PriceResult[] = [];
         let usedPlaywright = false;
         try {
             console.log(`DEBUG: Calling adapter.search() for ${providerKey}`);
@@ -326,7 +327,7 @@ export class PreviewService {
         } catch (e: unknown) {
             console.error(`Preview fetch failed for ${providerKey}`, e);
             status = 'FETCH_FAILED';
-            if (e.message?.includes('robots')) status = 'BLOCKED_ROBOTS';
+            if ((e as Error).message?.includes('robots')) status = 'BLOCKED_ROBOTS';
         }
         compliance.playwrightUsed = usedPlaywright;
         const timingMs = { ...timing, fetch: Date.now() - t0 };
@@ -345,7 +346,7 @@ export class PreviewService {
                     pets: adapterParams.pets,
                     accommodationType: adapterParams.accommodation,
                     minBedrooms: adapterParams.minBedrooms
-                } as any
+                } as any // Cast because targetData expects strict types but adapterParams might have optional? No, wait. ResultMatcher context expects strict.
             });
 
             let confidence = classification.confidence;
@@ -394,7 +395,8 @@ export class PreviewService {
             }
 
             // SeriesKey Generation Safety - Use REAL parkId from candidate
-            const realParkId = candidate.parkId || candidate.park_id || candidate.locationId;
+            // PriceResult has parkId confirmed by type definition
+            const realParkId = candidate.parkId || (candidate as any).park_id || (candidate as any).locationId;
             const requiredFields = [candidate.stayStartDate, candidate.stayNights, candidate.accomType, realParkId];
             const hasRequiredFields = requiredFields.every(f => f !== undefined && f !== null);
 
@@ -423,7 +425,7 @@ export class PreviewService {
             const previewResult: PreviewResult = {
                 confidence,
                 providerKey,
-                sourceUrl: candidate.sourceUrl,
+                sourceUrl: candidate.sourceUrl || '',
                 parkId: realParkId || 'UNKNOWN',
                 stayStartDate: candidate.stayStartDate,
                 stayNights: candidate.stayNights,
@@ -499,10 +501,10 @@ export class PreviewService {
 
     private async logRun(
         providerKey: string,
-        profile: Record<string, unknown>,
+        profile: Partial<HolidayProfile>,
         status: string,
         count: number,
-        summary: Record<string, unknown>,
+        summary: any, // Use any to allow property access on generic Record
         requestId: string
     ) {
         // Find Provider Entity
@@ -510,12 +512,12 @@ export class PreviewService {
         if (!provider) return;
 
         // Map status string to ProviderStatus enum
-        let providerStatus: string = 'OK';
-        if (status === 'FETCH_FAILED') providerStatus = 'FETCH_FAILED';
-        else if (status === 'PARSE_FAILED') providerStatus = 'PARSE_FAILED';
-        else if (status === 'BLOCKED_ROBOTS' || status === 'BLOCKED') providerStatus = 'BLOCKED';
-        else if (status === 'TIMEOUT') providerStatus = 'TIMEOUT';
-        else if (status !== 'OK') providerStatus = 'FETCH_FAILED';
+        let providerStatus: ProviderStatus = ProviderStatus.OK;
+        if (status === 'FETCH_FAILED') providerStatus = ProviderStatus.FETCH_FAILED;
+        else if (status === 'PARSE_FAILED') providerStatus = ProviderStatus.PARSE_FAILED;
+        else if (status === 'BLOCKED_ROBOTS' || status === 'BLOCKED') providerStatus = ProviderStatus.BLOCKED;
+        else if (status === 'TIMEOUT') providerStatus = ProviderStatus.TIMEOUT;
+        else if (status !== 'OK') providerStatus = ProviderStatus.FETCH_FAILED;
 
         // Generate request fingerprint (hash of profile params)
         const crypto = await import('crypto');

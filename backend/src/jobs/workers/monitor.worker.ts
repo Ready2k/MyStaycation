@@ -141,7 +141,7 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
                             console.log(`✅  Created park: ${parkEntity.name}`);
                         } catch (e: unknown) {
                             // Handle race condition (unique constraint violation)
-                            if (e.message.includes('unique') || e.code === '23505') {
+                            if ((e as any).message.includes('unique') || (e as any).code === '23505') {
                                 console.log(`⚠️ Park already created by another worker, refetching...`);
                                 parkEntity = await parkRepo.findOne({
                                     where: {
@@ -191,7 +191,7 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
                     park: parkEntity || undefined,
                 });
 
-                await observationRepo.insert(observation);
+                await observationRepo.insert(observation as any);
                 storedCount++;
             } catch (err) {
                 console.error(`Failed to store observation:`, err);

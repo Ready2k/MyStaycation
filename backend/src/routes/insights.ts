@@ -34,7 +34,7 @@ export async function insightsRoutes(fastify: FastifyInstance) {
             .leftJoinAndSelect('fingerprint.profile', 'profile')
             .where('profile.user = :userId', { userId })
             .orderBy('insight.createdAt', 'DESC')
-            .limit(limit)
+            .limit(limit as number)
             .getMany();
 
         return { insights, total: insights.length };
@@ -61,8 +61,7 @@ export async function insightsRoutes(fastify: FastifyInstance) {
     }, async (request, reply) => {
         const userId = (request.user as { userId: string }).userId;
         const { fingerprintId } = request.params as { id?: string; fingerprintId?: string };
-        const { days = 90 } = request.query as Record<string, unknown>;
-
+        const { days = 90 } = request.query as { days?: number };
         // Verify fingerprint belongs to user and get profile data
         const fingerprint = await fingerprintRepo.findOne({
             where: { id: fingerprintId },
@@ -209,7 +208,7 @@ export async function insightsRoutes(fastify: FastifyInstance) {
 
         const alerts = await queryBuilder
             .orderBy('alert.createdAt', 'DESC')
-            .limit(limit)
+            .limit(limit as number)
             .getMany();
 
         const totalUnread = await alertRepo

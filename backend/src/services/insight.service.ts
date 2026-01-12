@@ -119,7 +119,7 @@ export class InsightService {
 
             if (insight.type === InsightType.PRICE_DROP_PERCENT) {
                 discountType = DiscountType.PERCENT_OFF;
-                discountValue = insight.details.percentDrop || 0;
+                discountValue = (insight.details as any).percentDrop || 0;
             } else if (insight.type === InsightType.LOWEST_IN_X_DAYS) {
                 // For lowest price, we can treat the difference from previous min as a 'deal'
                 // Use a heuristic or default

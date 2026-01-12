@@ -28,7 +28,8 @@ export default function RegisterPage() {
         }
 
         try {
-            const res = await fetch('http://localhost:4000/auth/register', {
+            // Use proxy path to leverage server-side rewrite to internal API
+            const res = await fetch('/api/proxy/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

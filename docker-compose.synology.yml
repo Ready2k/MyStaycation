@@ -1,0 +1,141 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: staycation-db
+    platform: linux/amd64
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-staycation_db}
+      POSTGRES_USER: ${POSTGRES_USER:-staycation}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-staycation} -d ${POSTGRES_DB:-staycation_db}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5433:5432" # Use 5433 to avoid conflict with Synology's internal Postgres
+    networks:
+      - staycation-network
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: staycation-redis
+    platform: linux/amd64
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "6380:6379" # Use 6380 to avoid conflict with Synology's internal Redis
+    networks:
+      - staycation-network
+    restart: always
+
+  api:
+    image: ready2k/mystaycation-api:latest
+    container_name: staycation-api
+    platform: linux/amd64
+    environment:
+      NODE_ENV: production
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      POSTGRES_DB: ${POSTGRES_DB:-staycation_db}
+      POSTGRES_USER: ${POSTGRES_USER:-staycation}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_SSL: ${DB_SSL:-false}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
+    env_file:
+      - .env
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - staycation-network
+    restart: always
+
+  worker:
+    image: ready2k/mystaycation-api:latest
+    container_name: staycation-worker
+    platform: linux/amd64
+    environment:
+      NODE_ENV: production
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      POSTGRES_DB: ${POSTGRES_DB:-staycation_db}
+      POSTGRES_USER: ${POSTGRES_USER:-staycation}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_SSL: ${DB_SSL:-false}
+    env_file:
+      - .env
+    # Override command to run the worker instead of the API
+    command: node dist/jobs/worker.js
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - staycation-network
+    restart: always
+
+  web:
+    image: ready2k/mystaycation-web:latest
+    container_name: staycation-web
+    platform: linux/amd64
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+      API_URL: http://api:4000
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - staycation-network
+    restart: always
+
+  monitoring:
+    image: ready2k/mystaycation-monitoring:latest
+    container_name: staycation-monitoring
+    platform: linux/amd64
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-staycation}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-staycation_db}
+      TZ: Europe/London
+    volumes:
+      - monitoring-reports:/reports
+      - monitoring-backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - staycation-network
+    restart: always
+
+networks:
+  staycation-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  monitoring-reports:
+  monitoring-backups:

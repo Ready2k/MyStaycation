@@ -44,7 +44,7 @@ export async function authRoutes(fastify: FastifyInstance) {
                 message: 'User created successfully. Please check your email to verify your account.',
                 userId: user.id,
             });
-        } catch (error: unknown) {
+        } catch (error: any) {
             if (error.message === 'User already exists') {
                 reply.status(409).send({ error: error.message });
             } else {
@@ -85,7 +85,7 @@ export async function authRoutes(fastify: FastifyInstance) {
                     emailVerified: user.emailVerified,
                 },
             });
-        } catch (error: unknown) {
+        } catch (error: any) {
             reply.status(400).send({ error: error.message });
         }
     });
@@ -105,7 +105,7 @@ export async function authRoutes(fastify: FastifyInstance) {
                     emailVerified: user.emailVerified,
                 },
             });
-        } catch (error: unknown) {
+        } catch (error: any) {
             reply.status(400).send({ error: error.message });
         }
     });
@@ -121,7 +121,7 @@ export async function authRoutes(fastify: FastifyInstance) {
             reply.send({
                 message: 'Password reset email sent. Please check your inbox.',
             });
-        } catch (error: unknown) {
+        } catch (error: any) {
             // Don't reveal if user exists
             reply.send({
                 message: 'If an account exists with that email, a password reset link has been sent.',
@@ -139,7 +139,7 @@ export async function authRoutes(fastify: FastifyInstance) {
             reply.send({
                 message: 'Password reset successfully. You can now log in with your new password.',
             });
-        } catch (error: unknown) {
+        } catch (error: any) {
             reply.status(400).send({ error: error.message });
         }
     });
@@ -182,7 +182,7 @@ export async function authRoutes(fastify: FastifyInstance) {
             await authService.changePassword(userId, currentPassword, newPassword);
 
             reply.send({ message: 'Password updated successfully' });
-        } catch (error: unknown) {
+        } catch (error: any) {
             reply.status(400).send({ error: error.message });
         }
     });

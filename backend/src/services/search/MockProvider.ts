@@ -13,9 +13,9 @@ export class MockProviderAdapter implements ProviderAdapter {
         for (let i = 0; i < numResults; i++) {
             results.push({
                 provider: this.providerName,
-                location: fingerprint.location || 'Cornwall Coast',
-                dateStart: fingerprint.dateStart ? new Date(fingerprint.dateStart) : new Date(),
-                durationNights: fingerprint.durationNightsMin || 3,
+                location: (fingerprint.location as string) || 'Cornwall Coast',
+                dateStart: fingerprint.dateStart ? new Date(fingerprint.dateStart as string) : new Date(),
+                durationNights: (fingerprint.durationNightsMin as number) || 3,
                 priceGbp: Math.floor(Math.random() * 500) + 300,
                 uRL: 'https://example.com/mock-deal',
                 accommodationName: `Luxury Caravan ${i + 1}`,
