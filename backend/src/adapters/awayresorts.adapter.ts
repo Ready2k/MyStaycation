@@ -146,21 +146,27 @@ export class AwayResortsAdapter extends BaseAdapter {
                 } as any
             });
 
-            // Extract parkId from URL or params
+            // Extract parkId from URL
             const bookUrl = bookBtn.attr('href') || '';
-            let parkId: string | undefined;
-            // Try to extract from URL (e.g., /book/resort-name/...)
-            const parkMatch = bookUrl.match(/\/book\/([^/]+)/i);
-            if (parkMatch) {
-                parkId = parkMatch[1];
-            }
+            let parkId = this.extractParkId(bookUrl);
+
             // Fallback to region param if available
             if (!parkId && params.region) {
+                // Use getResortCode to ensure we map "tattershall" -> "7" consistent with search
+                // Or just use the slug if that's what we want.
+                // The current implementation seems to use mapped IDs for Search but maybe slugs for Results?
+                // Let's stick to what worked before but better:
                 parkId = params.region.toLowerCase().replace(/\s+/g, '-');
+                // Or verify if we should use getResortCode(params.region)
             }
 
+            // Ensure we have a propertyName (Park Name) to avoid worker warnings
+            // If we are searching a specific region/park, that is the property name.
+            let propertyName = params.region || 'Away Resorts Park';
+            // If we have a mapped resort name from the ID, we could use that, but we don't have a reverse map.
+
             results.push({
-                // provider: this.providerCode, // Removed as it's not in PriceResult interface
+                // provider: this.providerCode,
                 accomType: finalName,
                 priceTotalGbp: price,
                 stayNights: params.nights.min,
@@ -170,11 +176,20 @@ export class AwayResortsAdapter extends BaseAdapter {
                 parkId, // CRITICAL: Required for seriesKey generation
                 matchConfidence: confidence,
                 matchDetails: description,
-                sourceUrl: this.baseUrl + bookBtn.attr('href')
+                propertyName, // Added to fix worker warning
+                sourceUrl: this.baseUrl + bookUrl
             });
         });
 
         return results;
+    }
+
+    private extractParkId(url: string | undefined): string | undefined {
+        if (!url) return undefined;
+        // Match /book/PARK-ID/ or /book/PARK-ID?
+        // Exclude ? to avoid capturing query strings
+        const match = url.match(/\/book\/([^/?]+)/i);
+        return match ? match[1] : undefined;
     }
 
     async fetchOffers(): Promise<DealResult[]> {

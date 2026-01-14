@@ -13,7 +13,8 @@ describe('AwayResortsAdapter', () => {
         provider: 'awayresorts',
         peakTolerance: 'offpeak',
         pets: false,
-        minBedrooms: 0
+        minBedrooms: 0,
+        region: 'Tattershall Lakes'
     };
 
     beforeEach(() => {
@@ -103,6 +104,25 @@ describe('AwayResortsAdapter', () => {
             const results = adapter.parseSearchResults(mockHtml, mockParams);
             expect(results).toHaveLength(1);
             expect(results[0].priceTotalGbp).toBe(299);
+            expect(results[0].propertyName).toBe('Tattershall Lakes');
+        });
+
+        it('should handle query string URLs by falling back to region', () => {
+            const mockHtml = `
+            <div class="search-results__accommodation">
+                <h2>Query Link Accom</h2>
+                <div class="date-scroll__day">
+                    <a href="/book/?accommodation=123&foo=bar" data-name="Query Room">Book</a>
+                    <div class="date-scroll__price">£100</div>
+                </div>
+            </div>`;
+
+            // @ts-ignore
+            const results = adapter.parseSearchResults(mockHtml, mockParams);
+            expect(results).toHaveLength(1);
+            // Must NOT be ?accommodation=123
+            expect(results[0].parkId).toBe('tattershall-lakes');
+            expect(results[0].propertyName).toBe('Tattershall Lakes');
         });
     });
 });
