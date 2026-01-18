@@ -42,13 +42,16 @@ export class CenterParcsAdapter extends BaseAdapter {
         }
 
         // Search villages sequentially
-        for (const villageCode of villagesToSearch) {
+        for (let i = 0; i < villagesToSearch.length; i++) {
+            const villageCode = villagesToSearch[i];
             try {
                 const url = this.buildVillageUrl(villageCode, params);
 
+                console.log(`🔍 Searching village ${i + 1}/${villagesToSearch.length}: ${villageCode}`);
 
                 // Use API interception to get accommodation data
-                const apiData = await this.fetchCenterParcsWithBrowser(url, villageCode);
+                // Pass the total count for timeout adjustment
+                const apiData = await this.fetchCenterParcsWithBrowser(url, villageCode, villagesToSearch.length);
 
                 if (!apiData) {
                     console.error(`❌ Center Parcs: No API data intercepted for ${villageCode}`);
@@ -100,7 +103,7 @@ export class CenterParcsAdapter extends BaseAdapter {
     /**
      * Fetch Center Parcs page and intercept API data
      */
-    private async fetchCenterParcsWithBrowser(url: string, villageCode: string): Promise<any> {
+    private async fetchCenterParcsWithBrowser(url: string, villageCode: string, villageCount: number = 1): Promise<any> {
         const playwrightEnabled = process.env.PLAYWRIGHT_ENABLED !== 'false';
         if (!playwrightEnabled) {
             throw new Error('Playwright is disabled');
@@ -123,17 +126,30 @@ export class CenterParcsAdapter extends BaseAdapter {
         try {
             console.log(`🌐 CenterParcs: Navigating to ${url}`);
 
+            // Calculate dynamic timeouts based on number of villages
+            // Base timeout: 60s for API, 30s for navigation
+            // For multiple villages, increase timeout to allow for sequential processing
+            const baseApiTimeout = 60000;
+            const baseNavTimeout = 30000;
+
+            // Add 20 seconds per additional village (beyond the first)
+            const timeoutMultiplier = villageCount > 1 ? 1 + ((villageCount - 1) * 0.33) : 1;
+            const apiTimeout = Math.min(baseApiTimeout * timeoutMultiplier, 180000); // Cap at 3 minutes
+            const navTimeout = Math.min(baseNavTimeout * timeoutMultiplier, 90000); // Cap at 1.5 minutes
+
+            console.log(`⏱️  Timeouts for ${villageCount} village(s): API=${Math.round(apiTimeout / 1000)}s, Nav=${Math.round(navTimeout / 1000)}s`);
+
             // Setup interception promise BEFORE navigation
             // We want the POST request to the accommodation endpoint
             const responsePromise = page.waitForResponse(response =>
                 response.url().includes('/api/v1/accommodation.json') &&
                 response.request().method() === 'POST' &&
                 response.status() === 200
-                , { timeout: 60000 }).catch(_e => null); // Catch rejection if page closes early
+                , { timeout: apiTimeout }).catch(_e => null); // Catch rejection if page closes early
 
             // Navigate but don't wait for networkidle (too slow/flaky)
             // Just wait for DOM content loaded to ensure the scripts start running
-            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: navTimeout });
 
             console.log('⏳ Waiting for accommodation API response...');
 
