@@ -4,7 +4,7 @@ import { CenterParcsAdapter } from './adapters/centerparcs.adapter';
 async function run() {
     const adapter = new CenterParcsAdapter();
     const params = {
-        pets: false,
+        pets: 0,
         party: { adults: 2, children: 0 },
         nights: { max: 7, min: 3 },
         region: 'Sherwood',

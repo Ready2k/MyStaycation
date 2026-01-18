@@ -20,7 +20,7 @@ export interface SearchParams {
     accommodation?: AccommodationType;
     peakTolerance: 'offpeak' | 'mixed' | 'peak';
     // [NEW] Fingerprint-bound fields
-    pets: boolean;
+    pets: number; // Number of pets/dogs
     minBedrooms: number;
     region?: string;
     metadata?: Record<string, unknown>; // Provider-specific extra data like propertyType

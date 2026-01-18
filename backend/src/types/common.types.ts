@@ -79,7 +79,7 @@ export interface ProfileParams {
     durationNightsMax: number;
     partySizeAdults: number;
     partySizeChildren?: number;
-    pets: boolean;
+    pets: number; // Number of pets/dogs
     accommodationType: string;
     minBedrooms: number;
     budgetCeilingGbp?: number;
@@ -239,7 +239,7 @@ export interface AdapterSearchParams {
         children: number;
         infants: number;
     };
-    pets?: boolean;
+    pets?: number; // Number of pets/dogs
     accommodationType?: string;
     minBedrooms?: number;
     peakTolerance?: 'offpeak' | 'mixed' | 'peak';

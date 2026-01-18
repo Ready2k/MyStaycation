@@ -16,7 +16,7 @@ export interface MatcherContext {
             adults: number;
             children: number;
         };
-        pets: boolean;
+        pets: number; // Number of pets/dogs
         accommodationType: AccommodationType;
         minBedrooms: number;
     };

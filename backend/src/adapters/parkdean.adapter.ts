@@ -77,7 +77,7 @@ export class ParkdeanAdapter extends BaseAdapter {
         }
 
         // Pets
-        if (params.pets) {
+        if (params.pets > 0) {
             urlParams.append('pets', '1');
         }
 
@@ -144,7 +144,7 @@ export class ParkdeanAdapter extends BaseAdapter {
                     availability: 'AVAILABLE' as const,
                     accomType,
                     bedrooms: params.minBedrooms, // assumption if not scraped
-                    petsAllowed: params.pets // assumption
+                    petsAllowed: params.pets > 0 ? true : undefined // assumption
                 };
 
                 const matchResult = ResultMatcher.classify(candidateRes, {

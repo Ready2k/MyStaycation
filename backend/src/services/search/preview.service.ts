@@ -301,7 +301,7 @@ export class PreviewService {
             },
             nights: { min: profile.durationNightsMin!, max: profile.durationNightsMax! },
             party: { adults: profile.partySizeAdults!, children: profile.partySizeChildren! },
-            pets: profile.pets!,
+            pets: profile.petsNumber || 0,
             parks: profile.parkIds,
             region: profile.region,
             accommodation: profile.accommodationType as any,

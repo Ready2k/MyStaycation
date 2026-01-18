@@ -87,7 +87,7 @@ export class ButlinsAdapter extends BaseAdapter {
                     availability: 'AVAILABLE' as const,
                     accomType: title,
                     bedrooms: Math.ceil(params.party.adults / 2),
-                    petsAllowed: params.pets
+                    petsAllowed: params.pets > 0 ? true : undefined // Assume pet-friendly if pets requested
                 };
 
                 const matchResult = ResultMatcher.classify(candidateRes, {
@@ -143,7 +143,7 @@ export class ButlinsAdapter extends BaseAdapter {
                                 availability: 'AVAILABLE',
                                 accomType: nearbyTitle,
                                 bedrooms: Math.ceil(params.party.adults / 2),
-                                petsAllowed: params.pets
+                                petsAllowed: params.pets > 0 ? true : undefined
                             }, {
                                 targetData: {
                                     dateStart: params.dateWindow.start,

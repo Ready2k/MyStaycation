@@ -70,7 +70,7 @@ export class HavenAdapter extends BaseAdapter {
         queryParams.append('adults', params.party.adults.toString());
         queryParams.append('children', (params.party.children || 0).toString());
         queryParams.append('tots', '0'); // Defaulting to 0
-        queryParams.append('dogs', params.pets ? '1' : '0'); // Assuming 1 if pets selected
+        queryParams.append('dogs', (params.pets || 0).toString()); // Use actual number of dogs
         queryParams.append('accessibleVans', 'false');
         queryParams.append('packageType', 'HAVEN HOLIDAY');
 
@@ -86,7 +86,7 @@ export class HavenAdapter extends BaseAdapter {
         }
 
         // [NEW] Respect Fingerprint pets
-        if (params.pets) {
+        if (params.pets > 0) {
             queryParams.append('pet-friendly', '1'); // 'pets=true' -> 'pet-friendly=1'
         }
 

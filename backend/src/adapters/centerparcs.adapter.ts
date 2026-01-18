@@ -255,7 +255,8 @@ export class CenterParcsAdapter extends BaseAdapter {
                 // Build proper URL with the date from the API
                 // Format: /2/{location}/{date}/{duration}/-/-/{rooms}/{adults}/{children}/{toddlers}/{infants}/{dogs}/{adaptiveLodge}
                 const rooms = Math.ceil(params.party.adults / 2); // 1-2 adults = 1 room, 3-4 adults = 2 rooms, etc.
-                const sourceUrl = `https://www.centerparcs.co.uk/breaks-we-offer/search.html/2/${villageCode}/${arrivalDateStr}/${actualNights}/-/-/${rooms}/${params.party.adults}/${params.party.children}/0/0/0/N`;
+                const dogs = params.pets || 0;
+                const sourceUrl = `https://www.centerparcs.co.uk/breaks-we-offer/search.html/2/${villageCode}/${arrivalDateStr}/${actualNights}/-/-/${rooms}/${params.party.adults}/${params.party.children}/0/0/${dogs}/N`;
 
 
 
@@ -340,7 +341,7 @@ export class CenterParcsAdapter extends BaseAdapter {
         const rooms = Math.ceil(adults / 2); // 1-2 adults = 1 room, 3-4 adults = 2 rooms
         const infants = 0;
         const toddlers = 0;
-        const dogs = params.pets ? 1 : 0;
+        const dogs = params.pets || 0; // Use actual number of dogs
         const flex = 'N';
 
         // Format: /2/{location}/{date}/{duration}/-/-/{rooms}/{adults}/{children}/{toddlers}/{infants}/{dogs}/{adaptiveLodge}

@@ -99,7 +99,7 @@ export class HoseasonsAdapter extends BaseAdapter {
                 propertyName: item.name,
                 location: item.region || params.region || 'Unknown',
                 bedrooms: Math.ceil((params.party.adults || 2) / 2),
-                petsAllowed: params.pets,
+                petsAllowed: params.pets > 0 ? true : undefined, // Assume pet-friendly if pets requested
                 // Extract parkId from URL (last path segment) - CRITICAL for PreviewService
                 parkId: item.deepLink ? item.deepLink.split('?')[0].split('/').filter(Boolean).pop() || 'unknown' : 'unknown'
             };
@@ -285,7 +285,7 @@ export class HoseasonsAdapter extends BaseAdapter {
 
         if (params.party.adults) queryParams.append('adult', params.party.adults.toString());
         if (params.party.children) queryParams.append('child', params.party.children.toString());
-        if (params.pets) queryParams.append('pets', params.pets ? '1' : '0');
+        if (params.pets) queryParams.append('pets', params.pets > 0 ? '1' : '0');
 
         // Date handling
         if (params.dateWindow.start) {
@@ -782,12 +782,12 @@ export class HoseasonsAdapter extends BaseAdapter {
 
                 // If we searched for pets, assume the result allows pets (API filtering)
                 // Otherwise check specific flags
-                let petsAllowed = params.pets;
-                if (property.petsGoFree !== undefined) petsAllowed = property.petsGoFree || params.pets;
+                let petsAllowed: boolean | undefined = params.pets > 0 ? true : undefined;
+                if (property.petsGoFree !== undefined) petsAllowed = property.petsGoFree || (params.pets > 0);
                 if (property.petFriendly !== undefined) petsAllowed = property.petFriendly;
 
-                // Fallback: If we searched for pets=1, Hoseasons returns pet-friendly places
-                if (params.pets && !petsAllowed) {
+                // Fallback: If we searched for pets>0, Hoseasons returns pet-friendly places
+                if (params.pets > 0 && !petsAllowed) {
                     // Check if 'pets' is in USPs or features
                     const usps = JSON.stringify(property.USPs || []);
                     if (usps.toLowerCase().includes('pet')) {

@@ -76,7 +76,7 @@ export class FingerprintService {
                 min: profile.durationNightsMin,
                 max: profile.durationNightsMax
             },
-            pets: profile.pets,
+            pets: profile.petsNumber || 0,
             minBedrooms: profile.minBedrooms,
             peakTolerance: profile.peakTolerance,
             region: profile.region,
