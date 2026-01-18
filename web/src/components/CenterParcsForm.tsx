@@ -100,6 +100,7 @@ export function CenterParcsForm({ initialData, onSuccess, onBack }: CenterParcsF
             // Calculate total party size
             const totalAdults = data.lodges.reduce((sum, l) => sum + l.adults, 0);
             const totalChildren = data.lodges.reduce((sum, l) => sum + l.children + l.toddlers + l.infants, 0);
+            const totalDogs = data.lodges.reduce((sum, l) => sum + l.dogs, 0);
 
             const payload = {
                 name: data.name,
@@ -111,6 +112,7 @@ export function CenterParcsForm({ initialData, onSuccess, onBack }: CenterParcsF
                 durationNightsMax: data.nights,
                 partySizeAdults: totalAdults,
                 partySizeChildren: totalChildren,
+                petsNumber: totalDogs, // Add total dogs count
                 budgetCeilingGbp: data.budgetMax || undefined,
                 flexType: 'RANGE',
                 // Store Center Parcs specific data in metadata

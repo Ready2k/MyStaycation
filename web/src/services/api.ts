@@ -7,6 +7,8 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    // Increase timeout for long-running searches (e.g., multiple villages)
+    timeout: 300000, // 5 minutes
 });
 
 api.interceptors.request.use((config) => {
