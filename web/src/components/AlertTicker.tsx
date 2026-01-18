@@ -98,7 +98,7 @@ export function AlertTicker() {
                                 {totalUnread} New {totalUnread === 1 ? 'Alert' : 'Alerts'}
                             </h3>
                             <p className="text-sm text-blue-100">
-                                {alerts.length > 0 && alerts[0].insight.summary}
+                                {alerts.length > 0 && alerts[0].insight?.summary}
                             </p>
                         </div>
                     </div>
@@ -111,7 +111,7 @@ export function AlertTicker() {
             {/* Expanded Alert List */}
             {expanded && (
                 <div className="mt-2 space-y-2">
-                    {alerts.map((alert) => (
+                    {alerts.filter(alert => alert.insight).map((alert) => (
                         <div
                             key={alert.id}
                             className={`border rounded-lg p-4 ${getAlertColor(alert.insight.type)}`}
