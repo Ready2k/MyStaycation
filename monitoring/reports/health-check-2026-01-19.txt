@@ -1,0 +1,73 @@
+========================================
+Daily Health Check - 2026-01-19 08:00:01
+========================================
+
+## Database Connection
+✅ Database connection: OK
+
+## Fetch Runs (Last 24h)
+    status    | count | percentage 
+--------------+-------+------------
+ OK           |    16 |      80.00
+ PARSE_FAILED |     4 |      20.00
+(2 rows)
+
+
+## Parse Failures (Last 24h)
+   provider   |               errorMessage               | count 
+--------------+------------------------------------------+-------
+ Center Parcs | No results parsed from provider response |     4
+(1 row)
+
+
+## Observations Created (Last 24h)
+ total_observations | unique_series | unique_fingerprints 
+--------------------+---------------+---------------------
+                326 |           154 |                   7
+(1 row)
+
+
+## Insights Created (Last 24h)
+        type        | count 
+--------------------+-------
+ LOWEST_IN_X_DAYS   |    13
+ PRICE_DROP_PERCENT |    12
+(2 rows)
+
+
+## Alerts Sent (Last 24h)
+ status | count 
+--------+-------
+ SENT   |     7
+(1 row)
+
+
+## Series Key Integrity
+ ✅ PASS: All observations have series keys
+
+
+## Deduplication Check
+ ✅ PASS: No duplicate insights
+
+
+## Database Size
+ database_size 
+---------------
+ 10 MB
+(1 row)
+
+
+## Top 5 Largest Tables
+        table_name         |  size  
+---------------------------+--------
+ public.price_observations | 832 kB
+ public.insights           | 144 kB
+ public.system_logs        | 136 kB
+ public.fetch_runs         | 104 kB
+ public.alerts             | 96 kB
+(5 rows)
+
+
+## Summary
+Report generated at: Mon Jan 19 08:00:02 GMT 2026
+Report saved to: /reports/health-check-2026-01-19.txt

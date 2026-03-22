@@ -102,12 +102,15 @@ describe('ButlinsAdapter', () => {
         </html>
       `;
 
-            const params = {
+            const params: SearchParams = {
+                provider: 'butlins',
                 dateWindow: { start: '2026-02-09', end: '2026-02-13' },
                 nights: { min: 4, max: 4 },
                 party: { adults: 2, children: 2 },
-                pets: false
-            } as SearchParams;
+                pets: 0,
+                minBedrooms: 2,
+                peakTolerance: 'peak'
+            };
 
             // @ts-ignore
             const results = adapter.parseSearchResults(html, params);
@@ -130,12 +133,15 @@ describe('ButlinsAdapter', () => {
           </body>
         </html>
       `;
-            const params = {
+            const params: SearchParams = {
+                provider: 'butlins',
                 dateWindow: { start: '2026-02-09', end: '2026-02-13' },
                 nights: { min: 4, max: 4 },
                 party: { adults: 2, children: 2 },
-                pets: false
-            } as SearchParams;
+                pets: 0,
+                minBedrooms: 2,
+                peakTolerance: 'peak'
+            };
 
             // @ts-ignore
             const results = adapter.parseSearchResults(html, params);
@@ -155,12 +161,15 @@ describe('ButlinsAdapter', () => {
           </body>
         </html>
       `;
-            const params = {
+            const params: SearchParams = {
+                provider: 'butlins',
                 dateWindow: { start: '2026-02-09', end: '2026-02-13' },
                 nights: { min: 4, max: 4 },
                 party: { adults: 2, children: 2 },
-                pets: false
-            } as SearchParams;
+                pets: 0,
+                minBedrooms: 2,
+                peakTolerance: 'peak'
+            };
 
             // @ts-ignore
             const results = adapter.parseSearchResults(html, params);

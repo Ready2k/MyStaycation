@@ -125,4 +125,96 @@ describe('AwayResortsAdapter', () => {
             expect(results[0].propertyName).toBe('Tattershall Lakes');
         });
     });
+
+    describe('parseOffers', () => {
+        it('should parse merchandising module deal cards', () => {
+            const mockHtml = `
+            <div class="module-container js-merchandising-module">
+                <a href="/search/?parkID=23&from=2026-03-27&to=2026-03-30&nights=3" class="merchandising-module-link">
+                    <div class="text-cta-container">
+                        <div class="img-text">
+                            <div class="mm-title"><h3>St Ives Bay</h3></div>
+                            <div class="location">Cornwall</div>
+                            <div class="date py-1">27th Mar - 30th Mar</div>
+                            <div class="description">£99 for 3 nights</div>
+                        </div>
+                        <div class="search-button"><span>Check Availability</span></div>
+                    </div>
+                </a>
+            </div>
+            <div class="module-container js-merchandising-module">
+                <a href="/search/?parkID=15&from=2026-04-10&to=2026-04-17&nights=7" class="merchandising-module-link">
+                    <div class="text-cta-container">
+                        <div class="img-text">
+                            <div class="mm-title"><h3>Whitecliff Bay</h3></div>
+                            <div class="location">Isle of Wight</div>
+                            <div class="date py-1">10th Apr - 17th Apr</div>
+                            <div class="description">£399 for 7 nights</div>
+                        </div>
+                    </div>
+                </a>
+            </div>`;
+
+            // @ts-ignore - accessing public method
+            const deals = adapter.parseOffers(mockHtml);
+
+            expect(deals).toHaveLength(2);
+
+            // First deal
+            expect(deals[0].title).toBe('St Ives Bay - Cornwall');
+            expect(deals[0].discountValue).toBe(99);
+            expect(deals[0].discountType).toBe('SALE_PRICE');
+            expect(deals[0].restrictions).toMatchObject({
+                dates: '27th Mar - 30th Mar',
+                description: '£99 for 3 nights'
+            });
+
+            // Second deal
+            expect(deals[1].title).toBe('Whitecliff Bay - Isle of Wight');
+            expect(deals[1].discountValue).toBe(399);
+        });
+
+        it('should skip cards without a park name', () => {
+            const mockHtml = `
+            <div class="module-container js-merchandising-module">
+                <a href="/search/?parkID=7">
+                    <div class="mm-title"><h3></h3></div>
+                    <div class="description">£99 for 3 nights</div>
+                </a>
+            </div>`;
+
+            // @ts-ignore
+            const deals = adapter.parseOffers(mockHtml);
+            expect(deals).toHaveLength(0);
+        });
+
+        it('should return 0 deals for old (wrong) selector structure', () => {
+            // The old selectors .card/.offer-card/.promo-block should find nothing
+            const mockHtml = `
+            <div class="card">
+                <h3>Some Deal</h3>
+                <p>Old structure</p>
+            </div>`;
+
+            // @ts-ignore
+            const deals = adapter.parseOffers(mockHtml);
+            expect(deals).toHaveLength(0);
+        });
+
+        it('should use park name only when no location available', () => {
+            const mockHtml = `
+            <div class="module-container js-merchandising-module">
+                <a href="/search/?parkID=7">
+                    <div class="mm-title"><h3>Tattershall Lakes</h3></div>
+                    <div class="description">£249 for 4 nights</div>
+                </a>
+            </div>`;
+
+            // @ts-ignore
+            const deals = adapter.parseOffers(mockHtml);
+            expect(deals).toHaveLength(1);
+            expect(deals[0].title).toBe('Tattershall Lakes');
+            expect(deals[0].discountValue).toBe(249);
+        });
+    });
 });

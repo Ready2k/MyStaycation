@@ -218,37 +218,45 @@ export class HavenAdapter extends BaseAdapter {
         const $ = cheerio.load(html);
         const deals: DealResult[] = [];
 
-        $('.offer, .special-offer-card').each((_, element) => {
+        // Haven's /offers page uses CSS Modules with hashed class names (e.g. DynamicPromotionCard_card__RZ_wJ)
+        // which change with every build — so we can't target them by exact class.
+        // Instead, we find anchor links pointing to the search landing pages, which are stable.
+        // Structure of each promo card:
+        //   <a href="/search-results/holidays/landing?...">  <- card link
+        //     <h3>Month/Promo Title</h3>
+        //     <span>3 nights from</span>
+        //     <span>£79</span>  <- price
+        //   </a>
+        $('a[href*="/search-results/holidays/"], a[href*="/search-results/break-builder/"]').each((_, element) => {
             try {
                 const $el = $(element);
 
-                const title = $el.find('.offer-title, h2, h3').first().text().trim();
+                // Title from h3 (or h2) inside the card link
+                const title = $el.find('h2, h3').first().text().trim();
                 if (!title) return;
 
-                const discountText = $el.find('.discount-amount, .save-text').first().text().trim();
-                let discountType: DealResult['discountType'] = 'PERK';
-                let discountValue: number | undefined;
+                // Extract price — look for a bold price span containing £
+                const allText = $el.text();
+                const priceMatch = allText.match(/£(\d[\d,.]*)/);
+                const discountValue = priceMatch ? parseFloat(priceMatch[1].replace(',', '')) : undefined;
 
-                if (discountText.includes('%')) {
+                // Determine type — if it has a % in text it's a discount, else it's a sale price
+                let discountType: DealResult['discountType'] = 'SALE_PRICE';
+                const percentMatch = allText.match(/(\d+)%\s*off/i);
+                if (percentMatch) {
                     discountType = 'PERCENT_OFF';
-                    const value = this.extractPrice(discountText.replace('%', ''));
-                    discountValue = value || undefined;
-                } else if (discountText.includes('£')) {
-                    discountType = 'FIXED_OFF';
-                    discountValue = this.extractPrice(discountText) || undefined;
                 }
 
-                const voucherCode = $el.find('.code, .promo-code').first().text().trim() || undefined;
-
-                const validUntilText = $el.find('.valid-until, .offer-ends').first().text().trim();
-                const endsAt = validUntilText ? this.parseDate(validUntilText) : null;
+                // Build search URL for reference
+                const href = $el.attr('href') || '';
+                const restrictions: Record<string, string> = {};
+                if (href) restrictions['searchUrl'] = href.startsWith('http') ? href : `${this.baseUrl}${href}`;
 
                 deals.push({
                     title,
                     discountType,
                     discountValue,
-                    voucherCode,
-                    endsAt: endsAt ? new Date(endsAt) : undefined,
+                    restrictions
                 });
             } catch (error) {
                 console.error('Error parsing Haven offer:', error);

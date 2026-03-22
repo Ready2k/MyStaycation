@@ -29,7 +29,7 @@ describe('ParkdeanAdapter', () => {
                     min: 3,
                     max: 3
                 },
-                pets: false,
+                pets: 0,
                 minBedrooms: 2,
                 peakTolerance: 'peak'
             };
@@ -52,7 +52,7 @@ describe('ParkdeanAdapter', () => {
                 party: { adults: 2, children: 0 },
                 dateWindow: { start: '2025-08-01', end: '2025-08-01' },
                 nights: { min: 7, max: 7 },
-                pets: true,
+                pets: 1,
                 minBedrooms: 1,
                 peakTolerance: 'peak',
                 region: 'Cornwall'
@@ -86,7 +86,7 @@ describe('ParkdeanAdapter', () => {
                 party: { adults: 2, children: 2 },
                 dateWindow: { start: '2025-07-15', end: '2025-07-15' },
                 nights: { min: 3, max: 3 },
-                pets: false,
+                pets: 0,
                 minBedrooms: 2,
                 peakTolerance: 'peak'
             };
@@ -120,7 +120,7 @@ describe('ParkdeanAdapter', () => {
                 party: { adults: 2, children: 2 },
                 dateWindow: { start: '2025-07-15', end: '2025-07-15' },
                 nights: { min: 3, max: 3 },
-                pets: false,
+                pets: 0,
                 minBedrooms: 2,
                 peakTolerance: 'peak'
             };

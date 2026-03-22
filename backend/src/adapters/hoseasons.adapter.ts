@@ -695,7 +695,9 @@ export class HoseasonsAdapter extends BaseAdapter {
         const url = this.buildOffersUrl();
 
         try {
-            const html = await this.fetchHtml(url);
+            // Hoseasons /promotions returns 403 on plain HTTP (WAF protected).
+            // Use browser to load the page and extract __NEXT_DATA__ for structured data.
+            const html = await this.fetchHtmlWithBrowser(url);
             return this.parseOffers(html);
         } catch (error) {
             console.error('Failed to fetch Hoseasons offers:', error);
@@ -723,7 +725,8 @@ export class HoseasonsAdapter extends BaseAdapter {
     */
 
     protected buildOffersUrl(): string {
-        return `${this.baseUrl}/special-offers`;
+        // NOTE: /special-offers → redirected to /promotions
+        return `${this.baseUrl}/promotions`;
     }
 
     /**
@@ -864,41 +867,76 @@ export class HoseasonsAdapter extends BaseAdapter {
         const $ = cheerio.load(html);
         const deals: DealResult[] = [];
 
-        // NOTE: These selectors are EXAMPLES
-        $('.offer-card, .deal-item').each((_, element) => {
+        // Strategy 1: Extract from __NEXT_DATA__ JSON (most reliable - avoids obfuscated class names).
+        // The Hoseasons /promotions page is a Next.js app and embeds all CMS data in a script tag.
+        const nextDataScript = $('#__NEXT_DATA__').html() ||
+            $('script#__NEXT_DATA__').html() ||
+            $('script[id="__NEXT_DATA__"]').html();
+
+        if (nextDataScript) {
+            try {
+                const nextData = JSON.parse(nextDataScript);
+                const sections = nextData?.props?.pageProps?.sections || [];
+
+                for (const section of sections) {
+                    const items = section?.items || section?.pods || [];
+                    for (const item of items) {
+                        const title = item?.title || item?.heading;
+                        if (!title) continue;
+
+                        const subtitle = item?.subtitle || item?.description || '';
+                        const href = item?.link?.href || item?.url || '';
+
+                        // Extract price from subtitle (e.g. "Book today from only £25")
+                        const priceMatch = subtitle.match(/£(\d[\d,.]*)/);
+                        const discountValue = priceMatch ? parseFloat(priceMatch[1].replace(',', '')) : undefined;
+
+                        const restrictions: Record<string, string> = {};
+                        if (subtitle) restrictions['description'] = subtitle;
+                        if (href) restrictions['searchUrl'] = href.startsWith('http') ? href : `${this.baseUrl}${href}`;
+
+                        deals.push({
+                            title,
+                            discountType: discountValue ? 'SALE_PRICE' : 'PERK',
+                            discountValue,
+                            restrictions
+                        });
+                    }
+                }
+
+                if (deals.length > 0) {
+                    return deals;
+                }
+            } catch (e) {
+                console.warn('⚠️  Failed to parse Hoseasons __NEXT_DATA__, falling back to DOM', e);
+            }
+        }
+
+        // Strategy 2: DOM fallback — find anchor elements linking to Hoseasons search/collections.
+        // Uses stable href patterns rather than obfuscated styled-component class names.
+        $('a[href*="/search"], a[href*="/collections/"]').each((_, element) => {
             try {
                 const $el = $(element);
 
-                const title = $el.find('.offer-title, h2, h3').first().text().trim();
+                const title = $el.find('h2, h3').first().text().trim();
                 if (!title) return;
 
-                // Extract discount information
-                const discountText = $el.find('.discount, .save').first().text().trim();
-                let discountType: DealResult['discountType'] = 'PERK';
-                let discountValue: number | undefined;
+                // Skip nav/footer links - must have some descriptive content
+                const allText = $el.text().trim();
+                if (allText.length < 10) return;
 
-                if (discountText.includes('%')) {
-                    discountType = 'PERCENT_OFF';
-                    const value = this.extractPrice(discountText.replace('%', ''));
-                    discountValue = value || undefined;
-                } else if (discountText.includes('£')) {
-                    discountType = 'FIXED_OFF';
-                    discountValue = this.extractPrice(discountText) || undefined;
-                }
+                const priceMatch = allText.match(/£(\d[\d,.]*)/);
+                const discountValue = priceMatch ? parseFloat(priceMatch[1].replace(',', '')) : undefined;
 
-                // Extract voucher code
-                const voucherCode = $el.find('.voucher-code, .promo-code').first().text().trim() || undefined;
-
-                // Extract dates - use safe parsing
-                const validUntilText = $el.find('.valid-until, .expires').first().text().trim();
-                const endsAt = validUntilText ? this.parseDate(validUntilText) : null;
+                const href = $el.attr('href') || '';
+                const restrictions: Record<string, string> = {};
+                if (href) restrictions['searchUrl'] = href.startsWith('http') ? href : `${this.baseUrl}${href}`;
 
                 deals.push({
                     title,
-                    discountType,
+                    discountType: discountValue ? 'SALE_PRICE' : 'PERK',
                     discountValue,
-                    voucherCode,
-                    endsAt: endsAt ? new Date(endsAt) : undefined,
+                    restrictions
                 });
             } catch (error) {
                 console.error('Error parsing Hoseasons offer:', error);

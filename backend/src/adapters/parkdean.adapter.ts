@@ -85,7 +85,8 @@ export class ParkdeanAdapter extends BaseAdapter {
     }
 
     protected buildOffersUrl(): string {
-        return `${this.baseUrl}/holidays/offers/`;
+        // NOTE: /holidays/offers/ returns 404 - correct URL is /offers/
+        return `${this.baseUrl}/offers/`;
     }
 
     protected parseSearchResults(html: string, params: SearchParams): PriceResult[] {
@@ -187,54 +188,36 @@ export class ParkdeanAdapter extends BaseAdapter {
         const $ = cheerio.load(html);
         const deals: DealResult[] = [];
 
-        $('.offer-item, .deal-card, .promo-banner').each((_, element) => {
+        // Parkdean /offers/ page uses a carousel of park deal cards.
+        // Structure:
+        //   div.carousel-card__park-item-inner
+        //     span.carousel-card__park-item-title  -> Park name (e.g. "Kessingland Beach")
+        //     div.offer-park-card__details
+        //       span.offer-park-card__price-prefix  -> "from "
+        //       span.offer-park-card__price          -> "£99"
+        //       span.offer-park-card__duration       -> " for 3 nights"
+        $('.carousel-card__park-item-inner').each((_, element) => {
             try {
                 const $el = $(element);
-                const title = $el.find('.title, h3, h4').first().text().trim();
-                const desc = $el.find('.description, p').first().text().trim();
 
-                if (!title) return;
+                const parkName = $el.find('.carousel-card__park-item-title').text().trim();
+                if (!parkName) return;
 
-                const fullText = (title + ' ' + desc).toLowerCase();
+                const priceText = $el.find('.offer-park-card__price').text().trim();
+                const durationText = $el.find('.offer-park-card__duration').text().trim();
 
-                // Heuristic Parsing
-                let discountType: DealResult['discountType'] = 'PERK';
-                let discountValue: number | undefined;
+                const discountValue = this.extractPrice(priceText) || undefined;
 
-                // Look for percentages
-                const percentMatch = fullText.match(/(\d+)%\s*off/);
-                if (percentMatch) {
-                    discountType = 'PERCENT_OFF';
-                    discountValue = parseInt(percentMatch[1], 10);
-                }
-                // Look for money off
-                else if (fullText.includes('save') && fullText.includes('£')) {
-                    const value = this.extractPrice(fullText);
-                    if (value) {
-                        discountType = 'FIXED_OFF';
-                        discountValue = value;
-                    }
-                }
-
-                // Check dates (e.g. "Expires 31/01")
-                // Simple regex for DD/MM
-                const dateMatch = fullText.match(/expires\s+(\d{1,2}\/\d{1,2})/);
-                let endsAt: Date | undefined;
-                if (dateMatch) {
-                    const [d, m] = dateMatch[1].split('/').map(Number);
-                    const now = new Date();
-                    endsAt = new Date(now.getFullYear(), m - 1, d);
-                    // Handle year wrap
-                    if (endsAt < now) {
-                        endsAt.setFullYear(now.getFullYear() + 1);
-                    }
-                }
+                // Build restrictions from available metadata
+                const restrictions: Record<string, string> = {};
+                if (durationText) restrictions['duration'] = durationText.trim();
+                if (priceText) restrictions['price'] = priceText;
 
                 deals.push({
-                    title,
-                    discountType,
+                    title: parkName,
+                    discountType: 'SALE_PRICE',
                     discountValue,
-                    endsAt
+                    restrictions
                 });
 
             } catch (error) {

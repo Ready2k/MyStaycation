@@ -203,22 +203,44 @@ export class AwayResortsAdapter extends BaseAdapter {
         const $ = cheerio.load(html);
         const deals: DealResult[] = [];
 
-        // Heuristic parsing for offers page - this structure is assumed common for generic offer blocks
-        // On /latest-offers/ page, looking for card-like elements
-        $('.card, .offer-card, .promo-block').each((_, element) => {
+        // Away Resorts /latest-offers/ page uses merchandising module cards.
+        // Each deal card has the class: div.module-container.js-merchandising-module
+        // Structure:
+        //   a.merchandising-module-link[href="/search/?parkID=..."]
+        //     div.mm-title h3  -> Park name (e.g. "St Ives Bay")
+        //     div.location     -> Location (e.g. "Cornwall")
+        //     div.date         -> Date range (e.g. "23rd Mar - 26th Mar")
+        //     div.description  -> Price text (e.g. "£99 for 3 nights")
+        $('.module-container.js-merchandising-module').each((_, element) => {
             const el = $(element);
-            const title = el.find('h3, .card-title').text().trim();
-            const description = el.find('p, .card-text').text().trim();
-            if (!title) return;
 
-            if (!title) return;
+            // Park name from h3 inside mm-title
+            const parkName = el.find('.mm-title h3').text().trim();
+            if (!parkName) return;
 
-            // DealResult interface does not have description, putting it in restrictions
+            const location = el.find('.location').text().trim();
+            const dateRange = el.find('.date').text().trim();
+            const descriptionText = el.find('.description').text().trim();
+
+            // Build a descriptive title
+            const title = location
+                ? `${parkName} - ${location}`
+                : parkName;
+
+            // Extract price from description text (e.g. "£99 for 3 nights")
+            const priceMatch = descriptionText.match(/£(\d[\d,.]*)/);
+            const discountValue = priceMatch ? parseFloat(priceMatch[1].replace(',', '')) : 0;
+
+            // Build restrictions object with additional context
+            const restrictions: Record<string, string> = {};
+            if (dateRange) restrictions['dates'] = dateRange;
+            if (descriptionText) restrictions['description'] = descriptionText;
+
             deals.push({
                 title,
-                restrictions: { description },
-                discountType: 'PERK', // Default to PERK for generic offers
-                discountValue: 0
+                restrictions,
+                discountType: 'SALE_PRICE',
+                discountValue
             });
         });
 
