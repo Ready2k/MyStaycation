@@ -4,17 +4,6 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Fix Leaflet default icon paths broken by webpack
-const defaultIcon = L.icon({
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
-});
-
 interface Park {
     id: string;
     name: string;
@@ -59,6 +48,15 @@ export function ParksMap({ parks, onWatchPark }: ParksMapProps) {
     const mappable = parks.filter(p => p.latitude !== null && p.longitude !== null);
 
     return (
+        <div className="relative">
+            {mappable.length === 0 && (
+                <div className="absolute inset-0 z-[1000] flex items-center justify-center pointer-events-none">
+                    <div className="bg-white border border-gray-200 rounded-lg shadow px-6 py-4 text-center max-w-sm">
+                        <p className="text-gray-700 font-medium">No location data yet</p>
+                        <p className="text-sm text-gray-500 mt-1">Park coordinates are populated as scraping runs. Check back after the next monitor cycle.</p>
+                    </div>
+                </div>
+            )}
         <MapContainer
             center={[54.0, -2.0]}
             zoom={6}
@@ -90,5 +88,6 @@ export function ParksMap({ parks, onWatchPark }: ParksMapProps) {
                 </Marker>
             ))}
         </MapContainer>
+        </div>
     );
 }

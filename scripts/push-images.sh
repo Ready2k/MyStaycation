@@ -27,6 +27,7 @@ NO_CACHE_FLAG=""
 VERSION="latest"
 PLATFORM="linux/amd64"
 BUILDER_NAME="mystaycation-builder"
+SERVICES=()   # empty = build all
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
 while [[ "$#" -gt 0 ]]; do
@@ -34,10 +35,18 @@ while [[ "$#" -gt 0 ]]; do
         --prod)        BUILD_TARGET="production" ;;
         --no-cache)    NO_CACHE_FLAG="--no-cache" ;;
         --version)     VERSION="$2"; shift ;;
-        *) echo "❌ Unknown argument: $1"; echo "Usage: $0 [--prod] [--no-cache] [--version <tag>]"; exit 1 ;;
+        --api)         SERVICES+=("api") ;;
+        --web)         SERVICES+=("web") ;;
+        --monitoring)  SERVICES+=("monitoring") ;;
+        *) echo "❌ Unknown argument: $1"; echo "Usage: $0 [--prod] [--no-cache] [--version <tag>] [--api] [--web] [--monitoring]"; exit 1 ;;
     esac
     shift
 done
+
+# Default to all services if none specified
+if [[ ${#SERVICES[@]} -eq 0 ]]; then
+    SERVICES=("api" "web" "monitoring")
+fi
 
 echo "======================================================"
 echo "  MyStaycation — cross-platform image builder"
@@ -45,6 +54,7 @@ echo "======================================================"
 echo "  Platform : ${PLATFORM}"
 echo "  Target   : ${BUILD_TARGET}"
 echo "  Tag      : ${VERSION}"
+echo "  Services : ${SERVICES[*]}"
 echo "  No-cache : ${NO_CACHE_FLAG:-off}"
 echo "======================================================"
 echo ""
@@ -95,11 +105,18 @@ build_and_push() {
     echo "   Context  : ${context}"
     [[ -n "${target}" ]] && echo "   Target   : ${target}"
 
+    local build_time
+    build_time="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    local build_sha
+    build_sha="$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
+
     local args=(
         docker buildx build
         --platform "${PLATFORM}"
         --file "${dockerfile}"
         --tag "${image}:${VERSION}"
+        --build-arg "NEXT_PUBLIC_BUILD_TIME=${build_time}"
+        --build-arg "NEXT_PUBLIC_BUILD_SHA=${build_sha}"
         --push
     )
 
@@ -120,9 +137,14 @@ build_and_push() {
 }
 
 # ── Builds ────────────────────────────────────────────────────────────────────
-build_and_push "api"        "backend/Dockerfile"    "./backend"    "${BUILD_TARGET}"
-build_and_push "web"        "web/Dockerfile"        "./web"        "${BUILD_TARGET}"
-build_and_push "monitoring" "monitoring/Dockerfile" "./monitoring" # no --target (single stage)
+for service in "${SERVICES[@]}"; do
+    case $service in
+        api)        build_and_push "api"        "backend/Dockerfile"    "./backend"    "${BUILD_TARGET}" ;;
+        web)        build_and_push "web"        "web/Dockerfile"        "./web"        "${BUILD_TARGET}" ;;
+        monitoring) build_and_push "monitoring" "monitoring/Dockerfile" "./monitoring" ;;
+        *) echo "❌ Unknown service: $service"; exit 1 ;;
+    esac
+done
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo "======================================================"

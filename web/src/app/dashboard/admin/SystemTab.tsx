@@ -22,6 +22,13 @@ export default function SystemTab() {
         }
     });
 
+    const geocodeMutation = useMutation({
+        mutationFn: async () => {
+            const { data } = await api.post('/admin/geocode-parks');
+            return data;
+        },
+    });
+
     const clearLogsMutation = useMutation({
         mutationFn: async () => {
             await api.delete('/admin/logs');
@@ -33,8 +40,32 @@ export default function SystemTab() {
 
     if (loadingPerf || loadingLogs) return <div>Loading system data...</div>;
 
+    const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME;
+    const buildSha = process.env.NEXT_PUBLIC_BUILD_SHA;
+
     return (
         <div className="space-y-8">
+            {/* Build version banner */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 flex items-center justify-between gap-6 text-sm text-gray-600 flex-wrap">
+                <div className="flex items-center gap-6">
+                    <span className="font-medium text-gray-700">🐳 Image info</span>
+                    <span>Built: <span className="font-mono text-gray-900">{buildTime ?? 'unknown'}</span></span>
+                    {buildSha && <span>SHA: <span className="font-mono text-gray-900">{buildSha}</span></span>}
+                </div>
+                <div className="flex items-center gap-3">
+                    {geocodeMutation.isSuccess && (
+                        <span className="text-green-600 text-xs">✅ Geocoding started — check logs for progress</span>
+                    )}
+                    <button
+                        onClick={() => geocodeMutation.mutate()}
+                        disabled={geocodeMutation.isPending}
+                        className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50"
+                    >
+                        {geocodeMutation.isPending ? 'Starting…' : '📍 Geocode missing parks'}
+                    </button>
+                </div>
+            </div>
+
             {/* Performance / Queues */}
             <div>
                 <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Job Queues (BullMQ)</h3>

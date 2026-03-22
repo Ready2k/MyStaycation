@@ -9,14 +9,19 @@ WORKDIR /app
 # Copy manifests first for better layer caching
 COPY package.json package-lock.json ./
 
-# --legacy-peer-deps: react-leaflet@5 has strict peer declarations that
-# conflict with some transitive deps; this flag resolves them safely.
+# --legacy-peer-deps: avoids peer-dep conflicts from transitive packages.
 RUN npm ci --legacy-peer-deps
 
 # Stage 2: Build
 FROM node:20-alpine AS build
 
 WORKDIR /app
+
+# Build-time version info — passed from push-images.sh via --build-arg
+ARG NEXT_PUBLIC_BUILD_TIME
+ARG NEXT_PUBLIC_BUILD_SHA
+ENV NEXT_PUBLIC_BUILD_TIME=$NEXT_PUBLIC_BUILD_TIME
+ENV NEXT_PUBLIC_BUILD_SHA=$NEXT_PUBLIC_BUILD_SHA
 
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .

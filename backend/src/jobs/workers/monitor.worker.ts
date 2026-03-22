@@ -5,6 +5,7 @@ import { SearchFingerprint } from '../../entities/SearchFingerprint';
 import { PriceObservation, AvailabilityStatus } from '../../entities/PriceObservation';
 import { ProviderAccomType } from '../../entities/ProviderAccomType';
 import { ProviderPark } from '../../entities/ProviderPark';
+import { geocodePark } from '../../services/geocoding.service';
 import { FetchRun, RunType, RunStatus, ProviderStatus } from '../../entities/FetchRun';
 import { adapterRegistry } from '../../adapters/registry';
 import { MonitorJobData, addInsightJob } from '../queues';
@@ -139,6 +140,8 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
                             });
                             await parkRepo.save(parkEntity);
                             console.log(`✅  Created park: ${parkEntity.name}`);
+                            // Fire-and-forget geocoding — don't block the monitor job
+                            geocodePark(parkEntity).catch(() => {});
                         } catch (e: unknown) {
                             // Handle race condition (unique constraint violation)
                             if ((e as any).message.includes('unique') || (e as any).code === '23505') {

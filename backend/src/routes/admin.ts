@@ -10,6 +10,7 @@ import { Provider } from '../entities/Provider';
 import { ProviderConfig } from '../entities/ProviderConfig';
 import { monitorQueue, insightQueue, alertQueue, dealQueue } from '../jobs/queues';
 import { authService } from '../services/auth.service';
+import { geocodeAllMissingParks } from '../services/geocoding.service';
 import crypto from 'crypto';
 
 const userRepo = AppDataSource.getRepository(User);
@@ -340,5 +341,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
         await configRepo.remove(config);
         return { success: true };
+    });
+
+    // POST /admin/geocode-parks — backfill coordinates for parks missing lat/lon
+    fastify.post('/admin/geocode-parks', async (_request, reply) => {
+        // Run in background — return immediately so the HTTP request doesn't time out
+        geocodeAllMissingParks().catch(err => console.error('[Geocoding] Backfill error:', err));
+        return reply.send({ message: 'Geocoding job started. Check server logs for progress.' });
     });
 }
