@@ -32,28 +32,54 @@ const SKIP_PATTERNS = [
 /**
  * Commercial suffixes that Nominatim won't recognise. Strip them to get a
  * cleaner geographic place name for the query.
+ * Order matters: longer/more-specific patterns must come before shorter ones.
  */
 const STRIP_SUFFIXES: RegExp[] = [
+    // Multi-word suffixes first
     / resort\s+and\s+spa$/i,
     / resort\s+&\s+spa$/i,
-    / &\s+spa$/i,
-    / holiday\s+park$/i,
-    / holiday\s+village$/i,
-    / holiday\s+resort$/i,
+    / retreat\s+&\s+spa$/i,
+    / retreat\s+and\s+spa$/i,
+    / farm\s+meadows?$/i,
+    / farm\s+lodges?$/i,
+    / farm\s+cottages?$/i,
     / country\s+park$/i,
     / country\s+retreats?$/i,
     / country\s+lodges?$/i,
+    / holiday\s+park$/i,
+    / holiday\s+village$/i,
+    / holiday\s+resort$/i,
     / caravan\s+park$/i,
     / touring\s+park$/i,
     / camping\s+park$/i,
+    // Single-word suffixes
+    / &\s+spa$/i,
+    / lodges?$/i,
+    / cottages?$/i,
+    / meadows?$/i,
+    / woods?$/i,
+    / den$/i,
 ];
 
 function shouldSkipGeocode(name: string): boolean {
     return SKIP_PATTERNS.some(p => p.test(name.trim()));
 }
 
+/**
+ * If the name contains " at " (e.g. "Mendip View at Wookey Hole"),
+ * return the part after " at " as a more geocodable place name.
+ */
+function extractAtLocation(name: string): string | null {
+    const match = name.match(/\bat\s+(.+)$/i);
+    return match ? match[1].trim() : null;
+}
+
 /** Returns a cleaner place name suitable for a Nominatim query. */
 function normalizeNameForGeocode(name: string): string {
+    // Prefer the location after "at" if present (e.g. "Mendip View at Wookey Hole" → "Wookey Hole")
+    const atLocation = extractAtLocation(name);
+    if (atLocation) return atLocation;
+
     let n = name.trim();
     for (const suffix of STRIP_SUFFIXES) {
         n = n.replace(suffix, '');
@@ -107,8 +133,9 @@ export async function geocodePark(park: ProviderPark): Promise<void> {
     }
 
     const normalized = normalizeNameForGeocode(park.name);
-    const query = park.region ? `${normalized} ${park.region}` : normalized;
-    const coords = await geocodeUKPlace(query);
+    // Try with region first, fall back to name alone if that fails
+    let coords = park.region ? await geocodeUKPlace(`${normalized} ${park.region}`) : null;
+    if (!coords) coords = await geocodeUKPlace(normalized);
 
     if (!coords) {
         console.log(`[Geocoding] No result for park "${park.name}"`);
@@ -150,8 +177,9 @@ export async function geocodeAllMissingParks(): Promise<{ attempted: number; suc
         }
 
         const normalized = normalizeNameForGeocode(park.name);
-        const query = park.region ? `${normalized} ${park.region}` : normalized;
-        const coords = await geocodeUKPlace(query);
+        // Try with region first, fall back to name alone
+        let coords = park.region ? await geocodeUKPlace(`${normalized} ${park.region}`) : null;
+        if (!coords) coords = await geocodeUKPlace(normalized);
 
         if (coords) {
             try {
