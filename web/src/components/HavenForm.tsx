@@ -23,6 +23,8 @@ interface HavenFormData {
     budgetMax: number | null;
     accomType: string;
     features: string[];
+    alertSensitivity: 'INSTANT' | 'DIGEST' | 'EXCEPTIONAL_ONLY';
+    checkFrequencyHours: number;
 }
 
 const ACCOM_TYPES = [
@@ -58,6 +60,8 @@ export function HavenForm({ initialData, onSuccess, onBack }: HavenFormProps) {
         budgetMax: null,
         accomType: 'Any',
         features: [],
+        alertSensitivity: 'INSTANT',
+        checkFrequencyHours: 48,
     });
 
     const [showFilters, setShowFilters] = useState(false);
@@ -79,6 +83,8 @@ export function HavenForm({ initialData, onSuccess, onBack }: HavenFormProps) {
                 budgetMax: initialData.budgetCeilingGbp || null,
                 accomType: metadata.accomType || 'Any',
                 features: metadata.features || [],
+                alertSensitivity: initialData.alertSensitivity || 'INSTANT',
+                checkFrequencyHours: initialData.checkFrequencyHours || 48,
             });
         }
     }, [initialData]);
@@ -98,6 +104,8 @@ export function HavenForm({ initialData, onSuccess, onBack }: HavenFormProps) {
                 petsNumber: data.pets,
                 pets: data.pets > 0,
                 budgetCeilingGbp: data.budgetMax || undefined,
+                alertSensitivity: data.alertSensitivity,
+                checkFrequencyHours: data.checkFrequencyHours,
                 flexType: 'RANGE',
                 metadata: {
                     infants: data.infants,
@@ -273,6 +281,39 @@ export function HavenForm({ initialData, onSuccess, onBack }: HavenFormProps) {
                                 placeholder="No limit"
                             />
                         </div>
+                    </div>
+
+                    {/* Alert Sensitivity */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            🔔 Alert Sensitivity
+                        </label>
+                        <select
+                            value={formData.alertSensitivity}
+                            onChange={(e) => setFormData({ ...formData, alertSensitivity: e.target.value as any })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        >
+                            <option value="INSTANT">Instant (every price drop)</option>
+                            <option value="DIGEST">Daily digest</option>
+                            <option value="EXCEPTIONAL_ONLY">Exceptional deals only (&gt;20% drop)</option>
+                        </select>
+                    </div>
+
+                    {/* Check Frequency */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            ⏱ Check Frequency
+                        </label>
+                        <select
+                            value={formData.checkFrequencyHours}
+                            onChange={(e) => setFormData({ ...formData, checkFrequencyHours: parseInt(e.target.value) })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        >
+                            <option value="12">Every 12 hours</option>
+                            <option value="24">Every 24 hours</option>
+                            <option value="48">Every 48 hours (default)</option>
+                            <option value="168">Weekly</option>
+                        </select>
                     </div>
 
                     {/* Advanced Filters */}

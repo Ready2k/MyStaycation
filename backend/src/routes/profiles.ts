@@ -3,6 +3,7 @@ import { AppDataSource } from '../config/database';
 import { HolidayProfile, FlexType, PeakTolerance, AccommodationType, AccommodationTier, StayPattern, SchoolHolidayMatch, AlertSensitivity } from '../entities/HolidayProfile';
 import { User } from '../entities/User';
 import { Provider } from '../entities/Provider';
+import { SearchFingerprint } from '../entities/SearchFingerprint';
 import z from 'zod';
 
 // Validation schemas
@@ -43,13 +44,15 @@ export const createProfileSchema = z.object({
         z.null().transform(() => []),
         z.undefined().transform(() => [])
     ]).optional().default([]),
-    metadata: z.any().optional() // Provider-specific metadata (lodges, filters, etc.)
+    metadata: z.any().optional(), // Provider-specific metadata (lodges, filters, etc.)
+    checkFrequencyHours: z.number().int().min(12).max(168).optional() // Per-profile override (12h–1week)
 });
 
 const updateProfileSchema = createProfileSchema.partial();
 
 export async function profileRoutes(fastify: FastifyInstance) {
     const profileRepo = AppDataSource.getRepository(HolidayProfile);
+    const fingerprintRepo = AppDataSource.getRepository(SearchFingerprint);
 
     // GET /profiles - List all profiles for the current user
     fastify.get('/profiles', {
@@ -60,10 +63,40 @@ export async function profileRoutes(fastify: FastifyInstance) {
         try {
             const profiles = await profileRepo.find({
                 where: { user: { id: user.userId } },
-                relations: ['provider'], // Load provider relation for edit routing
+                relations: ['provider'],
                 order: { createdAt: 'DESC' }
             });
-            return profiles;
+
+            if (profiles.length === 0) return profiles;
+
+            // Fetch most recent FetchRun per profile via raw query
+            const profileIds = profiles.map(p => p.id);
+            const latestRuns: Array<{
+                profileId: string;
+                status: string;
+                providerStatus: string | null;
+                errorMessage: string | null;
+                finishedAt: string | null;
+            }> = await AppDataSource.query(`
+                SELECT DISTINCT ON (sf.profile_id)
+                    sf.profile_id as "profileId",
+                    fr.status,
+                    fr."providerStatus",
+                    fr."errorMessage",
+                    fr."finishedAt"
+                FROM fetch_runs fr
+                JOIN search_fingerprints sf ON fr.fingerprint_id = sf.id
+                WHERE sf.profile_id = ANY($1)
+                  AND fr."runType" = 'SEARCH'
+                ORDER BY sf.profile_id, fr."finishedAt" DESC NULLS LAST
+            `, [profileIds]);
+
+            const runMap = new Map(latestRuns.map(r => [r.profileId, r]));
+
+            return profiles.map(p => ({
+                ...p,
+                lastFetchRun: runMap.get(p.id) || null,
+            }));
         } catch (error) {
             request.log.error(error);
             return reply.code(500).send({ message: 'Internal Server Error' });
@@ -124,6 +157,14 @@ export async function profileRoutes(fastify: FastifyInstance) {
                         });
                     }
                     request.log.info(`Queued ${fingerprints.length} initial monitoring jobs for new profile: ${savedProfile.id}`);
+
+                    // Propagate per-profile check frequency to fingerprints
+                    if (validatedData.checkFrequencyHours) {
+                        await fingerprintRepo.update(
+                            { profile: { id: savedProfile.id } },
+                            { checkFrequencyHours: validatedData.checkFrequencyHours }
+                        );
+                    }
                 } else {
                     request.log.warn(`No fingerprints created for profile ${savedProfile.id}`);
                 }
@@ -203,6 +244,15 @@ export async function profileRoutes(fastify: FastifyInstance) {
             try {
                 const { fingerprintService } = await import('../services/search/fingerprint.service');
                 await fingerprintService.syncProfileFingerprints(savedProfile);
+
+                // Propagate per-profile check frequency override to all fingerprints
+                const checkFreqOverride = (validatedData as any).checkFrequencyHours;
+                if (checkFreqOverride) {
+                    await fingerprintRepo.update(
+                        { profile: { id: savedProfile.id } },
+                        { checkFrequencyHours: checkFreqOverride }
+                    );
+                }
             } catch (err) {
                 request.log.error({ err }, 'Failed to sync fingerprints');
             }

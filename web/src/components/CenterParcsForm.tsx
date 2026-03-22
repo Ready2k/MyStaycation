@@ -27,6 +27,8 @@ interface CenterParcsFormData {
     nights: number;
     lodges: Lodge[];
     budgetMax: number | null;
+    alertSensitivity: 'INSTANT' | 'DIGEST' | 'EXCEPTIONAL_ONLY';
+    checkFrequencyHours: number;
     // Filters
     accomTypes: string[];
     features: string[];
@@ -70,6 +72,8 @@ export function CenterParcsForm({ initialData, onSuccess, onBack }: CenterParcsF
             { adults: 2, children: 0, toddlers: 0, infants: 0, dogs: 0, bedrooms: 2 }
         ],
         budgetMax: null,
+        alertSensitivity: 'INSTANT',
+        checkFrequencyHours: 48 as number,
         accomTypes: [],
         features: [],
     });
@@ -89,6 +93,8 @@ export function CenterParcsForm({ initialData, onSuccess, onBack }: CenterParcsF
                 nights: initialData.durationNightsMin || 7,
                 lodges: metadata.lodges || [{ adults: 2, children: 0, toddlers: 0, infants: 0, dogs: 0, bedrooms: 2 }],
                 budgetMax: initialData.budgetCeilingGbp || null,
+                alertSensitivity: initialData.alertSensitivity || 'INSTANT',
+                checkFrequencyHours: initialData.checkFrequencyHours || 48,
                 accomTypes: metadata.accomTypes || [],
                 features: metadata.features || [],
             });
@@ -114,6 +120,8 @@ export function CenterParcsForm({ initialData, onSuccess, onBack }: CenterParcsF
                 partySizeChildren: totalChildren,
                 petsNumber: totalDogs, // Add total dogs count
                 budgetCeilingGbp: data.budgetMax || undefined,
+                alertSensitivity: data.alertSensitivity,
+                checkFrequencyHours: data.checkFrequencyHours,
                 flexType: 'RANGE',
                 // Store Center Parcs specific data in metadata
                 metadata: {
@@ -407,6 +415,39 @@ export function CenterParcsForm({ initialData, onSuccess, onBack }: CenterParcsF
                                 placeholder="No limit"
                             />
                         </div>
+                    </div>
+
+                    {/* Alert Sensitivity */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            🔔 Alert Sensitivity
+                        </label>
+                        <select
+                            value={formData.alertSensitivity}
+                            onChange={(e) => setFormData({ ...formData, alertSensitivity: e.target.value as any })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="INSTANT">Instant (every price drop)</option>
+                            <option value="DIGEST">Daily digest</option>
+                            <option value="EXCEPTIONAL_ONLY">Exceptional deals only (&gt;20% drop)</option>
+                        </select>
+                    </div>
+
+                    {/* Check Frequency */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            ⏱ Check Frequency
+                        </label>
+                        <select
+                            value={formData.checkFrequencyHours}
+                            onChange={(e) => setFormData({ ...formData, checkFrequencyHours: parseInt(e.target.value) })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="12">Every 12 hours</option>
+                            <option value="24">Every 24 hours</option>
+                            <option value="48">Every 48 hours (default)</option>
+                            <option value="168">Weekly</option>
+                        </select>
                     </div>
 
                     {/* Advanced Filters Toggle */}

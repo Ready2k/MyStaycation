@@ -2,7 +2,8 @@
 # Compatible with Synology NAS (x86_64/amd64)
 
 # Stage 1: Base dependencies
-FROM --platform=linux/amd64 node:20-alpine AS base
+# Target platform (linux/amd64) is set by the buildx --platform flag at build time.
+FROM node:20-alpine AS base
 
 WORKDIR /app
 
@@ -58,7 +59,7 @@ EXPOSE 4000
 CMD ["npm", "run", "dev"]
 
 # Stage 5: Production
-FROM --platform=linux/amd64 node:20-alpine AS production
+FROM node:20-alpine AS production
 
 WORKDIR /app
 

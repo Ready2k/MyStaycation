@@ -6,6 +6,13 @@ import { format } from 'date-fns';
 import { ResultsModal, SearchResult } from './ResultsModal';
 import { ConfirmationModal } from './ConfirmationModal';
 
+interface LastFetchRun {
+    status: 'OK' | 'ERROR' | 'BLOCKED' | 'PARSE_FAILED';
+    providerStatus: string | null;
+    errorMessage: string | null;
+    finishedAt: string | null;
+}
+
 interface Profile {
     id: string;
     name: string;
@@ -23,6 +30,34 @@ interface Profile {
         name: string;
     };
     region?: string;
+    lastFetchRun?: LastFetchRun | null;
+}
+
+function LastCheckedBadge({ run }: { run?: LastFetchRun | null }) {
+    if (!run?.finishedAt) {
+        return <span className="text-xs text-gray-400">Not yet checked</span>;
+    }
+
+    const diff = Date.now() - new Date(run.finishedAt).getTime();
+    const hours = Math.floor(diff / 3600000);
+    const label = hours < 1 ? 'Just now' : hours < 24 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
+
+    const isOk = run.status === 'OK';
+    const dotColour = isOk ? 'bg-green-500' : run.status === 'BLOCKED' ? 'bg-yellow-500' : 'bg-red-500';
+
+    return (
+        <button
+            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700"
+            title={
+                isOk
+                    ? `Last checked: ${new Date(run.finishedAt).toLocaleString()}`
+                    : `Error: ${run.errorMessage || run.providerStatus || run.status}`
+            }
+        >
+            <span className={`w-2 h-2 rounded-full ${dotColour}`} />
+            {label}
+        </button>
+    );
 }
 
 export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) {
@@ -97,6 +132,18 @@ export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) 
         }
     });
 
+    const toggleEnabledMutation = useMutation({
+        mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
+            await api.put(`/profiles/${id}`, { enabled });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['profiles'] });
+        },
+        onError: () => {
+            alert("Failed to update watcher status. Please try again.");
+        }
+    });
+
     if (isLoading) return <div>Loading watchers...</div>;
     if (error) return <div>Error loading profiles</div>;
     if (!profiles?.length) return (
@@ -119,10 +166,19 @@ export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) 
                                     {profile.pets && <span className="ml-2" title="Pets Allowed">🐾</span>}
                                 </p>
                             </div>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${profile.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                                }`}>
+                            <button
+                                onClick={() => toggleEnabledMutation.mutate({ id: profile.id, enabled: !profile.enabled })}
+                                disabled={toggleEnabledMutation.isPending}
+                                title={profile.enabled ? 'Click to pause monitoring' : 'Click to resume monitoring'}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${
+                                    profile.enabled
+                                        ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                }`}
+                            >
+                                <span className={`w-1.5 h-1.5 rounded-full ${profile.enabled ? 'bg-green-500' : 'bg-gray-400'}`} />
                                 {profile.enabled ? 'Active' : 'Paused'}
-                            </span>
+                            </button>
                         </div>
 
                         <div className="space-y-2 text-sm text-gray-600 mb-6">
@@ -146,7 +202,11 @@ export function ProfileList({ onEdit }: { onEdit: (profile: Profile) => void }) 
                             )}
                         </div>
 
-                        <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+                        <div className="pt-3 border-t border-gray-100 mb-3">
+                            <LastCheckedBadge run={profile.lastFetchRun} />
+                        </div>
+
+                        <div className="flex justify-between items-center">
                             <div className="flex space-x-3">
                                 <button
                                     onClick={() => router.push(`/dashboard/profile/${profile.id}`)}

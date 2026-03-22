@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/services/api';
 import { PriceChart } from '@/components/PriceChart';
+import { BookingRecommendation } from '@/components/BookingRecommendation';
 import { format } from 'date-fns';
 import { useState } from 'react';
 
@@ -150,6 +151,9 @@ export default function ProfileDetailPage() {
                     )}
                 </div>
             </div>
+
+            {/* Booking Recommendation Banner */}
+            <BookingRecommendation insights={insights} />
 
             {/* Price History Chart */}
             <div className="mb-6">

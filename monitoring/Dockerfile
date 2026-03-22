@@ -1,7 +1,8 @@
 # Monitoring container Dockerfile
 # Compatible with Synology NAS (x86_64/amd64)
 
-FROM --platform=linux/amd64 postgres:16-alpine
+# Target platform (linux/amd64) is set by the buildx --platform flag at build time.
+FROM postgres:16-alpine
 
 # Install required tools
 RUN apk add --no-cache \

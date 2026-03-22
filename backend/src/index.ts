@@ -13,6 +13,8 @@ import { insightsRoutes } from './routes/insights';
 import { alertRoutes } from './routes/alerts';
 import { usersRoutes } from './routes/users';
 import { adminRoutes } from './routes/admin';
+import { dealRoutes } from './routes/deals';
+import { parksRoutes } from './routes/parks';
 import { authenticate, requireAdmin } from './middleware/auth';
 import { SystemLogger } from './services/SystemLogger';
 
@@ -129,6 +131,8 @@ async function start() {
         await fastify.register(alertRoutes);
         await fastify.register(usersRoutes);
         await fastify.register(adminRoutes);
+        await fastify.register(dealRoutes);
+        await fastify.register(parksRoutes);
 
         // Start server
         const port = parseInt(process.env.PORT || '4000');

@@ -23,6 +23,8 @@ export function ParkdeanForm({ initialData, onSuccess, onBack }: ParkdeanFormPro
         pets: 0,
         budgetMax: null as number | null,
         accomType: 'Any',
+        alertSensitivity: 'INSTANT' as 'INSTANT' | 'DIGEST' | 'EXCEPTIONAL_ONLY',
+        checkFrequencyHours: 48 as number,
     });
 
     useEffect(() => {
@@ -39,6 +41,8 @@ export function ParkdeanForm({ initialData, onSuccess, onBack }: ParkdeanFormPro
                 pets: initialData.petsNumber || 0,
                 budgetMax: initialData.budgetCeilingGbp || null,
                 accomType: metadata.accomType || 'Any',
+                alertSensitivity: initialData.alertSensitivity || 'INSTANT',
+                checkFrequencyHours: initialData.checkFrequencyHours || 48,
             });
         }
     }, [initialData]);
@@ -59,6 +63,8 @@ export function ParkdeanForm({ initialData, onSuccess, onBack }: ParkdeanFormPro
                 pets: data.pets > 0,
                 budgetCeilingGbp: data.budgetMax || undefined,
                 flexType: 'RANGE',
+                alertSensitivity: data.alertSensitivity,
+                checkFrequencyHours: data.checkFrequencyHours,
                 metadata: { accomType: data.accomType }
             };
 
@@ -133,6 +139,23 @@ export function ParkdeanForm({ initialData, onSuccess, onBack }: ParkdeanFormPro
                     <div>
                         <label className="block text-sm font-medium mb-2">Max Budget (£)</label>
                         <input type="number" min="0" value={formData.budgetMax || ''} onChange={(e) => setFormData({ ...formData, budgetMax: e.target.value ? parseInt(e.target.value) : null })} className="w-full px-3 py-2 border rounded-md" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-2">🔔 Alert Sensitivity</label>
+                        <select value={formData.alertSensitivity} onChange={(e) => setFormData({ ...formData, alertSensitivity: e.target.value as any })} className="w-full px-3 py-2 border rounded-md">
+                            <option value="INSTANT">Instant (every price drop)</option>
+                            <option value="DIGEST">Daily digest</option>
+                            <option value="EXCEPTIONAL_ONLY">Exceptional deals only (&gt;20% drop)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-2">⏱ Check Frequency</label>
+                        <select value={formData.checkFrequencyHours} onChange={(e) => setFormData({ ...formData, checkFrequencyHours: parseInt(e.target.value) })} className="w-full px-3 py-2 border rounded-md">
+                            <option value="12">Every 12 hours</option>
+                            <option value="24">Every 24 hours</option>
+                            <option value="48">Every 48 hours (default)</option>
+                            <option value="168">Weekly</option>
+                        </select>
                     </div>
                 </form>
                 <div className="p-6 border-t flex justify-between">

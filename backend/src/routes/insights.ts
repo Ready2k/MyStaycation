@@ -179,7 +179,7 @@ export async function insightsRoutes(fastify: FastifyInstance) {
         };
     });
 
-    // Get recent alerts
+    // Get recent alerts (paginated)
     fastify.get('/alerts/recent', {
         preHandler: [authenticate],
         schema: {
@@ -187,13 +187,14 @@ export async function insightsRoutes(fastify: FastifyInstance) {
                 type: 'object',
                 properties: {
                     limit: { type: 'number', default: 10 },
+                    page: { type: 'number', default: 1 },
                     unreadOnly: { type: 'boolean', default: false },
                 },
             },
         },
     }, async (request, _reply) => {
         const userId = (request.user as { userId: string }).userId;
-        const { limit = 10, unreadOnly = false } = request.query as Record<string, unknown>;
+        const { limit = 10, page = 1, unreadOnly = false } = request.query as Record<string, unknown>;
 
         const queryBuilder = alertRepo
             .createQueryBuilder('alert')
@@ -206,10 +207,12 @@ export async function insightsRoutes(fastify: FastifyInstance) {
             queryBuilder.andWhere('alert.status != :status', { status: 'DISMISSED' });
         }
 
-        const alerts = await queryBuilder
+        const offset = ((page as number) - 1) * (limit as number);
+        const [alerts, total] = await queryBuilder
             .orderBy('alert.createdAt', 'DESC')
-            .limit(limit as number)
-            .getMany();
+            .skip(offset)
+            .take(limit as number)
+            .getManyAndCount();
 
         const totalUnread = await alertRepo
             .createQueryBuilder('alert')
@@ -217,7 +220,14 @@ export async function insightsRoutes(fastify: FastifyInstance) {
             .andWhere('alert.status != :status', { status: 'DISMISSED' })
             .getCount();
 
-        return { alerts, totalUnread };
+        return {
+            alerts,
+            total,
+            totalUnread,
+            page,
+            limit,
+            pages: Math.ceil((total as number) / (limit as number)),
+        };
     });
 
     // Mark alert as dismissed

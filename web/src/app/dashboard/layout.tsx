@@ -62,6 +62,34 @@ export default function DashboardLayout({
                                     Dashboard
                                 </Link>
 
+                                <Link
+                                    href="/dashboard/deals"
+                                    className={`px-3 py-2 rounded-md text-sm font-medium ${pathname?.startsWith('/dashboard/deals') ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:text-gray-900'}`}
+                                >
+                                    🎫 Deals
+                                </Link>
+
+                                <Link
+                                    href="/dashboard/alerts"
+                                    className={`px-3 py-2 rounded-md text-sm font-medium ${pathname?.startsWith('/dashboard/alerts') ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:text-gray-900'}`}
+                                >
+                                    🔔 Alerts
+                                </Link>
+
+                                <Link
+                                    href="/dashboard/parks"
+                                    className={`px-3 py-2 rounded-md text-sm font-medium ${pathname?.startsWith('/dashboard/parks') ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:text-gray-900'}`}
+                                >
+                                    🗺️ Parks
+                                </Link>
+
+                                <Link
+                                    href="/dashboard/compare"
+                                    className={`px-3 py-2 rounded-md text-sm font-medium ${pathname?.startsWith('/dashboard/compare') ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:text-gray-900'}`}
+                                >
+                                    🔍 Compare
+                                </Link>
+
                                 {user?.role === 'ADMIN' && (
                                     <Link
                                         href="/dashboard/admin"

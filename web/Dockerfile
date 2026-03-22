@@ -1,19 +1,20 @@
 # Multi-stage Dockerfile for Next.js frontend
-# Compatible with Synology NAS (x86_64/amd64)
+# Target platform (linux/amd64) is set by the buildx --platform flag at build time.
 
 # Stage 1: Dependencies
-FROM --platform=linux/amd64 node:20-alpine AS dependencies
+FROM node:20-alpine AS dependencies
 
 WORKDIR /app
 
-# Copy source FIRST
-COPY . .
+# Copy manifests first for better layer caching
+COPY package.json package-lock.json ./
 
-# Install dependencies
-RUN npm install
+# --legacy-peer-deps: react-leaflet@5 has strict peer declarations that
+# conflict with some transitive deps; this flag resolves them safely.
+RUN npm ci --legacy-peer-deps
 
 # Stage 2: Build
-FROM --platform=linux/amd64 node:20-alpine AS build
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
@@ -23,22 +24,21 @@ COPY . .
 RUN npm run build
 
 # Stage 3: Development
-FROM --platform=linux/amd64 node:20-alpine AS development
+FROM node:20-alpine AS development
 
 WORKDIR /app
 
-# Copy source FIRST
-COPY . .
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps
 
-# Install dependencies
-RUN npm install
+COPY . .
 
 EXPOSE 3000
 
 CMD ["npm", "run", "dev"]
 
 # Stage 4: Production
-FROM --platform=linux/amd64 node:20-alpine AS production
+FROM node:20-alpine AS production
 
 WORKDIR /app
 
@@ -55,7 +55,7 @@ USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "server.js"]

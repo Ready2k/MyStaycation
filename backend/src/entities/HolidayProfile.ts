@@ -135,6 +135,10 @@ export class HolidayProfile {
     @Column({ type: 'enum', enum: AlertSensitivity, default: AlertSensitivity.INSTANT })
     alertSensitivity!: AlertSensitivity;
 
+    // Per-profile check frequency override (hours). Propagated to SearchFingerprint records.
+    @Column({ type: 'int', default: 48 })
+    checkFrequencyHours!: number;
+
     // --- MANIFEST / FILTERING ---
     @Column({ type: 'varchar', nullable: true })
     region?: string; // e.g. "Cornwall", "Devon"
