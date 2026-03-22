@@ -18,7 +18,7 @@ cp .env.example .env        # then edit .env with credentials
 ./start.sh                  # starts all services with --rebuild
 # or: docker-compose --profile dev up -d
 
-docker-compose exec api npm run seed   # seed database
+docker-compose exec api node dist/seeds/index.js   # seed database (production image — tsx not available)
 docker-compose logs -f                 # tail all logs
 ```
 
@@ -53,7 +53,8 @@ Web UI and API served via nginx at http://localhost (API at /api path).
 npm run migrate             # run pending TypeORM migrations
 npm run migrate:generate    # generate new migration from entity changes
 npm run migrate:revert      # revert last migration
-npm run seed                # seed database with initial data
+npm run seed                # seed database (dev only — uses tsx)
+# In production container use: node dist/seeds/index.js
 npm test                    # run Jest tests (70% coverage threshold)
 npm run test:watch          # watch mode
 npm run test:coverage       # coverage report
@@ -128,6 +129,40 @@ CORS_ORIGIN=http://localhost:3000
 ```
 
 See `.env.example` for the full list. Run `./setup-env.sh` for interactive setup.
+
+## Synology NAS Deployment
+
+Docker image: `ready2k/mystaycation-api:latest` (multi-arch: amd64 + arm64)
+
+```bash
+# Always build multi-arch so the NAS gets the correct platform variant
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -f backend/Dockerfile -t ready2k/mystaycation-api:latest --push backend/
+
+# Deploy on Synology
+sudo docker compose -f /volume1/docker/my_staycation/compose.yaml pull api
+sudo docker compose -f /volume1/docker/my_staycation/compose.yaml up -d --no-deps api
+
+# Run seed (tsx not available in production image — use compiled JS)
+sudo docker compose -f /volume1/docker/my_staycation/compose.yaml exec api node dist/seeds/index.js
+```
+
+**Important:** The production image has no `tsx` or dev dependencies. All scripts that use `tsx` must be run via `node dist/<path>.js` (compiled output). The build context must be `backend/` not the repo root.
+
+## Known Issues & Fixes
+
+### Rate limiting (429) — all users sharing one bucket
+**Cause:** All web→API traffic comes from the web container IP (`172.31.x.x`), so every user shares one rate-limit bucket.
+**Fix:** `@fastify/rate-limit` `keyGenerator` in `backend/src/index.ts` decodes the JWT and keys by `userId`; falls back to IP for unauthenticated requests. Limit raised to 300 req/15 min.
+
+### Geocoding — park coordinates missing on map
+**Cause 1:** Seeded parks (Center Parcs, Haven, etc.) had no hardcoded coordinates and relied entirely on Nominatim. Nominatim doesn't know commercial park names like "Clawford Lakes Resort and Spa".
+**Fix:** `backend/src/seeds/providers.seed.ts` now includes hardcoded lat/lon for all seeded parks. Re-running the seed with `node dist/seeds/index.js` backfills any parks that have `NULL` coordinates.
+
+**Cause 2:** Dynamically-created parks (auto-created by `monitor.worker.ts` when scraping discovers a new park) use the scraped property name which often includes commercial suffixes ("Resort and Spa", "Holiday Park", "Lodges") or are outright accommodation types ("3 bedroom Woodland Lodge").
+**Fix:** `backend/src/services/geocoding.service.ts` normalises names before querying Nominatim — strips commercial suffixes, handles "X at Y" patterns (extracts Y), and skips entries that look like accommodation types rather than place names.
+
+**Trigger geocoding:** Admin panel → "Geocode Parks" button (POST `/admin/geocode-parks`). Respects Nominatim's 1 req/s limit — takes ~1 min per 30 parks. Small private parks not in OpenStreetMap will always fail; this is expected.
 
 ## Useful docs
 
