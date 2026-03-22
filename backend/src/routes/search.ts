@@ -34,7 +34,8 @@ export async function searchRoutes(fastify: FastifyInstance) {
                 userId: user.userId,
                 options: {
                     includeDebug: false,
-                    includeMismatches: false,
+                    includeMismatches: true,
+                    allowWeakMatches: true,
                 }
             });
 

@@ -96,7 +96,10 @@ export class FingerprintService {
         }
 
         const canonicalJson = JSON.parse(JSON.stringify(searchParams)); // Ensure pure JSON object
-        const canonicalString = JSON.stringify(canonicalJson, Object.keys(canonicalJson).sort());
+        // Include profileId in the hash so two profiles with identical params don't collide
+        // on the globally-unique canonicalHash constraint.
+        const hashInput = { ...canonicalJson, _profileId: profile.id };
+        const canonicalString = JSON.stringify(hashInput, Object.keys(hashInput).sort());
         const canonicalHash = crypto.createHash('sha256').update(canonicalString).digest('hex');
 
         // Check if exists

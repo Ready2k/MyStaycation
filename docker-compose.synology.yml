@@ -81,6 +81,7 @@ services:
       DB_SSL: ${DB_SSL:-false}
     env_file:
       - .env
+    shm_size: '256m'  # Chromium needs more shared memory than Docker's 64MB default
     # Override command to run the worker instead of the API
     command: node dist/jobs/worker.js
     depends_on:

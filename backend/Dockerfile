@@ -1,31 +1,31 @@
 # Multi-stage Dockerfile for backend API and worker
 # Compatible with Synology NAS (x86_64/amd64)
+#
+# Build stages (Alpine) handle TypeScript compilation.
+# Production stage uses node:20-slim (Debian/glibc) so that
+# Playwright's bundled Chromium works — it requires glibc, not Alpine's musl.
 
-# Stage 1: Base dependencies
-# Target platform (linux/amd64) is set by the buildx --platform flag at build time.
+# Stage 1: Base — Alpine, used only for compilation
 FROM node:20-alpine AS base
 
 WORKDIR /app
 
-# Install system dependencies
 RUN apk add --no-cache \
     python3 \
     make \
     g++ \
     curl
 
-# Stage 2: Dependencies installation
+# Stage 2: Install dependencies (Alpine — dev + prod, for TypeScript build)
 FROM base AS dependencies
 
-# Copy source code FIRST (before npm install)
 COPY . .
 
-# Install dependencies (this will compile native modules for x86_64)
 RUN npm install --only=production && \
     cp -R node_modules /prod_node_modules && \
     npm install
 
-# Stage 3: Build
+# Stage 3: Build TypeScript (Alpine)
 FROM base AS build
 
 COPY --from=dependencies /app/node_modules ./node_modules
@@ -33,16 +33,13 @@ COPY . .
 
 RUN npm run build
 
-# Stage 4: Development
+# Stage 4: Development (Alpine — runs locally, not on Synology)
 FROM base AS development
 
-# Copy source code FIRST
 COPY . .
 
-# Install dependencies (compiles native modules for x86_64)
 RUN npm install
 
-# Install Chromium for Playwright support in dev
 RUN apk add --no-cache \
     chromium \
     nss \
@@ -58,34 +55,46 @@ EXPOSE 4000
 
 CMD ["npm", "run", "dev"]
 
-# Stage 5: Production
-FROM node:20-alpine AS production
+# Stage 5: Production — Debian slim (glibc) for Playwright Chromium compatibility
+FROM node:20-slim AS production
 
 WORKDIR /app
 
-# Install runtime dependencies only
-RUN apk add --no-cache \
-    chromium \
-    nss \
-    freetype \
-    harfbuzz \
+# Install system libs required by Playwright's Chromium + build tools for native npm modules
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ \
+    libnss3 \
+    libfreetype6 \
+    libharfbuzz0b \
     ca-certificates \
-    ttf-freefont
+    fonts-freefont-ttf \
+    libasound2 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libgbm1 \
+    libgtk-3-0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    xdg-utils \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+RUN groupadd -g 1001 nodejs && useradd -u 1001 -g nodejs nodejs
 
-# Copy production dependencies
-COPY --from=dependencies /prod_node_modules ./node_modules
+# Reinstall production deps compiled for glibc (Alpine-compiled modules won't work here)
+COPY package*.json ./
+RUN npm install --only=production
 
-# Copy built application
+# Copy compiled application
 COPY --from=build --chown=nodejs:nodejs /app/dist ./dist
-COPY --from=build --chown=nodejs:nodejs /app/package*.json ./
 
-# Set Playwright to use system chromium
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+# Install Playwright's own Chromium build to a fixed path (as root before USER switch)
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN npx playwright install chromium && \
+    chmod -R o+rx /ms-playwright
 
 USER nodejs
 

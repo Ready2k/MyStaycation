@@ -142,27 +142,50 @@ export abstract class BaseAdapter {
             this.browser = await chromium.launch({
                 headless: true,
                 executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
-                args: ['--no-sandbox', '--disable-setuid-sandbox'],
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                ],
+            });
+
+            // Reset browser reference if it disconnects unexpectedly
+            this.browser.on('disconnected', () => {
+                this.browser = undefined;
             });
         }
 
         const page = await this.browser.newPage();
 
         try {
-            // Use domcontentloaded instead of networkidle for better reliability
-            // Modern sites often have background requests that prevent networkidle
-            await page.goto(url, {
-                waitUntil: 'domcontentloaded',
-                timeout: 60000 // Increase timeout to 60 seconds
+            page.on('crash', () => {
+                // Force browser reset on next call
+                this.browser?.close().catch(() => {});
+                this.browser = undefined;
             });
 
-            // Wait a bit for dynamic content to load
+            // Block heavy assets — we only need HTML/JS for scraping, not images/video/fonts
+            await page.route('**/*', (route) => {
+                const type = route.request().resourceType();
+                if (['image', 'media', 'font', 'stylesheet'].includes(type)) {
+                    route.abort();
+                } else {
+                    route.continue();
+                }
+            });
+
+            await page.goto(url, {
+                waitUntil: 'domcontentloaded',
+                timeout: 60000
+            });
+
             await this.delay(3000);
 
             const html = await page.content();
             return html;
         } finally {
-            await page.close();
+            await page.close().catch(() => {}); // page may already be closed after a crash
         }
     }
 

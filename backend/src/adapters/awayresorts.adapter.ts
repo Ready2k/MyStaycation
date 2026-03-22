@@ -56,8 +56,16 @@ export class AwayResortsAdapter extends BaseAdapter {
 
     // Exposed for testing
     public buildSearchUrl(params: SearchParams): string {
+        // Away Resorts uses numeric parkIDs (e.g. 7, 23).
+        // params.parks[0] may be a numeric ID already (e.g. '7') or a name
+        // typed by the user (e.g. 'St Ives'). Resolve accordingly.
         const resortName = (params as any).resort || '';
-        const parkId = this.getResortCode(resortName);
+        const firstPark = params.parks && params.parks.length > 0 ? params.parks[0] : '';
+        const parkId = firstPark
+            ? /^\d+$/.test(firstPark)
+                ? firstPark                        // already a numeric ID — use directly
+                : this.getResortCode(firstPark)    // name string — look up numeric ID
+            : this.getResortCode(resortName);      // no parks at all — fall back to resort param
         const date = this.parseDate(params.dateWindow.start); // returns YYYY-MM-DD
 
         // Calculate end date based on duration

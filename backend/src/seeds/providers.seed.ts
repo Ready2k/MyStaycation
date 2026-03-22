@@ -154,5 +154,98 @@ export async function seedProviders() {
         }
     }
 
+    // Add Butlins resorts (3 fixed UK resorts)
+    const butlinsParks = [
+        { code: 'BG', name: 'Bognor Regis', region: 'West Sussex' },
+        { code: 'MH', name: 'Minehead', region: 'Somerset' },
+        { code: 'SK', name: 'Skegness', region: 'Lincolnshire' },
+    ];
+
+    for (const parkData of butlinsParks) {
+        const existing = await parkRepo.findOne({
+            where: { provider: { id: butlins.id }, providerParkCode: parkData.code },
+        });
+
+        if (!existing) {
+            const park = parkRepo.create({
+                provider: butlins,
+                providerParkCode: parkData.code,
+                name: parkData.name,
+                region: parkData.region,
+            });
+            await parkRepo.save(park);
+            console.log(`✅ Created Butlins resort: ${parkData.name}`);
+        }
+    }
+
+    // Add Away Resorts (unique resorts from adapter)
+    const awayResortsParks = [
+        { code: '7',  name: 'Tattershall Lakes',   region: 'Lincolnshire' },
+        { code: '1',  name: 'Sandy Balls',          region: 'Hampshire' },
+        { code: '18', name: 'Mill Rythe',           region: 'Hampshire' },
+        { code: '15', name: 'Whitecliff Bay',       region: 'Isle of Wight' },
+        { code: '12', name: 'Mersea Island',        region: 'Essex' },
+        { code: '20', name: 'Barmouth Bay',         region: 'Wales' },
+        { code: '17', name: "Cleethorpes Pearl",    region: 'Lincolnshire' },
+        { code: '21', name: 'Golden Sands',         region: 'Lincolnshire' },
+        { code: '23', name: 'St Ives Bay',          region: 'Cornwall' },
+        { code: '24', name: 'Newquay Bay',          region: 'Cornwall' },
+        { code: '19', name: 'Retallack',            region: 'Cornwall' },
+        { code: '13', name: 'The Lakes Rookley',    region: 'Isle of Wight' },
+        { code: '14', name: 'The Bay Colwell',      region: 'Isle of Wight' },
+        { code: '26', name: 'Boston West',          region: 'Lincolnshire' },
+        { code: '27', name: 'East Fleet',           region: 'Dorset' },
+        { code: '28', name: 'Glendorgal',           region: 'Cornwall' },
+        { code: '25', name: 'Gara Rock',            region: 'Devon' },
+    ];
+
+    for (const parkData of awayResortsParks) {
+        const existing = await parkRepo.findOne({
+            where: { provider: { id: awayResorts.id }, providerParkCode: parkData.code },
+        });
+
+        if (!existing) {
+            const park = parkRepo.create({
+                provider: awayResorts,
+                providerParkCode: parkData.code,
+                name: parkData.name,
+                region: parkData.region,
+            });
+            await parkRepo.save(park);
+            console.log(`✅ Created Away Resorts park: ${parkData.name}`);
+        }
+    }
+
+    // Add well-known Parkdean Resorts parks
+    const parkdeanParks = [
+        { code: 'riviere-sands',    name: 'Riviere Sands',    region: 'Cornwall' },
+        { code: 'ruda',             name: 'Ruda',             region: 'Devon' },
+        { code: 'weymouth-bay',     name: 'Weymouth Bay',     region: 'Dorset' },
+        { code: 'trecco-bay',       name: 'Trecco Bay',       region: 'Wales' },
+        { code: 'pendine-sands',    name: 'Pendine Sands',    region: 'Wales' },
+        { code: 'craig-tara',       name: 'Craig Tara',       region: 'Scotland' },
+        { code: 'sundrum-castle',   name: 'Sundrum Castle',   region: 'Scotland' },
+        { code: 'st-minver',        name: 'St Minver',        region: 'Cornwall' },
+        { code: 'newquay-holiday-park', name: 'Newquay Holiday Park', region: 'Cornwall' },
+        { code: 'sandford',         name: 'Sandford',         region: 'Devon' },
+    ];
+
+    for (const parkData of parkdeanParks) {
+        const existing = await parkRepo.findOne({
+            where: { provider: { id: parkdean.id }, providerParkCode: parkData.code },
+        });
+
+        if (!existing) {
+            const park = parkRepo.create({
+                provider: parkdean,
+                providerParkCode: parkData.code,
+                name: parkData.name,
+                region: parkData.region,
+            });
+            await parkRepo.save(park);
+            console.log(`✅ Created Parkdean park: ${parkData.name}`);
+        }
+    }
+
     console.log('✅ Provider seeding complete');
 }

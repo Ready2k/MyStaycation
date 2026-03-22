@@ -55,7 +55,8 @@ export class AlertService {
             return null;
         }
 
-        // Create alert
+        // Create alert — use try/catch to handle race condition where two concurrent
+        // jobs pass the dedupeKey check simultaneously and both attempt to insert
         const alert = alertRepo.create({
             user: { id: userId },
             insight: { id: insightId },
@@ -64,7 +65,16 @@ export class AlertService {
             dedupeKey,
         });
 
-        await alertRepo.save(alert);
+        try {
+            await alertRepo.save(alert);
+        } catch (err: any) {
+            // Postgres unique violation — another concurrent job already inserted this alert
+            if (err?.code === '23505' || err?.driverError?.code === '23505') {
+                console.log(`Alert already created by concurrent job for dedupe key ${dedupeKey}`);
+                return null;
+            }
+            throw err;
+        }
 
         // Send email if channel is email
         if (alert.channel === AlertChannel.EMAIL) {
