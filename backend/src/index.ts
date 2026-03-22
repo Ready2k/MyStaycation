@@ -83,8 +83,19 @@ async function start() {
         });
 
         await fastify.register(rateLimit, {
-            max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
+            max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '300'),
             timeWindow: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
+            keyGenerator: (request) => {
+                // Use JWT user ID when available so each user has their own quota.
+                // Falls back to IP for unauthenticated requests (login, register, etc.)
+                try {
+                    const decoded = fastify.jwt.decode<{ userId: string }>(
+                        (request.headers.authorization || '').replace('Bearer ', '')
+                    );
+                    if (decoded?.userId) return decoded.userId;
+                } catch { /* not authenticated */ }
+                return request.ip;
+            },
         });
 
         // System Startup Log

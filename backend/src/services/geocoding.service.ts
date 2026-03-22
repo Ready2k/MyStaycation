@@ -21,6 +21,47 @@ interface NominatimResult {
 }
 
 /**
+ * Patterns that indicate a name is an accommodation type rather than a park name.
+ * These will never geocode successfully — skip them entirely.
+ */
+const SKIP_PATTERNS = [
+    /^\d+\s+bed(room)?/i,       // "3 bedroom Woodland Lodge", "4 bed cottage"
+    /^\d+\s+bedroom/i,
+];
+
+/**
+ * Commercial suffixes that Nominatim won't recognise. Strip them to get a
+ * cleaner geographic place name for the query.
+ */
+const STRIP_SUFFIXES: RegExp[] = [
+    / resort\s+and\s+spa$/i,
+    / resort\s+&\s+spa$/i,
+    / &\s+spa$/i,
+    / holiday\s+park$/i,
+    / holiday\s+village$/i,
+    / holiday\s+resort$/i,
+    / country\s+park$/i,
+    / country\s+retreats?$/i,
+    / country\s+lodges?$/i,
+    / caravan\s+park$/i,
+    / touring\s+park$/i,
+    / camping\s+park$/i,
+];
+
+function shouldSkipGeocode(name: string): boolean {
+    return SKIP_PATTERNS.some(p => p.test(name.trim()));
+}
+
+/** Returns a cleaner place name suitable for a Nominatim query. */
+function normalizeNameForGeocode(name: string): string {
+    let n = name.trim();
+    for (const suffix of STRIP_SUFFIXES) {
+        n = n.replace(suffix, '');
+    }
+    return n.trim();
+}
+
+/**
  * Look up coordinates for a single place name in the UK.
  * Returns null if not found or the request fails.
  */
@@ -60,7 +101,13 @@ export async function geocodeUKPlace(name: string): Promise<{ latitude: number; 
  * Safe to call fire-and-forget — errors are logged, not thrown.
  */
 export async function geocodePark(park: ProviderPark): Promise<void> {
-    const query = park.region ? `${park.name} ${park.region}` : park.name;
+    if (shouldSkipGeocode(park.name)) {
+        console.log(`[Geocoding] Skipping "${park.name}" — looks like an accommodation type, not a park name`);
+        return;
+    }
+
+    const normalized = normalizeNameForGeocode(park.name);
+    const query = park.region ? `${normalized} ${park.region}` : normalized;
     const coords = await geocodeUKPlace(query);
 
     if (!coords) {
@@ -96,7 +143,14 @@ export async function geocodeAllMissingParks(): Promise<{ attempted: number; suc
     let failed = 0;
 
     for (const park of parks) {
-        const query = park.region ? `${park.name} ${park.region}` : park.name;
+        if (shouldSkipGeocode(park.name)) {
+            console.log(`[Geocoding] Skipping "${park.name}" — accommodation type name`);
+            failed++;
+            continue;
+        }
+
+        const normalized = normalizeNameForGeocode(park.name);
+        const query = park.region ? `${normalized} ${park.region}` : normalized;
         const coords = await geocodeUKPlace(query);
 
         if (coords) {
