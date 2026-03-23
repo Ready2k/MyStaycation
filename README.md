@@ -2,14 +2,32 @@
 
 A personal assistant that monitors UK staycation prices and deals over time, alerting you only when booking conditions are meaningfully good.
 
-## Features
+## Key Features
 
-- 🔍 **Price Monitoring**: Track prices for Hoseasons and Haven holidays
-- 📊 **Historical Tracking**: Build price history to identify genuine deals
-- 🎯 **Smart Alerts**: Get notified only when prices hit meaningful thresholds
-- 📧 **Email Notifications**: Receive alerts via email (AWS SES)
-- 🔐 **Secure Authentication**: Email verification and password reset
-- 📱 **Mobile Friendly**: Responsive web interface accessible from any device
+- 🔍 **Real-time Price Watchers**: Create specific watchers to monitor prices for particular parks, dates, and guest configurations.
+- 📊 **Historical Tracking**: Build a comprehensive price history to identify genuine deals and avoid "fake" discounts.
+- 🎯 **Smart Alerts**: Get notified via email (AWS SES) only when prices hit meaningful thresholds or significant drops occur.
+- 🏷️ **Active Deals & Vouchers**: A dedicated aggregator for the latest price drops and discount codes across multiple providers.
+- 🗺️ **Interactive Parks Browser**: Explore over 80 holiday parks across 6 providers using a beautiful interactive map.
+- 🔄 **Cross-Provider Comparison**: Simultaneously search and compare prices across Haven, Hoseasons, Center Parcs, Butlins, Parkdean, and Away Resorts.
+- ⚡ **Live Monitoring**: Trigger on-demand price checks to get the most up-to-date availability and pricing instantly.
+- 🔐 **Secure & Private**: Full authentication system with email verification and secure password management.
+
+## Visual Tour
+
+### Dashboard & Monitoring
+Manage your holiday watchers and trigger real-time price checks to stay ahead of the curves.
+![Main Dashboard](docs/images/dashboard.png)
+![Live Monitoring](docs/images/monitoring.png)
+
+### Deals & Comparisons
+Discover the best promotions and compare multiple providers in a single view.
+![Active Deals](docs/images/deals.png)
+![Cross-Provider Compare](docs/images/compare.png)
+
+### Parks Exploration
+Find your perfect destination with our interactive map of across all supported holiday providers.
+![Parks Map](docs/images/parks_map.png)
 
 ## Quick Start
 
@@ -63,9 +81,17 @@ A personal assistant that monitors UK staycation prices and deals over time, ale
    - Prod mode: http://localhost (via nginx)
    - Health check: http://localhost:4000/health
 
+## Architecture
+
+- **Backend**: Node.js/TypeScript with Fastify
+- **Database**: PostgreSQL with TypeORM
+- **Queue**: Redis + BullMQ for background jobs (scraping, emails)
+- **Frontend**: Next.js (React/TypeScript) with modern, responsive UI
+- **Proxy**: Nginx with rate limiting and security headers
+
 ## Scraping Kill Switches
 
-Control scraping behavior via environment variables:
+Control scraping behavior via environment variables without code changes:
 
 ```bash
 # Global kill switch
@@ -80,46 +106,6 @@ PLAYWRIGHT_ENABLED=false      # Disable browser-based scraping
 PLAYWRIGHT_CONCURRENCY=1      # Limit concurrent browser instances
 ```
 
-These switches allow you to quickly respond to provider changes or rate limiting without code changes.
-
-## Usage
-
-1. **Register an account** at http://localhost/auth/register
-2. **Verify your email** (check console logs if SES not configured)
-3. **Create a holiday profile** with your preferences
-4. **Wait for monitoring** jobs to run (or trigger manually)
-5. **Receive alerts** when good deals are found
-
-## Architecture
-
-- **Backend**: Node.js/TypeScript with Fastify
-- **Database**: PostgreSQL with TypeORM
-- **Queue**: Redis + BullMQ for background jobs
-- **Frontend**: Next.js with responsive design
-- **Proxy**: Nginx with rate limiting
-
-## Development
-
-### Backend Development
-```bash
-cd backend
-npm install
-npm run dev
-```
-
-### Frontend Development
-```bash
-cd web
-npm install
-npm run dev
-```
-
-### Run Tests
-```bash
-cd backend
-npm test
-```
-
 ## Documentation
 
 📚 **Complete documentation is available in the [`docs/`](docs/) directory**
@@ -132,38 +118,15 @@ npm test
 - [✅ Project Status](docs/status/FIXES_COMPLETED.md) - Current completion status
 - [🔧 API Reference](docs/SEARCH_PREVIEW_API.md) - API endpoints and usage
 
-### Documentation Categories
-- **Architecture**: System design, requirements, technical specifications
-- **Deployment**: Production deployment guides and status
-- **Development**: Developer guides and implementation details  
-- **Testing**: Testing strategies and procedures
-- **Status**: Project progress and completion tracking
+## Security & Compliance
 
-## Security
-
-- ✅ JWT authentication with secure token storage
-- ✅ Password hashing with bcrypt
-- ✅ Rate limiting on API endpoints
-- ✅ CORS protection
+- ✅ JWT authentication & bcrypt password hashing
+- ✅ Rate limiting & CORS protection
 - ✅ Security headers via Helmet.js
-- ✅ Email verification required
-- ✅ HTTPS support (configure in production)
-
-## Compliance
-
-This application:
-- Respects robots.txt
-- Uses respectful rate limiting (24-72h intervals)
-- Identifies itself with User-Agent headers
-- Logs all fetch operations for audit trail
-- Does NOT auto-book or handle payments
-
-**You are responsible for ensuring compliance with provider Terms of Service.**
+- ✅ Respects robots.txt and identifies with User-Agent
+- ✅ Uses respectful scraping intervals (24-72h)
+- ✅ Logs all search operations for audit trail
 
 ## License
 
-GNU Affero General Public License v3.0 - see LICENSE file
-
-## Support
-
-For issues or questions, please create an issue in the repository.
+GNU Affero General Public License v3.0 - see [LICENSE](LICENSE) file
