@@ -201,6 +201,8 @@ export async function insightsRoutes(fastify: FastifyInstance) {
             .leftJoinAndSelect('alert.insight', 'insight')
             .leftJoinAndSelect('insight.fingerprint', 'fingerprint')
             .leftJoinAndSelect('fingerprint.profile', 'profile')
+            .leftJoinAndSelect('fingerprint.provider', 'fpProvider')
+            .leftJoinAndSelect('fingerprint.park', 'fpPark')
             .where('alert.user = :userId', { userId });
 
         if (unreadOnly) {

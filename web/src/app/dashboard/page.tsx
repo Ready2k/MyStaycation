@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ProfileList } from '@/components/ProfileList';
 import { ProfileForm } from '@/components/ProfileForm';
 import { AlertTicker } from '@/components/AlertTicker';
@@ -18,6 +18,18 @@ export default function DashboardPage() {
     const [step, setStep] = useState<WizardStep>('list');
     const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
     const [editingProfile, setEditingProfile] = useState<any>(null);
+
+    // Handle ?createFor=<providerCode> deep-link from Deals / Parks pages
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const createFor = params.get('createFor');
+        if (createFor) {
+            handleProviderSelect(createFor);
+            // Remove the query string so back-navigation stays clean
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleProviderSelect = (providerCode: string) => {
         setSelectedProvider(providerCode);
@@ -63,6 +75,7 @@ export default function DashboardPage() {
 
             {step === 'list' && (
                 <ProfileList
+                    onCreateNew={() => setStep('select-provider')}
                     onEdit={(profile) => {
                         setEditingProfile(profile);
                         // Route to provider-specific form based on profile.provider

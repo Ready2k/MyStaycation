@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -46,6 +46,15 @@ export default function ParksPage() {
     const [providerFilter, setProviderFilter] = useState('');
     const [regionFilter, setRegionFilter] = useState('');
     const [search, setSearch] = useState('');
+
+    // Support ?provider=<code>&search=<name> deep-links (e.g. from Deals page)
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const p = params.get('provider');
+        const s = params.get('search');
+        if (p) setProviderFilter(p);
+        if (s) setSearch(s);
+    }, []);
 
     const { data, isLoading } = useQuery({
         queryKey: ['parks'],

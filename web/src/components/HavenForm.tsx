@@ -1,8 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/services/api';
+
+interface HavenPark {
+    id: string;
+    name: string;
+    region: string | null;
+    parkCode: string | null;
+}
 
 interface HavenFormProps {
     initialData?: any;
@@ -65,6 +72,22 @@ export function HavenForm({ initialData, onSuccess, onBack }: HavenFormProps) {
     });
 
     const [showFilters, setShowFilters] = useState(false);
+    const [parkSearch, setParkSearch] = useState('');
+    const [saveError, setSaveError] = useState('');
+
+    const { data: havenParks = [], isLoading: parksLoading } = useQuery({
+        queryKey: ['parks', 'haven'],
+        queryFn: async () => {
+            const { data } = await api.get<{ parks: HavenPark[] }>('/parks');
+            return data.parks.filter((p: any) => p.providerCode === 'haven');
+        },
+    });
+
+    const filteredParks = havenParks.filter(
+        (p) =>
+            p.name.toLowerCase().includes(parkSearch.toLowerCase()) ||
+            (p.region ?? '').toLowerCase().includes(parkSearch.toLowerCase())
+    );
 
     useEffect(() => {
         if (initialData) {
@@ -128,14 +151,15 @@ export function HavenForm({ initialData, onSuccess, onBack }: HavenFormProps) {
         },
         onError: (error: any) => {
             console.error('Haven watcher save error:', error);
-            alert(`Failed to save watcher: ${error.response?.data?.message || error.message}`);
+            setSaveError(error.response?.data?.message || error.message || 'Failed to save watcher');
         },
     });
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        setSaveError('');
         if (formData.parks.length === 0) {
-            alert('Please select at least one Haven park');
+            setSaveError('Please select at least one Haven park.');
             return;
         }
         saveMutation.mutate(formData);
@@ -167,19 +191,78 @@ export function HavenForm({ initialData, onSuccess, onBack }: HavenFormProps) {
                         />
                     </div>
 
-                    {/* Parks - Note: Would need to fetch from ProviderConfig */}
+                    {/* Parks — searchable picker */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            📍 Haven Parks (enter park codes)
+                            📍 Haven Parks
+                            {formData.parks.length > 0 && (
+                                <span className="ml-2 text-xs font-normal text-blue-600">
+                                    {formData.parks.length} selected
+                                </span>
+                            )}
                         </label>
                         <input
                             type="text"
-                            value={formData.parks.join(', ')}
-                            onChange={(e) => setFormData({ ...formData, parks: e.target.value.split(',').map(p => p.trim()).filter(Boolean) })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="e.g., DEVON_CLIFFS, PRIMROSE_VALLEY"
+                            placeholder="Search by name or region…"
+                            value={parkSearch}
+                            onChange={(e) => setParkSearch(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                        <p className="mt-1 text-xs text-gray-500">Comma-separated park codes</p>
+                        {parksLoading ? (
+                            <div className="border border-gray-200 rounded-md px-3 py-3 text-sm text-gray-500">
+                                Loading parks…
+                            </div>
+                        ) : havenParks.length === 0 ? (
+                            <div className="border border-gray-200 rounded-md px-3 py-3 text-sm text-gray-500">
+                                No Haven parks found. Visit the{' '}
+                                <a href="/dashboard/parks" className="text-blue-600 underline" target="_blank">
+                                    Parks browser
+                                </a>{' '}
+                                to check availability.
+                            </div>
+                        ) : (
+                            <div className="border border-gray-200 rounded-md max-h-52 overflow-y-auto divide-y divide-gray-50">
+                                {filteredParks.length === 0 ? (
+                                    <p className="px-3 py-2 text-sm text-gray-500">No parks match "{parkSearch}"</p>
+                                ) : (
+                                    filteredParks.map((park) => {
+                                        const code = park.parkCode ?? park.name;
+                                        const checked = formData.parks.includes(code);
+                                        return (
+                                            <label
+                                                key={park.id}
+                                                className={`flex items-center px-3 py-2 cursor-pointer transition-colors ${checked ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={(e) => {
+                                                        const updated = e.target.checked
+                                                            ? [...formData.parks, code]
+                                                            : formData.parks.filter((p) => p !== code);
+                                                        setFormData({ ...formData, parks: updated });
+                                                    }}
+                                                    className="h-4 w-4 text-blue-600 rounded mr-3 shrink-0"
+                                                />
+                                                <span className="flex-1 text-sm text-gray-900">{park.name}</span>
+                                                {park.region && (
+                                                    <span className="text-xs text-gray-400 ml-2">{park.region}</span>
+                                                )}
+                                            </label>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        )}
+                        {formData.parks.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, parks: [] })}
+                                className="mt-1 text-xs text-gray-400 hover:text-gray-600"
+                            >
+                                Clear selection
+                            </button>
+                        )}
                     </div>
 
                     {/* Dates */}
@@ -371,20 +454,26 @@ export function HavenForm({ initialData, onSuccess, onBack }: HavenFormProps) {
                     )}
                 </form>
 
-                <div className="p-6 border-t border-gray-200 flex justify-between bg-gray-50">
-                    <button
-                        onClick={onBack}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                    >
-                        Back
-                    </button>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={saveMutation.isPending}
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-                    >
-                        {saveMutation.isPending ? 'Saving...' : (initialData ? 'Update Watcher' : 'Create Watcher')}
-                    </button>
+                <div className="p-6 border-t border-gray-200 bg-gray-50 space-y-3">
+                    {saveError && (
+                        <p className="text-sm text-red-600 text-center">{saveError}</p>
+                    )}
+                    <div className="flex justify-between">
+                        <button
+                            type="button"
+                            onClick={onBack}
+                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                        >
+                            Back
+                        </button>
+                        <button
+                            onClick={handleSubmit}
+                            disabled={saveMutation.isPending}
+                            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {saveMutation.isPending ? 'Saving…' : (initialData ? 'Update Watcher' : 'Create Watcher')}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
