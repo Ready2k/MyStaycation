@@ -182,7 +182,7 @@ export class AwayResortsAdapter extends BaseAdapter {
 
             // Ensure we have a propertyName (Park Name) to avoid worker warnings
             // If we are searching a specific region/park, that is the property name.
-            let propertyName = params.region || 'Away Resorts Park';
+            const propertyName = params.region || 'Away Resorts Park';
             // If we have a mapped resort name from the ID, we could use that, but we don't have a reverse map.
 
             results.push({

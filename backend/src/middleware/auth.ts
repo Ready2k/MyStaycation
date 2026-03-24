@@ -13,7 +13,7 @@ declare module 'fastify' {
 export async function authenticate(request: FastifyRequest, reply: FastifyReply) {
     try {
         await request.jwtVerify();
-    } catch (err) {
+    } catch (_err) {
         reply.status(401).send({ error: 'Unauthorized' });
     }
 }
@@ -29,7 +29,7 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
         if (!user || user.role !== UserRole.ADMIN) {
             reply.status(403).send({ error: 'Forbidden: Admin access required' });
         }
-    } catch (err) {
+    } catch (_err) {
         reply.status(401).send({ error: 'Unauthorized' });
     }
 }

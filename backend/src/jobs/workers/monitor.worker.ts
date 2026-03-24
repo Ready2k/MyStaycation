@@ -113,7 +113,7 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
                                 providerAccomCode: result.accomType // Use name as code fallback for now
                             });
                             await accomTypeRepo.save(accomTypeEntity);
-                        } catch (e) {
+                        } catch (_e) {
                             // Handle race condition where another worker might have created it
                             accomTypeEntity = await accomTypeRepo.findOne({
                                 where: {

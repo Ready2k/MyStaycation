@@ -102,7 +102,7 @@ async function start() {
         await SystemLogger.info('API Server Started', 'System', { port: process.env.PORT || 4000 });
 
         // Global Error Handler
-        fastify.setErrorHandler(async (error, request, reply) => {
+        fastify.setErrorHandler(async (error: any, request, reply) => {
             const { method, url } = request;
 
             // Log to SystemLogger
@@ -151,7 +151,7 @@ async function start() {
 
         await fastify.listen({ port, host });
         console.log(`🚀 Server running on http://${host}:${port}`);
-    } catch (error) {
+    } catch (error: any) {
         fastify.log.error(error);
         process.exit(1);
     }

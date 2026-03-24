@@ -121,7 +121,7 @@ export async function authRoutes(fastify: FastifyInstance) {
             reply.send({
                 message: 'Password reset email sent. Please check your inbox.',
             });
-        } catch (error: any) {
+        } catch (_error: any) {
             // Don't reveal if user exists
             reply.send({
                 message: 'If an account exists with that email, a password reset link has been sent.',

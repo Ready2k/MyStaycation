@@ -1,4 +1,4 @@
-import * as bcrypt from 'bcrypt';
+import * as argon2 from 'argon2';
 import * as crypto from 'crypto';
 import { AppDataSource } from '../config/database';
 import { User } from '../entities/User';
@@ -7,12 +7,11 @@ const userRepository = AppDataSource.getRepository(User);
 
 export class AuthService {
     async hashPassword(password: string): Promise<string> {
-        const rounds = parseInt(process.env.BCRYPT_ROUNDS || '12');
-        return bcrypt.hash(password, rounds);
+        return argon2.hash(password);
     }
 
     async comparePassword(password: string, hash: string): Promise<boolean> {
-        return bcrypt.compare(password, hash);
+        return argon2.verify(hash, password);
     }
 
     generateToken(): string {

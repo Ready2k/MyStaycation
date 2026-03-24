@@ -380,7 +380,7 @@ export class HoseasonsAdapter extends BaseAdapter {
                                 searchResultsData = json;
                             }
                         }
-                    } catch (e) {
+                    } catch (_e) {
                         // Not JSON or failed to parse, ignore
                     }
                 }
@@ -418,7 +418,7 @@ export class HoseasonsAdapter extends BaseAdapter {
                         // Small pause to let any fired events process
                         await page.waitForTimeout(1000);
                     }
-                } catch (e) {
+                } catch (_e) {
                     console.log('ℹ️  No clickable cookie banner found or already accepted');
                 }
 

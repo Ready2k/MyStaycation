@@ -30,8 +30,11 @@ export const initializeDatabase = async () => {
         console.log('✅ Database connection established');
 
         if (process.env.NODE_ENV === 'development' || process.env.RUN_MIGRATIONS === 'true') {
-            await AppDataSource.runMigrations();
-            console.log('✅ Migrations completed');
+            console.log('🔄 Running migrations...');
+            const migrations = await AppDataSource.runMigrations();
+            console.log(`✅ ${migrations.length} migrations completed`);
+        } else {
+            console.log('ℹ️ Migrations skipped (RUN_MIGRATIONS not true)');
         }
     } catch (error) {
         console.error('❌ Database connection failed:', error);

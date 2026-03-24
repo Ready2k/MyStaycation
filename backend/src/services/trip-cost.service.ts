@@ -1,4 +1,4 @@
-import { TripCost, TripCostRequest, OnParkSpendingConfig } from '../types/trip-cost.types';
+import { TripCost, TripCostRequest } from '../types/trip-cost.types';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -108,14 +108,14 @@ export class TripCostService {
       }
       // Simulating failure to trigger the fallback logic as per requirements
       throw new Error('OSRM_NOT_CONFIGURED');
-    } catch (err) {
+    } catch (_err) {
       // 2. Mapbox Logic
       try {
         if (process.env.MAPBOX_ACCESS_TOKEN) {
           // Implementation for Mapbox Directions API would go here
         }
         throw new Error('MAPBOX_NOT_CONFIGURED');
-      } catch (mapboxErr) {
+      } catch (_mapboxErr) {
         // 3. Final Fallback: Haversine distance ("As the crow flies") + 25% road-winding factor
         const crowdMiles = this.calculateHaversineDistance(
           origin.lat, origin.lng,

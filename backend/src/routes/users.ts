@@ -10,7 +10,7 @@ const fingerprintRepo = AppDataSource.getRepository(SearchFingerprint);
 
 // Validation schemas
 const updateProfileSchema = z.object({
-    name: z.string().min(1).max(255).optional(),
+    name: z.string().max(255).optional().nullable(),
     email: z.string().email().optional(),
     mobile: z.string().regex(/^\+[1-9]\d{1,14}$/).optional().nullable(), // E.164 format
     language: z.enum(['en', 'es', 'fr', 'de', 'it']).optional(),
@@ -41,9 +41,9 @@ export async function usersRoutes(fastify: FastifyInstance) {
             }
 
             return reply.send({ user });
-        } catch (error) {
+        } catch (error: any) {
             request.log.error(error);
-            return reply.code(500).send({ error: 'Failed to fetch user profile' });
+            return reply.code(500).send({ error: 'Failed to fetch user profile', details: error.message });
         }
     });
 
@@ -72,10 +72,10 @@ export async function usersRoutes(fastify: FastifyInstance) {
             }
 
             // Update fields
-            if (validated.name !== undefined) user.name = validated.name;
+            if (validated.name !== undefined) user.name = validated.name ?? undefined;
             if (validated.mobile !== undefined) user.mobile = validated.mobile ?? undefined;
             if (validated.language !== undefined) user.language = validated.language;
-            if (validated.engineType !== undefined) user.engineType = validated.engineType ?? 'PETROL';
+            if (validated.engineType !== undefined) user.engineType = (validated.engineType as 'PETROL' | 'EV') ?? 'PETROL';
 
             // Handle Postcode Geocoding
             if (validated.homePostcode !== undefined) {
@@ -121,17 +121,19 @@ export async function usersRoutes(fastify: FastifyInstance) {
             }
 
             await userRepo.save(user);
+            request.log.info({ user: { id: user.id, email: user.email } }, 'User profile updated');
 
             // Return updated user (exclude password hash)
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { passwordHash, ...userWithoutPassword } = user;
             return reply.send({ user: userWithoutPassword });
-        } catch (error) {
+        } catch (error: any) {
             if (error instanceof z.ZodError) {
+                request.log.warn({ errors: error.errors }, 'Validation failed for update profile');
                 return reply.code(400).send({ error: 'Validation failed', details: error.errors });
             }
             request.log.error(error);
-            return reply.code(500).send({ error: 'Failed to update user profile' });
+            return reply.code(500).send({ error: 'Failed to update user profile', details: error.message });
         }
     });
 

@@ -7,7 +7,7 @@ import { adapterRegistry } from '../../adapters/registry';
 import { ResultMatcher, MatchConfidence } from '../../utils/result-matcher';
 import { v4 as uuidv4 } from 'uuid';
 import { generateSeriesKey } from '../../utils/series-key';
-import { SearchParams, PriceResult } from '../../adapters/base.adapter';
+import { PriceResult } from '../../adapters/base.adapter';
 import { TripCostService } from '../trip-cost.service';
 import { User } from '../../entities/User';
 
@@ -297,7 +297,7 @@ export class PreviewService {
         let adapter;
         try {
             adapter = adapterRegistry.getAdapter(providerKey.toLowerCase());
-        } catch (e) {
+        } catch (_e) {
             status = 'ERROR'; // Adapter not found
             return { providerKey, status, timingMs: timing, compliance, results, summary };
         }
@@ -428,7 +428,7 @@ export class PreviewService {
                         parkId: realParkId,
                         accomTypeId: candidate.accomType
                     });
-                } catch (err) {
+                } catch (_err) {
                     reasons.failed.push({ code: 'SERIESKEY_GENERATION_FAILED', message: 'Failed to generate key' });
                     seriesKey = null;
                 }

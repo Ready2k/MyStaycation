@@ -2,11 +2,13 @@ import { AppDataSource } from '../../config/database';
 import { SearchFingerprint } from '../../entities/SearchFingerprint';
 import { HolidayProfile } from '../../entities/HolidayProfile';
 import { Provider } from '../../entities/Provider';
+import { ProviderPark } from '../../entities/ProviderPark';
 import * as crypto from 'crypto';
 
 export class FingerprintService {
     private fingerprintRepo = AppDataSource.getRepository(SearchFingerprint);
     private providerRepo = AppDataSource.getRepository(Provider);
+    private parkRepo = AppDataSource.getRepository(ProviderPark);
 
     /**
      * Generate or update fingerprints for a profile
@@ -45,11 +47,22 @@ export class FingerprintService {
             return [];
         }
 
-        // 3. For each provider, generate canonical fingerprint
+        // 3. For each provider, generate canonical fingerprint(s)
         const fingerprints: SearchFingerprint[] = [];
         for (const provider of providers) {
-            const fingerprint = await this.ensureFingerprint(profile, provider);
-            if (fingerprint) fingerprints.push(fingerprint);
+            // For providers like Away Resorts, if multiple parks are selected, 
+            // we create a separate fingerprint for each to ensure granular monitoring.
+            if (provider.code === 'awayresorts' && profile.parkIds && profile.parkIds.length > 0) {
+                console.log(`   Generating granular fingerprints for ${profile.parkIds.length} parks for ${provider.code}`);
+                for (const parkId of profile.parkIds) {
+                    const fingerprint = await this.ensureFingerprint(profile, provider, parkId);
+                    if (fingerprint) fingerprints.push(fingerprint);
+                }
+            } else {
+                // Default behavior: one fingerprint per provider
+                const fingerprint = await this.ensureFingerprint(profile, provider);
+                if (fingerprint) fingerprints.push(fingerprint);
+            }
         }
 
         // 4. Disable fingerprints for this profile that are NOT in the active "just generated" list
@@ -59,7 +72,18 @@ export class FingerprintService {
         return fingerprints;
     }
 
-    private async ensureFingerprint(profile: HolidayProfile, provider: Provider): Promise<SearchFingerprint | null> {
+    private async ensureFingerprint(profile: HolidayProfile, provider: Provider, specificParkId?: string): Promise<SearchFingerprint | null> {
+        // Resolve park name for better logging/metadata if a specific park is targeted
+        let regionName = profile.region;
+        if (specificParkId) {
+            const park = await this.parkRepo.findOne({
+                where: { provider: { id: provider.id }, providerParkCode: specificParkId }
+            });
+            if (park) {
+                regionName = park.name;
+            }
+        }
+
         // Generate canonical JSON based on profile settings & provider
         // This MUST match what the Adapter expects in SearchParams
         const searchParams = {
@@ -79,19 +103,16 @@ export class FingerprintService {
             pets: profile.petsNumber || 0,
             minBedrooms: profile.minBedrooms,
             peakTolerance: profile.peakTolerance,
-            region: profile.region,
+            region: regionName, // Use resolved park name or profile region
             metadata: profile.metadata || {}, // Include metadata for provider-specific settings
-            // Add park IDs if specific to this provider?
-            // Currently profile.parkIds is a flat list. Dealing with multi-provider park IDs is complex.
-            // For now, if provider is Hoseasons and we have park IDs, pass them?
-            // Ideally we need a mapping. Assuming generic region search for now unless specific
         };
 
-        // If specific parks are mapped, they should be added here.
-        // For MVP, we pass the profile's parkIds array if it exists.
-        // Adapters should handle / ignore invalid IDs or we filter them if we had metadata.
-        if (profile.parkIds && profile.parkIds.length > 0) {
-            // TODO: In future, filter to only IDs belonging to this provider
+        // If a specific park is targeted (granular mode), use only that park
+        if (specificParkId) {
+            (searchParams as any).parks = [specificParkId];
+        } 
+        // Otherwise use the profile's full list (legacy/batch mode)
+        else if (profile.parkIds && profile.parkIds.length > 0) {
             (searchParams as any).parks = profile.parkIds;
         }
 

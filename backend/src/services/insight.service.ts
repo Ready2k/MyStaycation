@@ -77,7 +77,7 @@ export class InsightService {
         for (const insight of insights) {
             try {
                 await insightRepo.save(insight);
-            } catch (error) {
+            } catch (_error) {
                 // Unique constraint violation - insight already exists
                 console.log(`Insight already exists for dedupe key: ${insight.dedupeKey}`);
             }
