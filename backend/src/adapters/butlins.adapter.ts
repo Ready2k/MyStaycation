@@ -2,6 +2,7 @@ import { BaseAdapter, SearchParams, PriceResult, DealResult } from './base.adapt
 import * as cheerio from 'cheerio';
 import { ResultMatcher } from '../utils/result-matcher';
 import { AccommodationType } from '../entities/HolidayProfile';
+import { LocationNotFoundError } from '../utils/errors';
 
 export class ButlinsAdapter extends BaseAdapter {
     constructor() {
@@ -21,16 +22,25 @@ export class ButlinsAdapter extends BaseAdapter {
         }
     }
 
-    protected getResortCode(query: string): string {
-        const q = (query || '').toLowerCase();
+    protected getResortCode(query: string): string | undefined {
+        const q = (query || '').toLowerCase().trim();
+        if (!q) return undefined;
         if (q.includes('bognor') || q.includes('regis')) return 'BG';
         if (q.includes('minehead')) return 'MH';
         if (q.includes('skegness')) return 'SK';
-        return 'BG';
+        return undefined; // Not found
     }
 
     protected buildSearchUrl(params: SearchParams): string {
-        const resort = this.getResortCode(params.region || '');
+        let resort = 'BG'; // Default
+        if (params.region) {
+            const code = this.getResortCode(params.region);
+            if (!code) {
+                 throw new LocationNotFoundError(params.region, 'butlins');
+            }
+            resort = code;
+        }
+        
         const date = params.dateWindow.start; // BaseAdapter uses dateWindow.start (YYYY-MM-DD string often)
 
         // Butlin's expects ISO date YYYY-MM-DD

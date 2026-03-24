@@ -1,5 +1,6 @@
 import { BaseAdapter, SearchParams, PriceResult, DealResult } from './base.adapter';
 import { MatchConfidence } from '../utils/result-matcher';
+import { LocationNotFoundError } from '../utils/errors';
 
 export class CenterParcsAdapter extends BaseAdapter {
     protected id = 'centerparcs';
@@ -33,7 +34,11 @@ export class CenterParcsAdapter extends BaseAdapter {
         // Priority 2: Use region if specified
         else if (params.region) {
             const code = this.getVillageCode(params.region);
-            if (code) villagesToSearch.push(code);
+            if (code) {
+                villagesToSearch.push(code);
+            } else {
+                throw new LocationNotFoundError(params.region, 'centerparcs');
+            }
         }
         // Priority 3: Default to all UK villages
         else {

@@ -7,7 +7,7 @@ import { ResultsModal, SearchResult } from './ResultsModal';
 import { ConfirmationModal } from './ConfirmationModal';
 
 interface LastFetchRun {
-    status: 'OK' | 'ERROR' | 'BLOCKED' | 'PARSE_FAILED';
+    status: 'OK' | 'ERROR' | 'BLOCKED' | 'PARSE_FAILED' | 'NO_RESULTS' | 'INVALID_LOCATION';
     providerStatus: string | null;
     errorMessage: string | null;
     finishedAt: string | null;
@@ -52,18 +52,37 @@ function LastCheckedBadge({ run }: { run?: LastFetchRun | null }) {
     const label = hours < 1 ? 'Just now' : hours < 24 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
 
     const isOk = run.status === 'OK';
-    const dotColour = isOk ? 'bg-green-500' : run.status === 'BLOCKED' ? 'bg-yellow-500' : 'bg-red-500';
+    let dotColour = 'bg-green-500';
+    let statusText = '';
+
+    if (run.status === 'NO_RESULTS') {
+        dotColour = 'bg-yellow-400';
+        statusText = 'No availability';
+    } else if (run.status === 'INVALID_LOCATION') {
+        dotColour = 'bg-orange-500';
+        statusText = 'Location not found';
+    } else if (run.status === 'BLOCKED') {
+        dotColour = 'bg-yellow-600';
+        statusText = 'Blocked';
+    } else if (!isOk) {
+        dotColour = 'bg-red-500';
+        statusText = 'Error';
+    }
 
     return (
         <span
             className="flex items-center gap-1.5 text-xs text-gray-500"
-            title={isOk
-                ? `Last checked: ${new Date(run.finishedAt).toLocaleString()}`
-                : `Error: ${run.errorMessage || run.providerStatus || run.status}`}
+            title={run.status === 'OK'
+                ? `Last checked: ${run.finishedAt ? new Date(run.finishedAt).toLocaleString() : 'Unknown'}`
+                : `Status: ${run.status}\nError: ${run.errorMessage || 'Unknown error'}`}
         >
             <span className={`w-2 h-2 rounded-full ${dotColour}`} />
             {label}
-            {!isOk && <span className="text-red-500">({run.status})</span>}
+            {statusText && (
+                <span className={run.status === 'NO_RESULTS' ? 'text-yellow-600 font-medium' : 'text-red-500 font-medium'}>
+                    ({statusText})
+                </span>
+            )}
         </span>
     );
 }

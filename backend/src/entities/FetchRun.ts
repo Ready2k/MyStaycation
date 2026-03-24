@@ -13,7 +13,9 @@ export enum RunStatus {
     OK = 'OK',
     ERROR = 'ERROR',
     BLOCKED = 'BLOCKED',
-    PARSE_FAILED = 'PARSE_FAILED'
+    PARSE_FAILED = 'PARSE_FAILED',
+    NO_RESULTS = 'NO_RESULTS',
+    INVALID_LOCATION = 'INVALID_LOCATION'
 }
 
 export enum ProviderStatus {

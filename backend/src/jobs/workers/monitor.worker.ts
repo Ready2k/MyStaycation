@@ -11,6 +11,7 @@ import { adapterRegistry } from '../../adapters/registry';
 import { MonitorJobData, addInsightJob } from '../queues';
 import { generateSeriesKey } from '../../utils/series-key';
 import { SystemLogger } from '../../services/SystemLogger';
+import { LocationNotFoundError } from '../../utils/errors';
 
 const fingerprintRepo = AppDataSource.getRepository(SearchFingerprint);
 const observationRepo = AppDataSource.getRepository(PriceObservation);
@@ -63,14 +64,21 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
         // Execute search
         const results = await adapter.search(searchParams);
 
-        // If no results, mark as parse failed (might be HTML structure change)
+        // If no results, mark as no results found
         if (results.length === 0) {
-            fetchRun.status = RunStatus.PARSE_FAILED;
-            fetchRun.providerStatus = ProviderStatus.PARSE_FAILED;
-            fetchRun.errorMessage = 'No results parsed from provider response';
+            fetchRun.status = RunStatus.NO_RESULTS;
+            fetchRun.providerStatus = ProviderStatus.OK;
+            fetchRun.errorMessage = 'No availability found for this period';
+            fetchRun.finishedAt = new Date();
+
+            const region = searchParams.region || 'Unknown';
+            const startDate = searchParams.dateWindow.start;
+            const adults = searchParams.party.adults;
+            const children = searchParams.party.children || 0;
+            const message = `${fingerprint.provider.name}: No results for "${region}" (Start: ${startDate}, Party: ${adults}a/${children}c)`;
 
             await SystemLogger.warn(
-                `No results parsed from ${fingerprint.provider.code}`,
+                message,
                 'Worker_Monitor',
                 { fingerprintId, providerId, params: searchParams }
             );
@@ -204,7 +212,7 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
 
         console.log(`💾 Stored ${storedCount}/${results.length} observations`);
 
-        // Update fetch run
+        // Update fetch run for success
         fetchRun.finishedAt = new Date();
         fetchRun.status = RunStatus.OK;
         fetchRun.providerStatus = ProviderStatus.OK;
@@ -219,7 +227,7 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
 
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`❌ Monitor job failed for fingerprint ${fingerprintId}:`, error);
+        console.error(`❌ Monitor job failed for fingerprint ${job.data.fingerprintId}:`, error);
 
         // Log critical failure to System Logs
         await SystemLogger.error(
@@ -228,9 +236,10 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
             { fingerprintId, providerId, stack: error instanceof Error ? error.stack : undefined }
         );
 
-        // Determine failure type
+        // Update fetch run with error
+        fetchRun.status = error instanceof LocationNotFoundError ? RunStatus.INVALID_LOCATION : RunStatus.ERROR;
+        fetchRun.errorMessage = errorMessage;
         fetchRun.finishedAt = new Date();
-        fetchRun.status = RunStatus.ERROR;
 
         if (errorMessage.includes('timeout')) {
             fetchRun.providerStatus = ProviderStatus.TIMEOUT;
@@ -242,9 +251,7 @@ async function processMonitorJob(job: Job<MonitorJobData>) {
             fetchRun.providerStatus = ProviderStatus.FETCH_FAILED;
         }
 
-        fetchRun.errorMessage = errorMessage;
         await fetchRunRepo.save(fetchRun);
-
         throw error; // Let BullMQ handle retry
     }
 }

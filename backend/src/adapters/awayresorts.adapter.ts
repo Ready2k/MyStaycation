@@ -3,6 +3,8 @@ import { BaseAdapter, SearchParams, PriceResult, DealResult } from './base.adapt
 import * as cheerio from 'cheerio';
 import { ResultMatcher } from '../utils/result-matcher';
 import { AccommodationType } from '../entities/HolidayProfile';
+import { SystemLogger } from '../services/SystemLogger';
+import { LocationNotFoundError } from '../utils/errors';
 
 export class AwayResortsAdapter extends BaseAdapter {
     constructor() {
@@ -42,6 +44,16 @@ export class AwayResortsAdapter extends BaseAdapter {
         };
 
         // Default to Tattershall Lakes if not found or empty
+        if (!resorts[q] && q) {
+            const message = `AwayResorts: Location "${query}" not found in static map.`;
+            SystemLogger.warn(
+                message,
+                'AwayResortsAdapter',
+                { query }
+            ).catch(err => console.error('Failed to log AwayResorts warning:', err));
+            throw new LocationNotFoundError(query, 'awayresorts');
+        }
+
         return resorts[q] || '7';
     }
 

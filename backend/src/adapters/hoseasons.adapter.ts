@@ -4,6 +4,8 @@ import { BaseAdapter, SearchParams, PriceResult, DealResult } from './base.adapt
 import { ResultMatcher, MatchConfidence } from '../utils/result-matcher';
 import { AccommodationType } from '../entities/HolidayProfile';
 import type { Page } from 'playwright';
+import { SystemLogger } from '../services/SystemLogger';
+import { LocationNotFoundError } from '../utils/errors';
 
 export class HoseasonsAdapter extends BaseAdapter {
     constructor() {
@@ -213,8 +215,10 @@ export class HoseasonsAdapter extends BaseAdapter {
             }
         }
 
-        console.log(`❌ Failed to resolve ID for "${region}". using generic fallback.`);
-        return undefined;
+        const message = `Failed to resolve Hoseasons ID for "${region}".`;
+        console.log(`❌ ${message}`);
+        await SystemLogger.warn(message, 'HoseasonsAdapter', { region });
+        throw new LocationNotFoundError(region, 'hoseasons');
     }
 
     private getRegionSlug(region: string): string {
