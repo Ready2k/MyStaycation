@@ -8,6 +8,8 @@ import { ResultMatcher, MatchConfidence } from '../../utils/result-matcher';
 import { v4 as uuidv4 } from 'uuid';
 import { generateSeriesKey } from '../../utils/series-key';
 import { SearchParams, PriceResult } from '../../adapters/base.adapter';
+import { TripCostService } from '../trip-cost.service';
+import { User } from '../../entities/User';
 
 // Types from spec
 export type PreviewMode = 'PROFILE_ID' | 'INLINE_PROFILE';
@@ -80,6 +82,17 @@ export interface PreviewResult {
         totalGbp: number;
         perNightGbp: number | null;
     };
+    tripCost?: {
+        distanceMiles: number;
+        drivingMinutes: number;
+        fuelCostGbp: number;
+        ferryCostGbp: number;
+        onParkEstLow: number;
+        onParkEstHigh: number;
+        totalLow: number;
+        totalHigh: number;
+        isEstimate: boolean;
+    };
     seriesKey: string;
     reasons: {
         passed: Reason[];
@@ -115,6 +128,8 @@ export class PreviewService {
     private fetchRunRepo = AppDataSource.getRepository(FetchRun);
     private providerRepo = AppDataSource.getRepository(Provider);
     private profileRepo = AppDataSource.getRepository(HolidayProfile);
+    private userRepo = AppDataSource.getRepository(User);
+    private tripCostService = TripCostService.getInstance();
 
     async executePreview(req: PreviewRequest): Promise<PreviewResponse> {
         const requestId = uuidv4();
@@ -209,14 +224,16 @@ export class PreviewService {
             }
         }
 
-        // Deduplicate providers to prevent running the same provider twice
-        providersToRun = Array.from(new Set(providersToRun));
-        console.log(`🔍 Running preview for providers: ${providersToRun.join(', ')}`);
-
+        // 2.5 Resolve User for Trip Config
+        const user = await this.userRepo.findOne({ where: { id: req.userId } });
+        const userTripConfig = user ? {
+            homeLatLng: user.homeLatitude && user.homeLongitude ? { lat: Number(user.homeLatitude), lng: Number(user.homeLongitude) } : undefined,
+            engineType: (user.engineType as 'PETROL' | 'EV') || 'PETROL'
+        } : undefined;
 
         // 3. Run for each provider
         for (const providerKey of providersToRun) {
-            const preview = await this.runSingleProvider(providerKey, profile, requestId, req.options);
+            const preview = await this.runSingleProvider(providerKey, profile, requestId, req.options, userTripConfig);
             providerPreviews.push(preview);
         }
 
@@ -248,7 +265,8 @@ export class PreviewService {
         providerKey: string,
         profile: Partial<HolidayProfile>,
         requestId: string,
-        options: PreviewOptions = {}
+        options: PreviewOptions = {},
+        userTripConfig?: { homeLatLng?: { lat: number; lng: number }; engineType: 'PETROL' | 'EV' }
     ): Promise<ProviderPreview> {
         const startTotal = Date.now();
         const timing = { fetch: 0, parse: 0, match: 0, enrich: 0, total: 0 };
@@ -447,6 +465,31 @@ export class PreviewService {
                     ? (reasons.failed[0]?.message || 'Mismatch')
                     : (reasons.passed[0]?.message || 'Match'))
             };
+
+            // 3.5 Enrichment with Trip Cost
+            if (userTripConfig?.homeLatLng && previewResult.confidence !== MatchConfidence.MISMATCH) {
+                try {
+                    // Resolve destination lat/lng from Database if possible
+                    // For now, use whatever the candidate has or a mock
+                    const destination = candidate.latitude && candidate.longitude
+                        ? { lat: Number(candidate.latitude), lng: Number(candidate.longitude) }
+                        : { lat: 53.0, lng: -2.0 }; // Fallback
+
+                    previewResult.tripCost = await this.tripCostService.calculateTotalTripCost({
+                        originLatLng: userTripConfig.homeLatLng,
+                        destinationLatLng: destination,
+                        stayNights: previewResult.stayNights,
+                        providerKey: providerKey.toLowerCase(),
+                        engineType: userTripConfig.engineType,
+                        partySize: {
+                            adults: profile.partySizeAdults || 2,
+                            children: profile.partySizeChildren || 0
+                        }
+                    });
+                } catch (err) {
+                    console.error(`TripCost enrichment failed for ${candidate.propertyName}`, err);
+                }
+            }
 
             // Summary Stats
             if (confidence === MatchConfidence.STRONG) summary.matchStrong++;

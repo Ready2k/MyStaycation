@@ -44,6 +44,8 @@ export interface PriceResult {
     propertyName?: string;
     location?: string;
     parkId?: string; // Critical for SeriesKey generation
+    latitude?: number;
+    longitude?: number;
     metadata?: Record<string, unknown>; // Provider-specific extra data
 }
 

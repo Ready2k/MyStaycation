@@ -1,0 +1,32 @@
+{
+  "haven": {
+    "dailyBaseSpend": 25,
+    "activityMultiplier": 1.2,
+    "description": "Includes standard entertainment passes & grocery essentials."
+  },
+  "centerparcs": {
+    "dailyBaseSpend": 45,
+    "activityMultiplier": 2.5,
+    "description": "Reflects premium activity booking & on-site dining."
+  },
+  "parkdean": {
+    "dailyBaseSpend": 20,
+    "activityMultiplier": 1.1,
+    "description": "Covers basic park facilities and local shop prices."
+  },
+  "awayresorts": {
+    "dailyBaseSpend": 30,
+    "activityMultiplier": 1.5,
+    "description": "Higher weight on activities and premium dining options."
+  },
+  "hoseasons": {
+    "dailyBaseSpend": 15,
+    "activityMultiplier": 1.0,
+    "description": "Mostly self-catering focus with minimal park-specific fees."
+  },
+  "butlins": {
+    "dailyBaseSpend": 35,
+    "activityMultiplier": 1.8,
+    "description": "Includes fairground access and high-density entertainment."
+  }
+}

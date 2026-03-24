@@ -15,6 +15,8 @@ const updateProfileSchema = z.object({
     mobile: z.string().regex(/^\+[1-9]\d{1,14}$/).optional().nullable(), // E.164 format
     language: z.enum(['en', 'es', 'fr', 'de', 'it']).optional(),
     defaultCheckFrequencyHours: z.number().int().min(12).max(168).optional(), // 12h to 1 week
+    homePostcode: z.string().max(10).optional().nullable(),
+    engineType: z.enum(['PETROL', 'EV']).optional(),
 });
 
 const deleteAccountSchema = z.object({
@@ -31,7 +33,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
         try {
             const user = await userRepo.findOne({
                 where: { id: userId },
-                select: ['id', 'name', 'email', 'mobile', 'language', 'defaultCheckFrequencyHours', 'emailVerified', 'createdAt', 'role'],
+                select: ['id', 'name', 'email', 'mobile', 'language', 'defaultCheckFrequencyHours', 'emailVerified', 'createdAt', 'role', 'homePostcode', 'homeLatitude', 'homeLongitude', 'engineType'],
             });
 
             if (!user) {
@@ -73,6 +75,34 @@ export async function usersRoutes(fastify: FastifyInstance) {
             if (validated.name !== undefined) user.name = validated.name;
             if (validated.mobile !== undefined) user.mobile = validated.mobile ?? undefined;
             if (validated.language !== undefined) user.language = validated.language;
+            if (validated.engineType !== undefined) user.engineType = validated.engineType ?? 'PETROL';
+
+            // Handle Postcode Geocoding
+            if (validated.homePostcode !== undefined) {
+                user.homePostcode = validated.homePostcode ?? undefined;
+                if (user.homePostcode) {
+                    try {
+                        // Use Postcodes.io for free UK geocoding
+                        const response = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(user.homePostcode)}`);
+                        if (response.ok) {
+                            const data = await response.json() as any;
+                            if (data.status === 200 && data.result) {
+                                user.homeLatitude = data.result.latitude;
+                                user.homeLongitude = data.result.longitude;
+                                request.log.info(`Geocoded postcode ${user.homePostcode} to ${user.homeLatitude}, ${user.homeLongitude}`);
+                            }
+                        }
+                    } catch (err) {
+                        request.log.error({ err }, `Geocoding failed for ${user.homePostcode}`);
+                        // Fallback: don't block update if geocoding fails, just clear coordinates
+                        user.homeLatitude = undefined;
+                        user.homeLongitude = undefined;
+                    }
+                } else {
+                    user.homeLatitude = undefined;
+                    user.homeLongitude = undefined;
+                }
+            }
 
             // Update default check frequency and propagate to all fingerprints
             if (validated.defaultCheckFrequencyHours !== undefined) {

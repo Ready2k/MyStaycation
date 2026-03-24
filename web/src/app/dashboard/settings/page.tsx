@@ -15,6 +15,8 @@ interface User {
     defaultCheckFrequencyHours: number;
     emailVerified: boolean;
     createdAt: string;
+    homePostcode?: string;
+    engineType: 'PETROL' | 'EV';
 }
 
 const FREQUENCY_OPTIONS = [
@@ -44,6 +46,8 @@ export default function SettingsPage() {
         mobile: '',
         language: 'en',
         defaultCheckFrequencyHours: 48,
+        homePostcode: '',
+        engineType: 'PETROL' as 'PETROL' | 'EV',
     });
     const [passwordData, setPasswordData] = useState({
         currentPassword: '',
@@ -79,6 +83,8 @@ export default function SettingsPage() {
                 mobile: userData.mobile || '',
                 language: userData.language,
                 defaultCheckFrequencyHours: userData.defaultCheckFrequencyHours,
+                homePostcode: userData.homePostcode || '',
+                engineType: userData.engineType || 'PETROL',
             });
         }
     }, [userData]);
@@ -93,6 +99,8 @@ export default function SettingsPage() {
             if (data.language !== undefined) payload.language = data.language;
             if (data.defaultCheckFrequencyHours !== undefined)
                 payload.defaultCheckFrequencyHours = data.defaultCheckFrequencyHours;
+            if (data.homePostcode !== undefined) payload.homePostcode = data.homePostcode || null;
+            if (data.engineType !== undefined) payload.engineType = data.engineType;
 
             const { data: response } = await api.patch('/users/me', payload);
             return response;
@@ -251,6 +259,68 @@ export default function SettingsPage() {
                             This will update all your existing watchers to check every{' '}
                             <strong>{formData.defaultCheckFrequencyHours} hours</strong>.
                         </p>
+                    </div>
+                </div>
+
+                {/* Door-to-Duvet: Logistics & Trip Cost */}
+                <div className="bg-white rounded-lg border border-primary-100 p-6 shadow-sm shadow-primary-50">
+                    <div className="flex items-center gap-2 mb-4">
+                        <span className="text-xl">🚗</span>
+                        <h2 className="text-lg font-semibold text-primary-900">Door-to-Duvet Logistics</h2>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-6">
+                        Configure your home location and vehicle type for hyper-accurate total trip cost estimates.
+                    </p>
+                    
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Home Postcode
+                            </label>
+                            <input
+                                type="text"
+                                className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                                value={formData.homePostcode}
+                                onChange={(e) => setFormData({ ...formData, homePostcode: e.target.value.toUpperCase() })}
+                                placeholder="e.g. SW1A 1AA"
+                            />
+                            <p className="mt-1 text-xs text-gray-500">
+                                Used to calculate driving distance and fuel costs.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Engine Type
+                            </label>
+                            <div className="flex gap-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, engineType: 'PETROL' })}
+                                    className={`flex-1 py-2 px-4 rounded-md border text-sm font-medium transition-all ${
+                                        formData.engineType === 'PETROL'
+                                            ? 'bg-primary-50 border-primary-200 text-primary-700 ring-1 ring-primary-200'
+                                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    ⛽ Petrol / Diesel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, engineType: 'EV' })}
+                                    className={`flex-1 py-2 px-4 rounded-md border text-sm font-medium transition-all ${
+                                        formData.engineType === 'EV'
+                                            ? 'bg-primary-50 border-primary-200 text-primary-700 ring-1 ring-primary-200'
+                                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    ⚡ Electric (EV)
+                                </button>
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">
+                                Differentiates fuel costs (18p/mile vs 8p/mile).
+                            </p>
+                        </div>
                     </div>
                 </div>
 

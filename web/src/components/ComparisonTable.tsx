@@ -28,6 +28,17 @@ interface SeriesData {
         priceChangePercent: number;
         dataPoints: number;
     };
+    tripCost?: {
+        distanceMiles: number;
+        drivingMinutes: number;
+        fuelCostGbp: number;
+        ferryCostGbp: number;
+        onParkEstLow: number;
+        onParkEstHigh: number;
+        totalLow: number;
+        totalHigh: number;
+        isEstimate: boolean;
+    };
 }
 
 interface ComparisonTableProps {
@@ -35,7 +46,7 @@ interface ComparisonTableProps {
     visibleSeries: Set<string>;
 }
 
-type SortField = 'accomName' | 'parkName' | 'stayStartDate' | 'currentPrice' | 'pricePerNight' | 'priceChange';
+type SortField = 'accomName' | 'parkName' | 'stayStartDate' | 'currentPrice' | 'pricePerNight' | 'priceChange' | 'totalTripCost';
 type SortDirection = 'asc' | 'desc';
 
 export function ComparisonTable({ series, visibleSeries }: ComparisonTableProps) {
@@ -76,6 +87,9 @@ export function ComparisonTable({ series, visibleSeries }: ComparisonTableProps)
                 break;
             case 'priceChange':
                 comparison = a.statistics.priceChangePercent - b.statistics.priceChangePercent;
+                break;
+            case 'totalTripCost':
+                comparison = (a.tripCost?.totalLow || 0) - (b.tripCost?.totalLow || 0);
                 break;
         }
 
@@ -157,11 +171,11 @@ export function ComparisonTable({ series, visibleSeries }: ComparisonTableProps)
                             </th>
                             <th
                                 className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                onClick={() => handleSort('priceChange')}
+                                onClick={() => handleSort('totalTripCost')}
                             >
                                 <div className="flex items-center gap-1">
-                                    Trend
-                                    <SortIcon field="priceChange" />
+                                    Total Trip
+                                    <SortIcon field="totalTripCost" />
                                 </div>
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
@@ -212,21 +226,18 @@ export function ComparisonTable({ series, visibleSeries }: ComparisonTableProps)
                                         £{latestData?.pricePerNight?.toFixed(2) || '-'}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        {s.statistics.priceChangePercent !== 0 ? (
-                                            <div className={`flex items-center gap-1 text-sm font-medium ${s.statistics.priceChangePercent < 0 ? 'text-green-600' : 'text-red-600'
-                                                }`}>
-                                                {s.statistics.priceChangePercent < 0 ? (
-                                                    <ArrowDown className="w-4 h-4" />
-                                                ) : (
-                                                    <ArrowUp className="w-4 h-4" />
-                                                )}
-                                                {Math.abs(s.statistics.priceChangePercent).toFixed(1)}%
+                                        {s.tripCost ? (
+                                            <div>
+                                                <div className="text-sm font-bold text-gray-900">
+                                                    £{s.tripCost.totalLow}–£{s.tripCost.totalHigh}
+                                                </div>
+                                                <div className="text-[10px] text-gray-500 flex flex-col">
+                                                    <span>🚗 travel £{s.tripCost.fuelCostGbp}</span>
+                                                    <span>🍕 on-park £{s.tripCost.onParkEstLow}–£{s.tripCost.onParkEstHigh}</span>
+                                                </div>
                                             </div>
                                         ) : (
-                                            <div className="flex items-center gap-1 text-sm text-gray-500">
-                                                <Minus className="w-4 h-4" />
-                                                Stable
-                                            </div>
+                                            <span className="text-xs text-gray-400">Not set</span>
                                         )}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">

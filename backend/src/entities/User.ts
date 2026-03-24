@@ -71,4 +71,16 @@ export class User {
 
     @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
     role!: UserRole;
+
+    @Column({ type: 'varchar', nullable: true })
+    homePostcode?: string;
+
+    @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+    homeLatitude?: number;
+
+    @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+    homeLongitude?: number;
+
+    @Column({ type: 'varchar', default: 'PETROL' })
+    engineType!: 'PETROL' | 'EV';
 }
