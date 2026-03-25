@@ -21,9 +21,9 @@ FROM base AS dependencies
 
 COPY . .
 
-RUN npm install --only=production && \
+RUN npm install --omit=dev --legacy-peer-deps && \
     cp -R node_modules /prod_node_modules && \
-    npm install
+    npm install --legacy-peer-deps
 
 # Stage 3: Build TypeScript (Alpine)
 FROM base AS build
@@ -38,7 +38,7 @@ FROM base AS development
 
 COPY . .
 
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 RUN apk add --no-cache \
     chromium \
@@ -86,7 +86,7 @@ RUN groupadd -g 1001 nodejs && useradd -u 1001 -g nodejs nodejs
 
 # Reinstall production deps compiled for glibc (Alpine-compiled modules won't work here)
 COPY package*.json ./
-RUN npm install --only=production
+RUN npm install --omit=dev --legacy-peer-deps
 
 # Copy compiled application
 COPY --from=build --chown=nodejs:nodejs /app/dist ./dist

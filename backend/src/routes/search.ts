@@ -161,7 +161,7 @@ export async function searchRoutes(fastify: FastifyInstance) {
             if (error instanceof z.ZodError) {
                 return reply.code(400).send({
                     message: 'Validation Error',
-                    errors: error.errors,
+                    errors: error.issues,
                     sideEffects: {
                         observationsStored: false,
                         alertsGenerated: false,

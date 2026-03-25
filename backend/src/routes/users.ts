@@ -129,8 +129,8 @@ export async function usersRoutes(fastify: FastifyInstance) {
             return reply.send({ user: userWithoutPassword });
         } catch (error: any) {
             if (error instanceof z.ZodError) {
-                request.log.warn({ errors: error.errors }, 'Validation failed for update profile');
-                return reply.code(400).send({ error: 'Validation failed', details: error.errors });
+                request.log.warn({ errors: error.issues }, 'Validation failed for update profile');
+                return reply.code(400).send({ error: 'Validation failed', details: error.issues });
             }
             request.log.error(error);
             return reply.code(500).send({ error: 'Failed to update user profile', details: error.message });

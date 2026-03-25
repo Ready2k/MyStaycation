@@ -23,7 +23,7 @@ export async function alertRoutes(fastify: FastifyInstance) {
             return reply.send({ message: `Alerts snoozed for ${days} days` });
         } catch (error) {
             if (error instanceof z.ZodError) {
-                return reply.code(400).send({ message: 'Validation Error', errors: error.errors });
+                return reply.code(400).send({ message: 'Validation Error', errors: error.issues });
             }
             request.log.error(error);
             return reply.code(500).send({ message: 'Failed to snooze alerts' });

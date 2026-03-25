@@ -176,7 +176,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
             return reply.code(201).send(savedProfile);
         } catch (error) {
             if (error instanceof z.ZodError) {
-                return reply.code(400).send({ message: 'Validation Error', errors: error.errors });
+                return reply.code(400).send({ message: 'Validation Error', errors: error.issues });
             }
             request.log.error(error);
             return reply.code(500).send({ message: 'Failed to create profile' });
@@ -260,8 +260,8 @@ export async function profileRoutes(fastify: FastifyInstance) {
             return savedProfile;
         } catch (error) {
             if (error instanceof z.ZodError) {
-                console.error('Validation Error:', JSON.stringify(error.errors, null, 2));
-                return reply.code(400).send({ message: 'Validation Error', errors: error.errors });
+                console.error('Validation Error:', JSON.stringify(error.issues, null, 2));
+                return reply.code(400).send({ message: 'Validation Error', errors: error.issues });
             }
             request.log.error(error);
             return reply.code(500).send({ message: 'Failed to update profile' });
