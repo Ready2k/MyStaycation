@@ -656,7 +656,7 @@ export class HoseasonsAdapter extends BaseAdapter {
                     // Let's try to split by newline and find the most "name-like" string or use the link text?
                     // Often the link wraps the image/title.
                     // Let's grab the text of the first H3 or H2 inside, otherwise first line.
-                    let name = '';
+                    let name: string;
                     const titleEl = article.querySelector('h2, h3, h4');
                     if (titleEl) {
                         name = (titleEl as HTMLElement).innerText.trim();

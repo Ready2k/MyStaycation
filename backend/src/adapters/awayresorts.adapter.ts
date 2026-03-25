@@ -127,7 +127,7 @@ export class AwayResortsAdapter extends BaseAdapter {
             // e.g. data-name="Comfort Caravan (Pet Friendly)" data-cost="156"
             const name = bookBtn.attr('data-name') || '';
             const dataCost = bookBtn.attr('data-cost');
-            let price = 0;
+            let price: number;
 
             if (dataCost) {
                 price = parseFloat(dataCost);

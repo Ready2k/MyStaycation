@@ -8,6 +8,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
     title: 'UK Staycation Watcher',
     description: 'Monitor UK staycation prices and get alerted to the best deals',
+    icons: {
+        icon: '/favicon.svg'
+    }
 }
 
 export default function RootLayout({

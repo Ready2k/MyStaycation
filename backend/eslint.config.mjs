@@ -11,7 +11,7 @@ export default tseslint.config(
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-non-null-assertion': 'warn',
       'preserve-caught-error': 'off',
-      'no-useless-assignment': 'off',
+      'no-useless-assignment': 'error',
     },
     languageOptions: {
       parserOptions: {

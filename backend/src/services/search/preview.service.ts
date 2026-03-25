@@ -356,18 +356,9 @@ export class PreviewService {
 
         for (const candidate of rawResults) {
             // Classify
-            const classification = ResultMatcher.classify(candidate, {
-                targetData: {
-                    dateStart: adapterParams.dateWindow.start,
-                    nights: candidate.stayNights,
-                    party: adapterParams.party,
-                    pets: adapterParams.pets,
-                    accommodationType: adapterParams.accommodation,
-                    minBedrooms: adapterParams.minBedrooms
-                } as any // Cast because targetData expects strict types but adapterParams might have optional? No, wait. ResultMatcher context expects strict.
-            });
 
-            let confidence = classification.confidence;
+
+            let confidence: MatchConfidence;
             const reasons = { passed: [], failed: [], unknown: [], softNotes: [] } as any;
 
             // Manual Date Range Check (since Matcher enforces exact)
