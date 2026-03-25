@@ -5,13 +5,16 @@ A personal assistant that monitors UK staycation prices and deals over time, ale
 ## Key Features
 
 - 🔍 **Real-time Price Watchers**: Create specific watchers to monitor prices for particular parks, dates, and guest configurations.
+- 🚗 **Door-to-Duvet Logistics**: Comprehensive trip cost calculations including fuel and vehicle wear & tear based on your home postcode to give hyper-accurate total trip costs.
 - 📊 **Historical Tracking**: Build a comprehensive price history to identify genuine deals and avoid "fake" discounts.
 - 🎯 **Smart Alerts**: Get notified via email (AWS SES) only when prices hit meaningful thresholds or significant drops occur.
 - 🏷️ **Active Deals & Vouchers**: A dedicated aggregator for the latest price drops and discount codes across multiple providers.
-- 🗺️ **Interactive Parks Browser**: Explore over 80 holiday parks across 6 providers using a beautiful interactive map.
+- 🗺️ **Interactive Parks Browser**: Explore over 80 holiday parks across 6 providers using a beautiful interactive map with precision Nominatim geocoding.
 - 🔄 **Cross-Provider Comparison**: Simultaneously search and compare prices across Haven, Hoseasons, Center Parcs, Butlins, Parkdean, and Away Resorts.
+- 🐾 **Precise Guest Configurations**: Advanced search options allowing granular setups like specific pet counts (e.g. Center Parcs limits).
+- 🛠️ **Admin Diagnostics & Visibility**: Detailed dashboard monitoring for fetch run statuses, search failures, and search progress logging.
 - ⚡ **Live Monitoring**: Trigger on-demand price checks to get the most up-to-date availability and pricing instantly.
-- 🔐 **Secure & Private**: Full authentication system with email verification and secure password management.
+- 🔐 **Secure & Private**: Full authentication system with email verification, secure Argon2 password hashing, and user-based rate limiting.
 
 ## Visual Tour
 
@@ -120,8 +123,8 @@ PLAYWRIGHT_CONCURRENCY=1      # Limit concurrent browser instances
 
 ## Security & Compliance
 
-- ✅ JWT authentication & bcrypt password hashing
-- ✅ Rate limiting & CORS protection
+- ✅ JWT authentication & Argon2 password hashing
+- ✅ User-based rate limiting & CORS protection
 - ✅ Security headers via Helmet.js
 - ✅ Respects robots.txt and identifies with User-Agent
 - ✅ Uses respectful scraping intervals (24-72h)
