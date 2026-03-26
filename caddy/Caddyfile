@@ -1,0 +1,28 @@
+mystaycation.zapto.org {
+    # Frontend handled by the web container
+    # Direct requests go to Next.js
+    reverse_proxy web:3000
+
+    # Handle the API proxy path specifically
+    # Strip /api/proxy and forward to the API container
+    handle_path /api/proxy/* {
+        reverse_proxy api:4000
+    }
+
+    # Security headers
+    header {
+        # Enable HSTS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # Clickjacking protection
+        X-Frame-Options "SAMEORIGIN"
+        # MIME type sniffing protection
+        X-Content-Type-Options "nosniff"
+        # XSS protection
+        X-XSS-Protection "1; mode=block"
+    }
+
+    # Logging
+    log {
+        output file /data/access.log
+    }
+}

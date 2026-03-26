@@ -51,8 +51,9 @@ services:
       POSTGRES_HOST: postgres
       REDIS_HOST: redis
     # No volumes in dev mode - let container use its own node_modules
-    ports:
-      - "4000:4000"
+    # No ports exposed in production, only via Caddy
+    # ports:
+    #   - "4000:4000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -107,8 +108,9 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
     # No volumes in dev mode - let container use its own node_modules
-    ports:
-      - "3000:3000"
+    # No ports exposed in production, only via Caddy
+    # ports:
+    #   - "3000:3000"
     depends_on:
       - api
     networks:
@@ -133,6 +135,26 @@ services:
       - staycation-network
     profiles:
       - prod # Only run nginx in production
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:latest
+    container_name: staycation-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - staycation-network
+    depends_on:
+      - web
+      - api
+    profiles:
+      - dev
+      - prod
     restart: unless-stopped
 
   monitoring:
@@ -171,3 +193,5 @@ networks:
 volumes:
   postgres-data:
   redis-data:
+  caddy_data:
+  caddy_config:
