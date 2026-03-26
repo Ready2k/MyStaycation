@@ -56,8 +56,9 @@ services:
       DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
     env_file:
       - .env
-    ports:
-      - "4000:4000"
+    # No ports exposed in production, only via Caddy
+    # ports:
+    #   - "4000:4000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -103,8 +104,9 @@ services:
       API_URL: http://api:4000
     env_file:
       - .env
-    ports:
-      - "3000:3000"
+    # No ports exposed in production, only via Caddy
+    # ports:
+    #   - "3000:3000"
     depends_on:
       - api
     networks:
@@ -131,6 +133,24 @@ services:
       - staycation-network
     restart: always
 
+  caddy:
+    image: caddy:latest
+    container_name: staycation-caddy
+    platform: linux/amd64
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - staycation-network
+    depends_on:
+      - web
+      - api
+    restart: always
+
 networks:
   staycation-network:
     driver: bridge
@@ -140,3 +160,5 @@ volumes:
   redis-data:
   monitoring-reports:
   monitoring-backups:
+  caddy_data:
+  caddy_config:
