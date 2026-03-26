@@ -28,7 +28,7 @@ interface OverallSummary {
     lowestMatchedPriceGbp: number | null;
 }
 
-type SortField = 'price' | 'perNight' | 'location';
+type SortField = 'price' | 'perNight' | 'location' | 'nights';
 
 const ALL_PROVIDERS = [
     { code: 'haven',       name: 'Haven' },
@@ -75,6 +75,7 @@ export default function ComparePage() {
     const [nights, setNights]         = useState(7);
     const [adults, setAdults]         = useState(2);
     const [children, setChildren]     = useState(0);
+    const [pets, setPets]             = useState(0);
     const [selectedProviders, setSelectedProviders] = useState<string[]>(
         ALL_PROVIDERS.map((p) => p.code)
     );
@@ -97,6 +98,7 @@ export default function ComparePage() {
                     durationNightsMax: nights,
                     partySizeAdults: adults,
                     partySizeChildren: children,
+                    petsNumber: pets,
                     flexType: 'RANGE',
                 },
                 providers: selectedProviders,
@@ -128,7 +130,7 @@ export default function ComparePage() {
                             providerKey:  item.providerKey ?? p.provider ?? '',
                             location:     item.location ?? item.parkId ?? 'Unknown',
                             propertyName: item.propertyName ?? item.accommodationType ?? '',
-                            price:        Number(item.price ?? 0),
+                            price:        Number(item.price?.totalGbp ?? 0),
                             stayNights:   item.stayNights ?? nights,
                             stayStartDate: item.stayStartDate ?? dateStart,
                             sourceUrl:    item.sourceUrl ?? '',
@@ -179,6 +181,7 @@ export default function ComparePage() {
               if (sortField === 'price')    cmp = a.price - b.price;
               if (sortField === 'perNight') cmp = (a.price / a.stayNights) - (b.price / b.stayNights);
               if (sortField === 'location') cmp = a.location.localeCompare(b.location);
+              if (sortField === 'nights') cmp = a.stayNights - b.stayNights;
               return sortAsc ? cmp : -cmp;
           })
         : [];
@@ -247,7 +250,7 @@ export default function ComparePage() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-sm font-medium mb-1">Adults</label>
                         <input
@@ -265,6 +268,16 @@ export default function ComparePage() {
                             min={0}
                             value={children}
                             onChange={(e) => setChildren(parseInt(e.target.value))}
+                            className="w-full px-3 py-2 border rounded-md text-sm"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Pets</label>
+                        <input
+                            type="number"
+                            min={0}
+                            value={pets}
+                            onChange={(e) => setPets(parseInt(e.target.value))}
                             className="w-full px-3 py-2 border rounded-md text-sm"
                         />
                     </div>
@@ -408,9 +421,7 @@ export default function ComparePage() {
                                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
                                                     Date
                                                 </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
-                                                    Nights
-                                                </th>
+                                                <SortHeader field="nights" label="Nights" />
                                                 <SortHeader field="price"    label="Total" />
                                                 <SortHeader field="perNight" label="/Night" />
                                                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wide">

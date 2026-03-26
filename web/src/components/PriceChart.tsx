@@ -299,6 +299,8 @@ export function PriceChart({ series, isLoading, metadata }: PriceChartProps) {
                                 tickFormatter={(date) => format(new Date(date), 'MMM d')}
                                 stroke="#6b7280"
                                 style={{ fontSize: '12px' }}
+                                minTickGap={30}
+                                tickMargin={10}
                             />
                             <YAxis
                                 stroke="#6b7280"
@@ -372,7 +374,7 @@ export function PriceChart({ series, isLoading, metadata }: PriceChartProps) {
                 {/* Series Legend with Toggle */}
                 <div className="mt-6 border-t border-gray-100 pt-4">
                     <h4 className="text-sm font-medium text-gray-700 mb-3">Stay Options (click to toggle)</h4>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-2 pb-2">
                         {filteredSeries.map((s, index) => (
                             <button
                                 key={s.seriesKey}
