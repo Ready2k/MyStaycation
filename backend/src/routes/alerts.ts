@@ -14,16 +14,17 @@ export async function alertRoutes(fastify: FastifyInstance) {
     }, async (request: FastifyRequest, reply: FastifyReply) => {
         try {
             const { fingerprintId, days } = snoozeSchema.parse(request.body);
+            const userId = (request.user as any).userId;
 
-            // TODO: Ideally verify the fingerprint belongs to a profile owned by the user
-            // For now, relying on the fact that only valid fingerprints exist and random UUID guessing is hard
-
-            await alertService.snoozeFingerprint(fingerprintId, days);
+            await alertService.snoozeFingerprint(fingerprintId, userId, days);
 
             return reply.send({ message: `Alerts snoozed for ${days} days` });
-        } catch (error) {
+        } catch (error: any) {
             if (error instanceof z.ZodError) {
                 return reply.code(400).send({ message: 'Validation Error', errors: error.issues });
+            }
+            if (error.message === 'Fingerprint not found or access denied') {
+                return reply.code(404).send({ error: 'Fingerprint not found' });
             }
             request.log.error(error);
             return reply.code(500).send({ message: 'Failed to snooze alerts' });

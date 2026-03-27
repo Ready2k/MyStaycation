@@ -16,6 +16,10 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:integration": "jest tests/integration",
+    "test:authz": "jest tests/integration/authorization.test.ts",
+    "db:test:up": "docker-compose up -d postgres redis",
+    "db:check": "tsx src/scripts/db-check.ts",
     "lint": "eslint src",
     "format": "prettier --write \"src/**/*.ts\""
   },

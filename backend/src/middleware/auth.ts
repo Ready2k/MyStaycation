@@ -13,24 +13,41 @@ declare module 'fastify' {
 export async function authenticate(request: FastifyRequest, reply: FastifyReply) {
     try {
         await request.jwtVerify();
-    } catch (_err) {
-        reply.status(401).send({ error: 'Unauthorized' });
+    } catch (err) {
+        request.log.warn({
+            url: request.url,
+            method: request.method,
+            reason: 'missing_or_invalid_auth'
+        }, 'Authentication failed');
+        return reply.status(401).send({ error: 'Unauthorized' });
     }
 }
 
 export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
     try {
+        // Ensure authenticated first
         await request.jwtVerify();
-        const userId = (request.user as JWTPayload).userId;
+        const user = request.user as JWTPayload;
 
         const userRepo = AppDataSource.getRepository(User);
-        const user = await userRepo.findOne({ where: { id: userId } });
+        const dbUser = await userRepo.findOne({ where: { id: user.userId } });
 
-        if (!user || user.role !== UserRole.ADMIN) {
-            reply.status(403).send({ error: 'Forbidden: Admin access required' });
+        if (!dbUser || dbUser.role !== UserRole.ADMIN) {
+            request.log.warn({
+                userId: user.userId,
+                url: request.url,
+                method: request.method,
+                reason: 'not_admin'
+            }, 'Authorization denied: Admin access required');
+            return reply.status(403).send({ error: 'Forbidden: Admin access required' });
         }
-    } catch (_err) {
-        reply.status(401).send({ error: 'Unauthorized' });
+    } catch (err) {
+        request.log.warn({
+            url: request.url,
+            method: request.method,
+            reason: 'invalid_auth_token'
+        }, 'Authorization failed during admin check');
+        return reply.status(401).send({ error: 'Unauthorized' });
     }
 }
 

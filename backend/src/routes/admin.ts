@@ -12,6 +12,7 @@ import { monitorQueue, insightQueue, alertQueue, dealQueue } from '../jobs/queue
 import { authService } from '../services/auth.service';
 import { geocodeAllMissingParks } from '../services/geocoding.service';
 import crypto from 'crypto';
+import z from 'zod';
 
 const userRepo = AppDataSource.getRepository(User);
 const profileRepo = AppDataSource.getRepository(HolidayProfile);
@@ -24,12 +25,12 @@ const configRepo = AppDataSource.getRepository(ProviderConfig);
 
 export async function adminRoutes(fastify: FastifyInstance) {
     // Apply admin guard to all routes in this plugin
-    fastify.addHook('onRequest', fastify.requireAdmin);
+    fastify.addHook('preHandler', fastify.requireAdmin);
 
     // --- USER MANAGEMENT ---
 
     // GET /admin/users - List all users
-    fastify.get('/admin/users', async (_request, _reply) => {
+    fastify.get('/admin/users', async (request, _reply) => {
         const users = await userRepo.find({
             relations: ['profiles'],
             order: { createdAt: 'DESC' }
@@ -50,27 +51,47 @@ export async function adminRoutes(fastify: FastifyInstance) {
     });
 
     // PATCH /admin/users/:id/role - Promote/Demote
-    fastify.patch('/admin/users/:id/role', {
-        schema: {
-            body: {
-                type: 'object',
-                properties: {
-                    role: { type: 'string', enum: Object.values(UserRole) }
-                },
-                required: ['role']
-            }
-        }
-    }, async (request, reply) => {
+    fastify.patch('/admin/users/:id/role', async (request, reply) => {
         const { id } = request.params as { id: string };
-        const { role } = request.body as any;
+        
+        // Zod validation for role
+        const roleSchema = z.object({
+            role: z.nativeEnum(UserRole)
+        });
 
-        const user = await userRepo.findOne({ where: { id } });
-        if (!user) return reply.code(404).send({ error: 'User not found' });
+        try {
+            const { role } = roleSchema.parse(request.body);
+            const adminUser = request.user as any;
 
-        user.role = role;
-        await userRepo.save(user);
+            const user = await userRepo.findOne({ where: { id } });
+            if (!user) return reply.code(404).send({ error: 'User not found' });
 
-        return { success: true, user: { id: user.id, email: user.email, role: user.role } };
+            // Prevent self-demotion if they are the only admin (optional but safe)
+            if (id === adminUser.userId && role !== UserRole.ADMIN) {
+                const adminCount = await userRepo.count({ where: { role: UserRole.ADMIN } });
+                if (adminCount <= 1) {
+                    return reply.code(400).send({ error: 'Cannot demote the last administrator' });
+                }
+            }
+
+            const oldRole = user.role;
+            user.role = role;
+            await userRepo.save(user);
+
+            request.log.info({
+                adminId: adminUser.userId,
+                targetUserId: id,
+                oldRole,
+                newRole: role
+            }, 'User role updated by admin');
+
+            return { success: true, user: { id: user.id, email: user.email, role: user.role } };
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                return reply.code(400).send({ error: 'Invalid role', details: error.issues });
+            }
+            throw error;
+        }
     });
 
     // POST /admin/users/:id/reset-password - Admin reset

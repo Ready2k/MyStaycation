@@ -2,6 +2,9 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import { ENTITIES, User } from '../entities';
+
+dotenv.config();
 
 dotenv.config();
 
@@ -16,13 +19,13 @@ export const AppDataSource = new DataSource({
     database: process.env.POSTGRES_DB || (isProduction ? undefined : 'staycation_db'),
     synchronize: process.env.DB_SYNCHRONIZE === 'true', // Use carefully in production!
     logging: process.env.NODE_ENV === 'development',
-    // Support both src (dev) and dist (prod) structure
-    entities: [path.join(__dirname, '../entities/**/*.{ts,js}')],
-    migrations: [path.join(__dirname, '../migrations/**/*.{ts,js}')],
+    entities: ENTITIES,
+    migrations: [path.join(process.cwd(), 'src/migrations/**/*.{ts,js}')],
     subscribers: [],
     // Allow explicit disabling of SSL via env var, otherwise default to true in production
     ssl: process.env.DB_SSL === 'false' ? false : (isProduction ? { rejectUnauthorized: false } : false),
 });
+
 
 export const initializeDatabase = async () => {
     try {

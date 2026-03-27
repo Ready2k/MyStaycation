@@ -153,16 +153,26 @@ export class AlertService {
     /**
      * Snooze alerts for a fingerprint
      */
-    async snoozeFingerprint(fingerprintId: string, days: number): Promise<void> {
+    async snoozeFingerprint(fingerprintId: string, userId: string, days: number): Promise<void> {
         const fingerprintRepo = AppDataSource.getRepository('SearchFingerprint');
-        const fingerprint = await fingerprintRepo.findOne({ where: { id: fingerprintId } });
+        
+        // Verify ownership: fingerprint -> profile -> user
+        const fingerprint = await fingerprintRepo.findOne({ 
+            where: { 
+                id: fingerprintId,
+                profile: { user: { id: userId } }
+            },
+            relations: ['profile', 'profile.user']
+        });
 
         if (fingerprint) {
             const until = new Date();
             until.setDate(until.getDate() + days);
             (fingerprint as any).snoozedUntil = until;
             await fingerprintRepo.save(fingerprint);
-            console.log(`Fingerprint ${fingerprintId} snoozed for ${days} days`);
+            console.log(`Fingerprint ${fingerprintId} snoozed for ${days} days by user ${userId}`);
+        } else {
+            throw new Error('Fingerprint not found or access denied');
         }
     }
 
