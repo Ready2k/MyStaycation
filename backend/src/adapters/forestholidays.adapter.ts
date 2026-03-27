@@ -232,10 +232,100 @@ export class ForestHolidaysAdapter extends BaseAdapter {
     }
 
     async fetchOffers(): Promise<DealResult[]> {
-        return []; // To be implemented later if needed
+        const results: DealResult[] = [];
+        try {
+            // 1. General Offers & Discount Codes
+            const generalOffersUrl = this.buildOffersUrl();
+            const generalHtml = await this.fetchHtmlWithBrowser(generalOffersUrl);
+            const generalDeals = this.parseOffers(generalHtml);
+            results.push(...generalDeals);
+
+            // 2. Late Availability Deals
+            const lateAvailabilityUrl = `${this.baseUrl}/offers/late-availability/`;
+            const lateHtml = await this.fetchHtmlWithBrowser(lateAvailabilityUrl);
+            const lateDeals = this.parseLateAvailability(lateHtml);
+            results.push(...lateDeals);
+
+            // 3. Scan for generic codes (regex)
+            const allHtml = generalHtml + lateHtml;
+            const codes = this.extractDiscountCodes(allHtml);
+            results.push(...codes);
+
+        } catch (error) {
+            console.error(`❌ Forest Holidays fetchOffers failed:`, error);
+        }
+        return results;
     }
 
-    protected parseOffers(_html: string): DealResult[] { return []; }
+    protected parseOffers(html: string): DealResult[] {
+        const deals: DealResult[] = [];
+        // Extract generic promo banners if any
+        if (html.includes(' NATURE60') || html.includes('>NATURE60<')) {
+            deals.push({
+                title: 'Save £60 on selected breaks',
+                discountType: 'FIXED_OFF',
+                discountValue: 60,
+                voucherCode: 'NATURE60',
+                restrictions: { note: 'Book by 13 April 2026, travel until Oct 2026' }
+            });
+        }
+        if (html.includes('£10 deposit')) {
+            deals.push({
+                title: 'Book for just £10 deposit',
+                discountType: 'PERK',
+                restrictions: { note: 'Available for selected 2026 bookings' }
+            });
+        }
+        return deals;
+    }
+
+    private parseLateAvailability(html: string): DealResult[] {
+        const deals: DealResult[] = [];
+        // Basic Cheerio-like parsing if possible, or just regex if no library
+        // Since we don't have a DOM library easily available in the adapter context without import, 
+        // we use regex or string manipulation for known patterns.
+        
+        // Pattern: <h3 ...>Silver Birch at Cropton</h3> ... 13 - 17 April from £850
+        const cardRegex = /data-testid="content-card-root"[\s\S]*?cabin-title">([\s\S]*?)<\/h3>[\s\S]*?from £([\d,]+)/g;
+        let match;
+        while ((match = cardRegex.exec(html)) !== null) {
+            const title = match[1].trim();
+            const price = parseInt(match[2].replace(/,/g, ''));
+            deals.push({
+                title: `Late Availability: ${title}`,
+                discountType: 'SALE_PRICE',
+                discountValue: price,
+                restrictions: { note: 'Limited availability, price varies by date' }
+            });
+        }
+        return deals;
+    }
+
+    private extractDiscountCodes(html: string): DealResult[] {
+        const deals: DealResult[] = [];
+        // Look for typical 8-character uppercase voucher code patterns if needed
+        // For now, NATURE60 is specific, but we can add more regex if seen.
+        const codeRegex = /\b[A-Z]{4,8}\d{0,2}\b/g;
+        const potentialCodes = html.match(codeRegex) || [];
+        const uniqueCodes = [...new Set(potentialCodes)];
+        
+        const knownCodes = ['NATURE60', 'SAVE10'];
+        for (const code of uniqueCodes) {
+            if (knownCodes.includes(code) && !deals.find(d => d.voucherCode === code)) {
+                // Already handled specifically in parseOffers, or add generic one here
+                if (code === 'SAVE10') {
+                    deals.push({
+                        title: '10% New Subscriber Discount',
+                        discountType: 'PERCENT_OFF',
+                        discountValue: 10,
+                        voucherCode: 'SAVE10'
+                    });
+                }
+            }
+        }
+        return deals;
+    }
+
     protected parseSearchResults(_html: string, _params: SearchParams): PriceResult[] { return []; }
     protected buildOffersUrl(): string { return `${this.baseUrl}/offers/`; }
 }
