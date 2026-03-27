@@ -1,0 +1,67 @@
+========================================
+Daily Health Check - 2026-03-27 21:36:36
+========================================
+
+## Database Connection
+✅ Database connection: OK
+
+## Fetch Runs (Last 24h)
+ status | count | percentage 
+--------+-------+------------
+(0 rows)
+
+
+## Parse Failures (Last 24h)
+ provider | errorMessage | count 
+----------+--------------+-------
+(0 rows)
+
+
+## Observations Created (Last 24h)
+ total_observations | unique_series | unique_fingerprints 
+--------------------+---------------+---------------------
+                  0 |             0 |                   0
+(1 row)
+
+
+## Insights Created (Last 24h)
+ type | count 
+------+-------
+(0 rows)
+
+
+## Alerts Sent (Last 24h)
+ status | count 
+--------+-------
+(0 rows)
+
+
+## Series Key Integrity
+ ✅ PASS: All observations have series keys
+
+
+## Deduplication Check
+ ✅ PASS: No duplicate insights
+
+
+## Database Size
+ database_size 
+---------------
+ 8375 kB
+(1 row)
+
+
+## Top 5 Largest Tables
+         table_name         | size  
+----------------------------+-------
+ public.insights            | 32 kB
+ public.system_logs         | 32 kB
+ public.users               | 32 kB
+ public.alerts              | 32 kB
+ public.search_fingerprints | 32 kB
+(5 rows)
+
+
+## Summary
+Report generated at: Fri Mar 27 21:36:37 GMT 2026
+Report saved to: /reports/health-check-2026-03-27.txt

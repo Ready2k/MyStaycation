@@ -19,6 +19,8 @@ import { User, UserRole, HolidayProfile, SearchFingerprint, Provider } from '../
 import { adminRoutes } from '../../src/routes/admin';
 import { alertRoutes } from '../../src/routes/alerts';
 import { authenticate, requireAdmin } from '../../src/middleware/auth';
+import redisConnection from '../../src/config/redis';
+
 
 describe('Authorization & Ownership Integration Tests', () => {
     let fastify: FastifyInstance;
@@ -68,9 +70,13 @@ describe('Authorization & Ownership Integration Tests', () => {
         await fastify.register(alertRoutes);
 
         const userRepo = AppDataSource.getRepository(User);
+        const profileRepo = AppDataSource.getRepository(HolidayProfile);
+        const fingerprintRepo = AppDataSource.getRepository(SearchFingerprint);
         
-        // Clean up and Create test users
-        await userRepo.delete({}); 
+        // Clean up everything in reverse order of dependencies
+        await fingerprintRepo.createQueryBuilder().delete().execute();
+        await profileRepo.createQueryBuilder().delete().execute();
+        await userRepo.createQueryBuilder().delete().execute();
         
         adminUser = await userRepo.save(userRepo.create({
             email: 'admin@test.com',
@@ -99,12 +105,24 @@ describe('Authorization & Ownership Integration Tests', () => {
     });
 
     afterAll(async () => {
-        if (AppDataSource.isInitialized) {
-            const userRepo = AppDataSource.getRepository(User);
-            await userRepo.delete({});
-            await AppDataSource.destroy();
+        try {
+            if (AppDataSource.isInitialized) {
+                const fingerprintRepo = AppDataSource.getRepository(SearchFingerprint);
+                const profileRepo = AppDataSource.getRepository(HolidayProfile);
+                const userRepo = AppDataSource.getRepository(User);
+                
+                await fingerprintRepo.createQueryBuilder().delete().execute();
+                await profileRepo.createQueryBuilder().delete().execute();
+                await userRepo.createQueryBuilder().delete().execute();
+                
+                await AppDataSource.destroy();
+            }
+        } finally {
+            if (fastify) {
+                await fastify.close();
+            }
+            await redisConnection.quit();
         }
-        await fastify.close();
     });
 
     describe('Admin Route Hardening (A & B)', () => {
