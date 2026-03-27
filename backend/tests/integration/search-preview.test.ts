@@ -63,6 +63,7 @@ describe('Search Preview Unit Test', () => {
                 availability: 'AVAILABLE',
                 sourceUrl: 'http://example.com',
                 accomType: 'Caravan',
+                parkId: 'TEST-PARK',
                 bedrooms: 2,
                 petsAllowed: false
             }]))
@@ -98,7 +99,7 @@ describe('Search Preview Unit Test', () => {
         expect(response).toBeDefined();
         expect(response.mode).toBe('INLINE_PROFILE');
         expect(response.providers).toHaveLength(1);
-        expect(response.providers[0].providerKey).toBe('haven');
+        expect(response.providers[0].providerKey).toBe('HAVEN');
         expect(response.providers[0].status).toBe('OK');
 
         // Site Effects Verification (1.1, 2.1)

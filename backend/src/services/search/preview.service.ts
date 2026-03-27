@@ -190,7 +190,7 @@ export class PreviewService {
         const allProviders = Array.from(adapterRegistry.getAllAdapters().keys()).map(p => p.toUpperCase());
 
         let providersToRun = req.providers && req.providers.length > 0
-            ? req.providers.map(p => p.trim().toUpperCase()) // NORMALIZE
+            ? Array.from(new Set(req.providers.map(p => p.trim().toUpperCase()))) // NORMALIZE & DEDUPLICATE
             : allProviders;
 
         // PRIORITY: If profile has a specific provider assigned, ONLY search that provider

@@ -5,6 +5,9 @@ import { HolidayProfile, FlexType } from '../../src/entities/HolidayProfile';
 import { User } from '../../src/entities/User';
 import { FetchRun } from '../../src/entities/FetchRun';
 import { Provider } from '../../src/entities/Provider';
+import redisConnection from '../../src/config/redis';
+
+jest.setTimeout(60000);
 
 /**
  * TOFU Trust-Contract Tests
@@ -28,6 +31,16 @@ describe('Preview Trust Contract', () => {
 
         const userRepo = AppDataSource.getRepository(User);
         const profileRepo = AppDataSource.getRepository(HolidayProfile);
+        const providerRepo = AppDataSource.getRepository(Provider);
+
+        // Ensure Provider exists for HAVEN
+        await providerRepo.save(
+            providerRepo.create({
+                code: 'HAVEN',
+                name: 'Haven Holidays',
+                baseUrl: 'https://www.haven.com'
+            })
+        );
 
         // Create test users
         testUser1 = await userRepo.save(
@@ -79,19 +92,23 @@ describe('Preview Trust Contract', () => {
     });
 
     afterAll(async () => {
-        // Cleanup
-        const userRepo = AppDataSource.getRepository(User);
-        const profileRepo = AppDataSource.getRepository(HolidayProfile);
-        const fetchRunRepo = AppDataSource.getRepository(FetchRun);
+        try {
+            if (AppDataSource.isInitialized) {
+                const userRepo = AppDataSource.getRepository(User);
+                const profileRepo = AppDataSource.getRepository(HolidayProfile);
+                const fetchRunRepo = AppDataSource.getRepository(FetchRun);
+                const providerRepo = AppDataSource.getRepository(Provider);
 
-        await fetchRunRepo.delete({ provider: { code: 'HAVEN' } });
-        await profileRepo.delete({ user: { id: testUser1.id } });
-        await profileRepo.delete({ user: { id: testUser2.id } });
-        await userRepo.delete({ id: testUser1.id });
-        await userRepo.delete({ id: testUser2.id });
+                // Safe cleanup order
+                await fetchRunRepo.createQueryBuilder().delete().execute();
+                await profileRepo.createQueryBuilder().delete().execute();
+                await userRepo.createQueryBuilder().delete().execute();
+                await providerRepo.createQueryBuilder().delete().execute();
 
-        if (AppDataSource.isInitialized) {
-            await AppDataSource.destroy();
+                await AppDataSource.destroy();
+            }
+        } finally {
+            await redisConnection.quit();
         }
     });
 
