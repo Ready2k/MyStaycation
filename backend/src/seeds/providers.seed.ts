@@ -104,6 +104,22 @@ export async function seedProviders() {
         console.log('✅ Created Away Resorts provider');
     }
 
+    // Forest Holidays
+    let forestHolidays = await providerRepo.findOne({ where: { code: 'forestholidays' } });
+    if (!forestHolidays) {
+        forestHolidays = providerRepo.create({
+            code: 'forestholidays',
+            name: 'Forest Holidays',
+            baseUrl: 'https://www.forestholidays.co.uk',
+            enabled: true,
+            checkFrequencyHours: 48,
+            maxConcurrent: 2,
+            notes: 'Premium UK forest cabins and lodges',
+        });
+        await providerRepo.save(forestHolidays);
+        console.log('✅ Created Forest Holidays provider');
+    }
+
     // Add Haven parks
     const havenParks = [
         { code: 'devon-cliffs',    name: 'Devon Cliffs',    region: 'Devon',        latitude: 50.6333, longitude: -3.3167 },
@@ -269,6 +285,45 @@ export async function seedProviders() {
         } else if (!existing.latitude) {
             await parkRepo.update(existing.id, { latitude: parkData.latitude, longitude: parkData.longitude });
             console.log(`✅ Updated coordinates for Parkdean park: ${parkData.name}`);
+        }
+    }
+
+    // Add Forest Holidays locations
+    const forestHolidaysParks = [
+        { code: '468bfc3f-c237-4d92-a99d-0c73face813a', name: 'Ardgartan',       region: 'Scotland',       latitude: 56.1795, longitude: -4.8090 },
+        { code: '49ae88aa-bee1-4941-8366-047e9d38a2d5', name: 'Beddgelert',      region: 'Wales',          latitude: 53.0132, longitude: -4.0910 },
+        { code: '4c774808-aeb5-4ed8-8b16-67bf66bfd117', name: 'Blackwood Forest', region: 'Hampshire',      latitude: 51.1575, longitude: -1.2291 },
+        { code: '58d9ad0f-1e29-4b12-b85a-ab93b467283e', name: 'Thorpe Forest',   region: 'Norfolk',        latitude: 52.4204, longitude:  0.8876 },
+        { code: '7123264d-f469-4332-8e31-95d59eb038d1', name: 'Forest of Dean',  region: 'Gloucestershire',latitude: 51.8492, longitude: -2.6105 },
+        { code: '8c1e4087-8f0a-496b-96c3-81643a9737f6', name: 'Deerpark',        region: 'Cornwall',       latitude: 50.4162, longitude: -4.4397 },
+        { code: '8e473341-c16b-4f36-a779-e2d7f023cfbe', name: 'Strathyre',       region: 'Scotland',       latitude: 56.3263, longitude: -4.3323 },
+        { code: '91ee8989-c3be-4377-8b74-48887adcc062', name: 'Cropton',         region: 'Yorkshire',      latitude: 54.3056, longitude: -0.8229 },
+        { code: 'c1581d0c-8b36-4859-832d-e70d6e8c1efb', name: 'Keldy',           region: 'Yorkshire',      latitude: 54.3088, longitude: -0.8123 },
+        { code: 'd62c573b-dd69-4582-af9f-217cee647e1f', name: 'Garwnant',        region: 'Wales',          latitude: 51.8023, longitude: -3.4560 },
+        { code: 'd701ccb7-b080-4f79-9870-8bac8a5c08ea', name: 'Sherwood Forest', region: 'Nottinghamshire',latitude: 53.2081, longitude: -1.0660 },
+        { code: 'db63a0ad-ff4d-4e84-9a9d-2cac0f5578f1', name: 'Delamere Forest', region: 'Cheshire',       latitude: 53.2305, longitude: -2.6738 },
+        { code: 'eb77d895-d7d1-42fe-af4a-2635e86dc17c', name: 'Glentress Forest',region: 'Scotland',       latitude: 55.6393, longitude: -3.1491 },
+    ];
+
+    for (const parkData of forestHolidaysParks) {
+        const existing = await parkRepo.findOne({
+            where: { provider: { id: forestHolidays.id }, providerParkCode: parkData.code },
+        });
+
+        if (!existing) {
+            const park = parkRepo.create({
+                provider: forestHolidays,
+                providerParkCode: parkData.code,
+                name: parkData.name,
+                region: parkData.region,
+                latitude: parkData.latitude,
+                longitude: parkData.longitude,
+            });
+            await parkRepo.save(park);
+            console.log(`✅ Created Forest Holidays park: ${parkData.name}`);
+        } else if (!existing.latitude) {
+            await parkRepo.update(existing.id, { latitude: parkData.latitude, longitude: parkData.longitude });
+            console.log(`✅ Updated coordinates for Forest Holidays park: ${parkData.name}`);
         }
     }
 

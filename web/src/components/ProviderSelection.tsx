@@ -9,6 +9,7 @@ interface Provider {
 
 const PROVIDERS: Provider[] = [
     { code: 'centerparcs', name: 'Center Parcs',     description: '5 UK forest villages',   icon: '🏕️' },
+    { code: 'forestholidays', name: 'Forest Holidays', description: 'Premium UK forest cabins', icon: '🌲' },
     { code: 'haven',       name: 'Haven',             description: '40+ UK holiday parks',   icon: '🌊' },
     { code: 'hoseasons',   name: 'Hoseasons',         description: '300+ UK locations',      icon: '🏖️' },
     { code: 'parkdean',    name: 'Parkdean Resorts',  description: '60+ UK parks',           icon: '🎡' },

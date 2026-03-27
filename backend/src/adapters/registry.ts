@@ -5,7 +5,7 @@ import { CenterParcsAdapter } from './centerparcs.adapter';
 import { ParkdeanAdapter } from './parkdean.adapter';
 import { ButlinsAdapter } from './butlins.adapter';
 import { AwayResortsAdapter } from './awayresorts.adapter';
-
+import { ForestHolidaysAdapter } from './forestholidays.adapter';
 /**
  * Returns true when the env var is absent (default on) or explicitly "true".
  * Set PROVIDER_<NAME>_ENABLED=false to disable a provider at runtime.
@@ -51,6 +51,12 @@ const PROVIDERS = [
         name: 'Away Resorts',
         envKey: 'PROVIDER_AWAYRESORTS_ENABLED',
         factory: () => new AwayResortsAdapter(),
+    },
+    {
+        code: 'forestholidays',
+        name: 'Forest Holidays',
+        envKey: 'PROVIDER_FORESTHOLIDAYS_ENABLED',
+        factory: () => new ForestHolidaysAdapter(),
     },
 ] as const;
 

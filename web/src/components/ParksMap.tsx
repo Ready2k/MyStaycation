@@ -27,6 +27,7 @@ const PROVIDER_COLOURS: Record<string, string> = {
     butlins: '#dc2626',
     parkdean: '#ea580c',
     awayresorts: '#9333ea',
+    forestholidays: '#15803d',
 };
 
 function colourIcon(providerCode: string): L.Icon {

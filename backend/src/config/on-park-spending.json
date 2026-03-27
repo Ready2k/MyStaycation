@@ -28,5 +28,10 @@
     "dailyBaseSpend": 35,
     "activityMultiplier": 1.8,
     "description": "Includes fairground access and high-density entertainment."
+  },
+  "forestholidays": {
+    "dailyBaseSpend": 40,
+    "activityMultiplier": 2.0,
+    "description": "Reflects luxury forest cabin experience and premium local experiences."
   }
 }
