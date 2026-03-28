@@ -101,7 +101,9 @@ export class ForestHolidaysAdapter extends BaseAdapter {
             const targetEndpoint = searchType === 'cabins' ? 'flat-cabin-availability' : 'bookable-locations';
             
             const responsePromise = page.waitForResponse(response => 
-                response.url().includes(targetEndpoint) && 
+                (response.url().includes('flat-cabin-availability') || 
+                 response.url().includes('location-availability') || 
+                 response.url().includes('bookable-locations')) && 
                 response.request().method() === 'POST' &&
                 response.status() === 200,
                 { timeout: 60000 }
@@ -129,11 +131,15 @@ export class ForestHolidaysAdapter extends BaseAdapter {
         const nights = params.nights.min;
 
         if (searchType === 'locations') {
-            const locations = apiData?.data?.bookableLocations || [];
+            const locations = apiData?.data?.locationAvailability?.locations || 
+                             apiData?.data?.bookableLocations || [];
+            
             locations.forEach((loc: any) => {
-                if (!loc.minPrice || loc.minPrice <= 0) return;
+                const pricing = loc.pricing?.bestPrice?.price?.totalPrice || loc.minPrice;
+                if (!pricing || pricing <= 0) return;
+                
+                const price = pricing;
 
-                const price = loc.minPrice;
                 const perNight = this.calculatePricePerNight(price, nights);
 
                 if (perNight) {
@@ -148,7 +154,7 @@ export class ForestHolidaysAdapter extends BaseAdapter {
                         sourceUrl: this.buildSearchUrl(params, [loc.id], 'cabins'),
                         matchConfidence: MatchConfidence.STRONG,
                         parkId: loc.id,
-                        location: loc.locationName,
+                        location: loc.locationName || loc.name || 'Forest Holidays',
                         bedrooms: params.party.adults > 2 ? 2 : 1, // Estimate if minimal data
                         metadata: {
                             maxPrice: loc.maxPrice

@@ -115,6 +115,7 @@ export function ForestHolidaysForm({ initialData, onSuccess, onBack }: ForestHol
                 alertSensitivity: data.alertSensitivity,
                 checkFrequencyHours: data.checkFrequencyHours,
                 flexType: 'RANGE',
+                enabledProviders: ['forestholidays'],
                 metadata: {
                     partyBreakdown: data.party,
                     cabinTiers: data.cabinTiers,
@@ -243,7 +244,7 @@ export function ForestHolidaysForm({ initialData, onSuccess, onBack }: ForestHol
                             <label className="block text-sm font-medium text-gray-700 mb-2">Duration (Nights)</label>
                             <select
                                 value={formData.nights}
-                                onChange={(e) => setFormData({ ...formData, nights: parseInt(e.target.value) })}
+                                onChange={(e) => setFormData({ ...formData, nights: parseInt(e.target.value) || 7 })}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
                             >
                                 <option value="3">3 Nights (Weekend)</option>
@@ -262,19 +263,19 @@ export function ForestHolidaysForm({ initialData, onSuccess, onBack }: ForestHol
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div>
                                 <label className="block text-xs font-medium text-gray-500 mb-1">Adults (16+)</label>
-                                <input type="number" min="1" max="12" value={formData.party.adults} onChange={e => setFormData({ ...formData, party: { ...formData.party, adults: parseInt(e.target.value) }})} className="w-full px-2 py-1.5 border border-gray-300 rounded" />
+                                <input type="number" min="1" max="12" value={formData.party.adults} onChange={e => setFormData({ ...formData, party: { ...formData.party, adults: parseInt(e.target.value) || 1 }})} className="w-full px-2 py-1.5 border border-gray-300 rounded" />
                             </div>
                             <div>
                                 <label className="block text-xs font-medium text-gray-500 mb-1">Children (2-16)</label>
-                                <input type="number" min="0" max="10" value={formData.party.children} onChange={e => setFormData({ ...formData, party: { ...formData.party, children: parseInt(e.target.value) }})} className="w-full px-2 py-1.5 border border-gray-300 rounded" />
+                                <input type="number" min="0" max="10" value={formData.party.children} onChange={e => setFormData({ ...formData, party: { ...formData.party, children: parseInt(e.target.value) || 0 }})} className="w-full px-2 py-1.5 border border-gray-300 rounded" />
                             </div>
                             <div>
                                 <label className="block text-xs font-medium text-gray-500 mb-1">Infants (&lt;2)</label>
-                                <input type="number" min="0" max="5" value={formData.party.infants} onChange={e => setFormData({ ...formData, party: { ...formData.party, infants: parseInt(e.target.value) }})} className="w-full px-2 py-1.5 border border-gray-300 rounded" />
+                                <input type="number" min="0" max="5" value={formData.party.infants} onChange={e => setFormData({ ...formData, party: { ...formData.party, infants: parseInt(e.target.value) || 0 }})} className="w-full px-2 py-1.5 border border-gray-300 rounded" />
                             </div>
                             <div>
                                 <label className="block text-xs font-medium text-gray-500 mb-1">Dogs (max 2)</label>
-                                <input type="number" min="0" max="2" value={formData.party.dogs} onChange={e => setFormData({ ...formData, party: { ...formData.party, dogs: parseInt(e.target.value) }})} className="w-full px-2 py-1.5 border border-gray-300 rounded" />
+                                <input type="number" min="0" max="2" value={formData.party.dogs} onChange={e => setFormData({ ...formData, party: { ...formData.party, dogs: parseInt(e.target.value) || 0 }})} className="w-full px-2 py-1.5 border border-gray-300 rounded" />
                             </div>
                         </div>
                     </div>
@@ -288,7 +289,7 @@ export function ForestHolidaysForm({ initialData, onSuccess, onBack }: ForestHol
                                 <input
                                     type="number"
                                     value={formData.budgetMax || ''}
-                                    onChange={(e) => setFormData({ ...formData, budgetMax: e.target.value ? parseInt(e.target.value) : null })}
+                                    onChange={(e) => setFormData({ ...formData, budgetMax: e.target.value ? (parseInt(e.target.value) || null) : null })}
                                     className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md"
                                     placeholder="e.g., 2000"
                                 />
@@ -344,7 +345,7 @@ export function ForestHolidaysForm({ initialData, onSuccess, onBack }: ForestHol
                                     <label className="block text-sm font-medium text-gray-900 mb-1">Min Bedrooms</label>
                                     <select
                                         value={formData.minBedrooms}
-                                        onChange={e => setFormData({ ...formData, minBedrooms: parseInt(e.target.value) })}
+                                        onChange={e => setFormData({ ...formData, minBedrooms: parseInt(e.target.value) || 1 })}
                                         className="px-3 py-1 border border-gray-300 rounded"
                                     >
                                         {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}+ Bedrooms</option>)}

@@ -260,7 +260,7 @@ export async function profileRoutes(fastify: FastifyInstance) {
             return savedProfile;
         } catch (error) {
             if (error instanceof z.ZodError) {
-                console.error('Validation Error:', JSON.stringify(error.issues, null, 2));
+                console.error('❌ Validation Error (PUT /profiles):', JSON.stringify(error.issues, null, 2));
                 return reply.code(400).send({ message: 'Validation Error', errors: error.issues });
             }
             request.log.error(error);
