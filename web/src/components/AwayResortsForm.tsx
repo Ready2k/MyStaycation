@@ -66,24 +66,47 @@ export function AwayResortsForm({ initialData, onSuccess, onBack }: AwayResortsF
 
     useEffect(() => {
         if (initialData) {
-            setFormData({
-                name: initialData.name || '',
-                parks: Array.isArray(initialData.parkIds) ? initialData.parkIds :
+            let parkIds = Array.isArray(initialData.parkIds) ? initialData.parkIds :
                     (typeof initialData.parkIds === 'string'
                         ? initialData.parkIds.split(',').map((p: string) => p.trim()).filter(Boolean)
-                        : []),
+                        : []);
+
+            // Handle pre-populated park name if parks is already loaded
+            if (initialData.isTemplate && initialData.prePopulatedParkName && parkIds.length === 0 && parks.length > 0) {
+                const park = parks.find(p => 
+                    p.name.toLowerCase().includes(initialData.prePopulatedParkName.toLowerCase()) ||
+                    initialData.prePopulatedParkName.toLowerCase().includes(p.name.toLowerCase())
+                );
+                if (park && park.parkCode) parkIds = [park.parkCode];
+            }
+
+            // For templates, automatically set dateEnd based on dateStart + nights
+            let dateEnd = initialData.dateEnd ? initialData.dateEnd.split('T')[0] : '';
+            if (initialData.isTemplate && initialData.dateStart && initialData.durationNightsMin && !dateEnd) {
+                try {
+                    const date = new Date(initialData.dateStart);
+                    date.setDate(date.getDate() + initialData.durationNightsMin);
+                    dateEnd = date.toISOString().split('T')[0];
+                } catch (e) {
+                    console.error('Failed to calculate end date', e);
+                }
+            }
+
+            setFormData({
+                name: initialData.name || '',
+                parks: parkIds,
                 dateStart: initialData.dateStart ? initialData.dateStart.split('T')[0] : '',
-                dateEnd: initialData.dateEnd ? initialData.dateEnd.split('T')[0] : '',
+                dateEnd: dateEnd,
                 nights: initialData.durationNightsMin || 7,
                 adults: initialData.partySizeAdults || 2,
                 children: initialData.partySizeChildren || 0,
-                pets: initialData.petsNumber || 0,
+                pets: initialData.petsNumber || (initialData.pets ? 1 : 0),
                 budgetMax: initialData.budgetCeilingGbp || null,
                 alertSensitivity: initialData.alertSensitivity || 'INSTANT',
                 checkFrequencyHours: initialData.checkFrequencyHours || 48,
             });
         }
-    }, [initialData]);
+    }, [initialData, parks]);
 
     const togglePark = (parkCode: string) => {
         const selected = formData.parks.includes(parkCode)

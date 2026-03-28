@@ -34,6 +34,7 @@ const PROVIDER_COLOURS: Record<string, string> = {
     butlins: 'bg-red-100 text-red-800',
     parkdean: 'bg-orange-100 text-orange-800',
     awayresorts: 'bg-purple-100 text-purple-800',
+    forestholidays: 'bg-teal-100 text-teal-800',
 };
 
 function discountLabel(deal: Deal): string {
@@ -285,8 +286,17 @@ export default function DealsPage() {
     function handleWatch(deal: Deal) {
         if (!deal.provider) return;
         const parkName = deal.restrictions?.parkName as string | undefined;
+        const startDate = deal.restrictions?.stayStartDate as string | undefined;
+        const nights = deal.restrictions?.stayNights as number | string | undefined;
+        const isPetFriendly = deal.eligibilityTags?.includes('PET_FRIENDLY');
+
         const params = new URLSearchParams({ createFor: deal.provider.code });
         if (parkName) params.set('parkName', parkName);
+        if (startDate) params.set('startDate', startDate);
+        if (nights) params.set('nights', String(nights));
+        if (deal.title) params.set('dealTitle', deal.title);
+        if (isPetFriendly) params.set('isPetFriendly', 'true');
+        
         router.push(`/dashboard?${params}`);
     }
 
@@ -315,6 +325,7 @@ export default function DealsPage() {
                         <option value="butlins">Butlins</option>
                         <option value="parkdean">Parkdean</option>
                         <option value="awayresorts">Away Resorts</option>
+                        <option value="forestholidays">Forest Holidays</option>
                     </select>
                 </div>
 

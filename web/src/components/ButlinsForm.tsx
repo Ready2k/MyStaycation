@@ -35,11 +35,33 @@ export function ButlinsForm({ initialData, onSuccess, onBack }: ButlinsFormProps
     useEffect(() => {
         if (initialData) {
             const metadata = initialData.metadata || {};
+            
+            let resort = (initialData.parkIds && initialData.parkIds[0]) || '';
+            if (initialData.isTemplate && initialData.prePopulatedParkName && !resort) {
+                const found = RESORTS.find(r => 
+                    r.name.toLowerCase().includes(initialData.prePopulatedParkName.toLowerCase()) ||
+                    initialData.prePopulatedParkName.toLowerCase().includes(r.name.toLowerCase())
+                );
+                if (found) resort = found.code;
+            }
+
+            // End date calculation
+            let dateEnd = initialData.dateEnd ? initialData.dateEnd.split('T')[0] : '';
+            if (initialData.isTemplate && initialData.dateStart && initialData.durationNightsMin && !dateEnd) {
+                try {
+                    const date = new Date(initialData.dateStart);
+                    date.setDate(date.getDate() + initialData.durationNightsMin);
+                    dateEnd = date.toISOString().split('T')[0];
+                } catch (e) {
+                    console.error('Failed to calculate end date', e);
+                }
+            }
+
             setFormData({
                 name: initialData.name || '',
-                resort: (initialData.parkIds && initialData.parkIds[0]) || '',
+                resort: resort,
                 dateStart: initialData.dateStart ? initialData.dateStart.split('T')[0] : '',
-                dateEnd: initialData.dateEnd ? initialData.dateEnd.split('T')[0] : '',
+                dateEnd: dateEnd,
                 nights: initialData.durationNightsMin || 3,
                 adults: initialData.partySizeAdults || 2,
                 children: initialData.partySizeChildren || 0,

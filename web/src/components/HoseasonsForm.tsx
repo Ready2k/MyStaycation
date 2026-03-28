@@ -32,13 +32,13 @@ export function HoseasonsForm({ initialData, onSuccess, onBack }: HoseasonsFormP
             const metadata = initialData.metadata || {};
             setFormData({
                 name: initialData.name || '',
-                region: initialData.region || '',
+                region: initialData.region || initialData.prePopulatedParkName || '',
                 dateStart: initialData.dateStart ? initialData.dateStart.split('T')[0] : '',
                 dateEnd: initialData.dateEnd ? initialData.dateEnd.split('T')[0] : '',
                 nights: initialData.durationNightsMin || 7,
                 adults: initialData.partySizeAdults || 2,
                 children: initialData.partySizeChildren || 0,
-                pets: initialData.petsNumber || 0,
+                pets: initialData.petsNumber || (initialData.pets ? 1 : 0),
                 budgetMax: initialData.budgetCeilingGbp || null,
                 propertyType: metadata.propertyType || 'Any',
                 alertSensitivity: initialData.alertSensitivity || 'INSTANT',

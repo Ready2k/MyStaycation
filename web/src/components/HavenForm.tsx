@@ -92,12 +92,36 @@ export function HavenForm({ initialData, onSuccess, onBack }: HavenFormProps) {
     useEffect(() => {
         if (initialData) {
             const metadata = initialData.metadata || {};
+            
+            let parkIds = Array.isArray(initialData.parkIds) ? initialData.parkIds :
+                    (typeof initialData.parkIds === 'string' ? initialData.parkIds.split(',') : []);
+
+            // Handle pre-populated park name if havenParks is already loaded
+            if (initialData.isTemplate && initialData.prePopulatedParkName && parkIds.length === 0 && havenParks.length > 0) {
+                const park = havenParks.find(p => 
+                    p.name.toLowerCase().includes(initialData.prePopulatedParkName.toLowerCase()) ||
+                    initialData.prePopulatedParkName.toLowerCase().includes(p.name.toLowerCase())
+                );
+                if (park) parkIds = [park.parkCode ?? park.name];
+            }
+
+            // For templates, automatically set dateEnd based on dateStart + nights
+            let dateEnd = initialData.dateEnd ? initialData.dateEnd.split('T')[0] : '';
+            if (initialData.isTemplate && initialData.dateStart && initialData.durationNightsMin && !dateEnd) {
+                try {
+                    const date = new Date(initialData.dateStart);
+                    date.setDate(date.getDate() + initialData.durationNightsMin);
+                    dateEnd = date.toISOString().split('T')[0];
+                } catch (e) {
+                    console.error('Failed to calculate end date', e);
+                }
+            }
+
             setFormData({
                 name: initialData.name || '',
-                parks: Array.isArray(initialData.parkIds) ? initialData.parkIds :
-                    (typeof initialData.parkIds === 'string' ? initialData.parkIds.split(',') : []),
+                parks: parkIds,
                 dateStart: initialData.dateStart ? initialData.dateStart.split('T')[0] : '',
-                dateEnd: initialData.dateEnd ? initialData.dateEnd.split('T')[0] : '',
+                dateEnd: dateEnd,
                 nights: initialData.durationNightsMin || 7,
                 adults: initialData.partySizeAdults || 2,
                 children: initialData.partySizeChildren || 0,
@@ -110,7 +134,7 @@ export function HavenForm({ initialData, onSuccess, onBack }: HavenFormProps) {
                 checkFrequencyHours: initialData.checkFrequencyHours || 48,
             });
         }
-    }, [initialData]);
+    }, [initialData, havenParks]);
 
     const saveMutation = useMutation({
         mutationFn: async (data: HavenFormData) => {

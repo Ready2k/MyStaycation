@@ -79,13 +79,41 @@ export function ForestHolidaysForm({ initialData, onSuccess, onBack }: ForestHol
     useEffect(() => {
         if (initialData) {
             const metadata = initialData.metadata || {};
+            
+            // If it's a template from a deal, we might need to map parkName to parkId
+            let parkIds = Array.isArray(initialData.parkIds) ? initialData.parkIds : [];
+            if (initialData.isTemplate && initialData.prePopulatedParkName && parkIds.length === 0) {
+                const park = PARKS.find(p => 
+                    p.name.toLowerCase().includes(initialData.prePopulatedParkName.toLowerCase()) ||
+                    initialData.prePopulatedParkName.toLowerCase().includes(p.name.toLowerCase())
+                );
+                if (park) parkIds = [park.code];
+            }
+
+            // For templates, automatically set dateEnd based on dateStart + nights
+            let dateEnd = initialData.dateEnd ? initialData.dateEnd.split('T')[0] : '';
+            if (initialData.isTemplate && initialData.dateStart && initialData.durationNightsMin && !dateEnd) {
+                try {
+                    const date = new Date(initialData.dateStart);
+                    date.setDate(date.getDate() + initialData.durationNightsMin);
+                    dateEnd = date.toISOString().split('T')[0];
+                } catch (e) {
+                    console.error('Failed to calculate end date', e);
+                }
+            }
+
             setFormData({
                 name: initialData.name || '',
-                parks: initialData.parkIds || [],
+                parks: parkIds,
                 dateStart: initialData.dateStart ? initialData.dateStart.split('T')[0] : '',
-                dateEnd: initialData.dateEnd ? initialData.dateEnd.split('T')[0] : '',
+                dateEnd: dateEnd,
                 nights: initialData.durationNightsMin || 7,
-                party: metadata.partyBreakdown || { adults: initialData.partySizeAdults || 2, children: initialData.partySizeChildren || 0, infants: 0, dogs: initialData.petsNumber || 0 },
+                party: metadata.partyBreakdown || { 
+                    adults: initialData.partySizeAdults || 2, 
+                    children: initialData.partySizeChildren || 0, 
+                    infants: 0, 
+                    dogs: initialData.petsNumber || 0 
+                },
                 minBedrooms: initialData.minBedrooms || 2,
                 budgetMax: initialData.budgetCeilingGbp || null,
                 alertSensitivity: initialData.alertSensitivity || 'INSTANT',

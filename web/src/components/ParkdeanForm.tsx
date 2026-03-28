@@ -30,15 +30,35 @@ export function ParkdeanForm({ initialData, onSuccess, onBack }: ParkdeanFormPro
     useEffect(() => {
         if (initialData) {
             const metadata = initialData.metadata || {};
+            
+            let parks = (initialData.parkIds || []).join(', ');
+            if (initialData.isTemplate && initialData.prePopulatedParkName && !parks) {
+                // For Parkdean we just use the name if we don't have a code, 
+                // as the user can edit it.
+                parks = initialData.prePopulatedParkName.toUpperCase();
+            }
+
+            // End date calculation
+            let dateEnd = initialData.dateEnd ? initialData.dateEnd.split('T')[0] : '';
+            if (initialData.isTemplate && initialData.dateStart && initialData.durationNightsMin && !dateEnd) {
+                try {
+                    const date = new Date(initialData.dateStart);
+                    date.setDate(date.getDate() + initialData.durationNightsMin);
+                    dateEnd = date.toISOString().split('T')[0];
+                } catch (e) {
+                    console.error('Failed to calculate end date', e);
+                }
+            }
+
             setFormData({
                 name: initialData.name || '',
-                parks: (initialData.parkIds || []).join(', '),
+                parks: parks,
                 dateStart: initialData.dateStart ? initialData.dateStart.split('T')[0] : '',
-                dateEnd: initialData.dateEnd ? initialData.dateEnd.split('T')[0] : '',
+                dateEnd: dateEnd,
                 nights: initialData.durationNightsMin || 7,
                 adults: initialData.partySizeAdults || 2,
                 children: initialData.partySizeChildren || 0,
-                pets: initialData.petsNumber || 0,
+                pets: initialData.petsNumber || (initialData.pets ? 1 : 0),
                 budgetMax: initialData.budgetCeilingGbp || null,
                 accomType: metadata.accomType || 'Any',
                 alertSensitivity: initialData.alertSensitivity || 'INSTANT',

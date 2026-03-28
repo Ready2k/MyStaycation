@@ -32,7 +32,7 @@ export const initializeDatabase = async () => {
         await AppDataSource.initialize();
         console.log('✅ Database connection established');
 
-        if (process.env.NODE_ENV === 'development' || process.env.RUN_MIGRATIONS === 'true') {
+        if (process.env.RUN_MIGRATIONS === 'true') {
             console.log('🔄 Running migrations...');
             const migrations = await AppDataSource.runMigrations();
             console.log(`✅ ${migrations.length} migrations completed`);

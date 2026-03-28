@@ -25,7 +25,26 @@ export default function DashboardPage() {
         const params = new URLSearchParams(window.location.search);
         const createFor = params.get('createFor');
         if (createFor) {
+            const parkName = params.get('parkName');
+            const startDate = params.get('startDate');
+            const nights = params.get('nights');
+            const dealTitle = params.get('dealTitle');
+            const isPetFriendly = params.get('isPetFriendly') === 'true';
+
+            // Construct template
+            const template = {
+                name: dealTitle || '',
+                parkIds: [],
+                prePopulatedParkName: parkName, // Hint for the form to map to parkIds
+                dateStart: startDate || '',
+                durationNightsMin: nights ? parseInt(nights) : undefined,
+                pets: isPetFriendly,
+                isTemplate: true
+            };
+            
+            setEditingProfile(template);
             handleProviderSelect(createFor);
+            
             // Remove the query string so back-navigation stays clean
             window.history.replaceState({}, '', window.location.pathname);
         }

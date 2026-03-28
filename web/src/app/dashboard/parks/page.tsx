@@ -29,6 +29,7 @@ const PROVIDER_COLOURS: Record<string, string> = {
     butlins: 'bg-red-100 text-red-800',
     parkdean: 'bg-orange-100 text-orange-800',
     awayresorts: 'bg-purple-100 text-purple-800',
+    forestholidays: 'bg-teal-100 text-teal-800',
 };
 
 function providerBadge(code: string, name: string) {
@@ -71,6 +72,12 @@ export default function ParksPage() {
     const providers = useMemo(() => {
         const seen = new Map<string, string>();
         parks.forEach(p => seen.set(p.providerCode, p.providerName));
+        
+        // Ensure Forest Holidays is in the list
+        if (!seen.has('forestholidays')) {
+            seen.set('forestholidays', 'Forest Holidays');
+        }
+        
         return Array.from(seen.entries()).map(([code, name]) => ({ code, name }));
     }, [parks]);
 

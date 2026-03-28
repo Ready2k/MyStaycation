@@ -84,12 +84,36 @@ export function CenterParcsForm({ initialData, onSuccess, onBack }: CenterParcsF
     useEffect(() => {
         if (initialData) {
             const metadata = initialData.metadata || {};
+
+            let villages = Array.isArray(initialData.parkIds) ? initialData.parkIds :
+                    (typeof initialData.parkIds === 'string' ? initialData.parkIds.split(',') : []);
+
+            // Handle pre-populated park name
+            if (initialData.isTemplate && initialData.prePopulatedParkName && villages.length === 0) {
+                const village = VILLAGES.find(v => 
+                    v.name.toLowerCase().includes(initialData.prePopulatedParkName.toLowerCase()) ||
+                    initialData.prePopulatedParkName.toLowerCase().includes(v.name.toLowerCase())
+                );
+                if (village) villages = [village.code];
+            }
+
+            // For templates, automatically set dateEnd based on dateStart + nights
+            let dateEnd = initialData.dateEnd ? initialData.dateEnd.split('T')[0] : '';
+            if (initialData.isTemplate && initialData.dateStart && initialData.durationNightsMin && !dateEnd) {
+                try {
+                    const date = new Date(initialData.dateStart);
+                    date.setDate(date.getDate() + initialData.durationNightsMin);
+                    dateEnd = date.toISOString().split('T')[0];
+                } catch (e) {
+                    console.error('Failed to calculate end date', e);
+                }
+            }
+
             setFormData({
                 name: initialData.name || '',
-                villages: Array.isArray(initialData.parkIds) ? initialData.parkIds :
-                    (typeof initialData.parkIds === 'string' ? initialData.parkIds.split(',') : []),
+                villages: villages,
                 dateStart: initialData.dateStart ? initialData.dateStart.split('T')[0] : '',
-                dateEnd: initialData.dateEnd ? initialData.dateEnd.split('T')[0] : '',
+                dateEnd: dateEnd,
                 nights: initialData.durationNightsMin || 7,
                 lodges: metadata.lodges || [{ adults: 2, children: 0, toddlers: 0, infants: 0, dogs: 0, bedrooms: 2 }],
                 budgetMax: initialData.budgetCeilingGbp || null,
