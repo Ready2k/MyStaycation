@@ -11,8 +11,9 @@ import { HoseasonsForm } from '@/components/HoseasonsForm';
 import { ButlinsForm } from '@/components/ButlinsForm';
 import { ParkdeanForm } from '@/components/ParkdeanForm';
 import { AwayResortsForm } from '@/components/AwayResortsForm';
+import { ForestHolidaysForm } from '@/components/ForestHolidaysForm';
 
-type WizardStep = 'list' | 'select-provider' | 'centerparcs' | 'haven' | 'hoseasons' | 'butlins' | 'parkdean' | 'awayresorts' | 'edit';
+type WizardStep = 'list' | 'select-provider' | 'centerparcs' | 'haven' | 'hoseasons' | 'butlins' | 'parkdean' | 'awayresorts' | 'forestholidays' | 'edit';
 
 export default function DashboardPage() {
     const [step, setStep] = useState<WizardStep>('list');
@@ -41,6 +42,7 @@ export default function DashboardPage() {
             'butlins': 'butlins',
             'parkdean': 'parkdean',
             'awayresorts': 'awayresorts',
+            'forestholidays': 'forestholidays',
         };
         setStep(stepMap[providerCode] || 'edit');
     };
@@ -87,6 +89,7 @@ export default function DashboardPage() {
                             'butlins': 'butlins',
                             'parkdean': 'parkdean',
                             'awayresorts': 'awayresorts',
+                            'forestholidays': 'forestholidays',
                         };
                         setStep(stepMap[providerCode] || 'edit');
                     }}
@@ -144,6 +147,14 @@ export default function DashboardPage() {
 
             {step === 'awayresorts' && (
                 <AwayResortsForm
+                    initialData={editingProfile}
+                    onSuccess={handleWatcherCreated}
+                    onBack={() => setStep(editingProfile ? 'list' : 'select-provider')}
+                />
+            )}
+
+            {step === 'forestholidays' && (
+                <ForestHolidaysForm
                     initialData={editingProfile}
                     onSuccess={handleWatcherCreated}
                     onBack={() => setStep(editingProfile ? 'list' : 'select-provider')}

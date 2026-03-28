@@ -40,6 +40,7 @@ const PROVIDER_COLOURS: Record<string, string> = {
     butlins:     'bg-red-100 text-red-800',
     parkdean:    'bg-orange-100 text-orange-800',
     awayresorts: 'bg-purple-100 text-purple-800',
+    forestholidays: 'bg-green-100 text-green-900',
 };
 
 function LastCheckedBadge({ run }: { run?: LastFetchRun | null }) {
